@@ -1909,7 +1909,7 @@ public function boxView(Request $request)
 }
 
 public function saveReadyToSellStock(Request $request)
-{
+{ 
     $user = Auth::user();
 
     if (!$user) {
