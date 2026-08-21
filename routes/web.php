@@ -1,0 +1,372 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\ModuleAccessController;
+use App\Http\Controllers\DesignSpecificationController;
+use App\Http\Controllers\Inventory\ReadyToSellStockController;
+use App\Http\Controllers\Inventory\FabricYarnBuyingController;
+
+
+Route::get('/', function () {
+    return redirect()->route('login');
+});
+
+
+/*
+|--------------------------------------------------------------------------
+| Login
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('guest')->group(function () {
+
+    Route::get('/login', [LoginController::class, 'showLogin'])
+        ->name('login');
+
+    Route::post('/login', [LoginController::class, 'login'])
+        ->name('login.submit');
+
+    Route::get('/login/sub-companies', [LoginController::class, 'getSubCompanies'])
+        ->name('login.subcompanies');
+
+    Route::get('/login/projects', [LoginController::class, 'getProjects'])
+        ->name('login.projects');
+});
+
+
+/*
+|--------------------------------------------------------------------------
+| Logout
+|--------------------------------------------------------------------------
+*/
+
+Route::post('/logout', [LoginController::class, 'logout'])
+    ->middleware('auth')
+    ->name('logout');
+
+
+/*
+|--------------------------------------------------------------------------
+| Dashboard
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth')->group(function () {
+
+    Route::get('/admin/dashboard', function () {
+
+        return view('admin.dashboard');
+
+    })
+    ->middleware(['auth', 'prevent.back'])
+    ->name('admin.dashboard');
+
+    Route::get('/user/dashboard', function () {
+
+        return view('user.dashboard');
+
+    })
+    ->middleware(['auth', 'prevent.back'])
+    ->name('user.dashboard');
+
+});
+
+/*
+|--------------------------------------------------------------------------
+| Module Access
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth')->group(function () {
+
+    Route::get(
+    '/admin/module-access',
+    [ModuleAccessController::class, 'index']
+    )
+    ->middleware(['auth', 'prevent.back'])
+    ->name('admin.module-access');
+
+    Route::post(
+        '/admin/module-access',
+        [ModuleAccessController::class, 'save']
+    )
+    ->middleware(['auth', 'prevent.back'])
+    ->name('admin.module-access.save');
+
+});
+
+Route::middleware('auth')->group(function () {
+
+   Route::get(
+    '/admin/design-specifications',
+    [DesignSpecificationController::class, 'index']
+)->name('design-specifications.index');
+
+Route::get(
+    '/admin/design-specifications/data',
+    [DesignSpecificationController::class, 'data']
+)->name('design-specifications.data');
+
+Route::post(
+    '/admin/design-specifications',
+    [DesignSpecificationController::class, 'store']
+)->name('design-specifications.store');
+
+Route::put(
+    '/admin/design-specifications/{id}',
+    [DesignSpecificationController::class, 'update']
+)->name('design-specifications.update');
+
+Route::patch(
+    '/admin/design-specifications/{id}',
+    [DesignSpecificationController::class, 'update']
+)->name('design-specifications.update.patch');
+
+Route::get(
+    '/admin/design-specifications/master/{master}',
+    [DesignSpecificationController::class, 'masterList']
+)->name('design-specifications.master.list');
+
+Route::post(
+    '/admin/design-specifications/master/{master}',
+    [DesignSpecificationController::class, 'masterStore']
+)->name('design-specifications.master.store');
+
+Route::put(
+    '/admin/design-specifications/master/{master}/{id}',
+    [DesignSpecificationController::class, 'masterUpdate']
+)->name('design-specifications.master.update');
+
+Route::get(
+    '/admin/design-specifications/uploaded-images',
+    [DesignSpecificationController::class, 'uploadedImages']
+)->name('design-specifications.uploaded-images');
+
+Route::get(
+    '/inventory/ready-to-sell-stock',
+    [ReadyToSellStockController::class, 'index']
+)->name('inventory.ready-to-sell-stock');
+
+Route::get(
+    '/admin/design-specifications/find-by-barcode',
+    [DesignSpecificationController::class, 'findByBarcode']
+)->name('design-specifications.find-by-barcode');
+
+Route::get(
+    '/inventory/ready-to-sell-stock',
+    [ReadyToSellStockController::class, 'index']
+)->name('inventory.ready-to-sell-stock');
+
+
+Route::get(
+    '/inventory/ready-to-sell-stock/warehouses',
+    [ReadyToSellStockController::class, 'getWarehouses']
+)->name('inventory.ready-to-sell-stock.warehouses');
+
+
+Route::get(
+    '/inventory/ready-to-sell-stock/locations',
+    [ReadyToSellStockController::class, 'getLocations']
+)->name('inventory.ready-to-sell-stock.locations');
+
+
+Route::get(
+    '/inventory/ready-to-sell-stock/boxes',
+    [ReadyToSellStockController::class, 'getBoxes']
+)->name('inventory.ready-to-sell-stock.boxes');
+
+Route::post(
+    '/inventory/ready-to-sell-stock/warehouse',
+    [ReadyToSellStockController::class, 'storeWarehouse']
+)->name(
+    'inventory.ready-to-sell-stock.warehouse.store'
+);
+
+Route::get(
+    '/inventory/ready-to-sell-stock/states',
+    [ReadyToSellStockController::class, 'getStates']
+)->name(
+    'inventory.ready-to-sell-stock.states'
+);
+
+Route::post(
+    '/inventory/ready-to-sell-stock/location',
+    [ReadyToSellStockController::class, 'storeLocation']
+)->name(
+    'inventory.ready-to-sell-stock.location.store'
+);
+
+Route::get(
+    '/inventory/ready-to-sell-stock/box-titles',
+    [ReadyToSellStockController::class, 'getBoxTitles']
+)->name(
+    'inventory.ready-to-sell-stock.box-titles'
+);
+
+
+Route::post(
+    '/inventory/ready-to-sell-stock/box',
+    [ReadyToSellStockController::class, 'storeBox']
+)->name(
+    'inventory.ready-to-sell-stock.box.store'
+);
+
+Route::post(
+    '/inventory/ready-to-sell-stock/save',
+    [
+        ReadyToSellStockController::class,
+        'saveReadyToSellStock'
+    ]
+)->name(
+    'inventory.ready-to-sell-stock.save'
+);
+
+Route::get(
+    '/inventory/view-stock',
+    [ReadyToSellStockController::class, 'viewStock']
+)->name(
+    'inventory.ready-to-sell-stock.view-stock'
+);
+
+Route::get(
+    '/inventory/view-stock/product/{barcode}',
+    [
+        ReadyToSellStockController::class,
+        'getProductStockDetails'
+    ]
+)->name(
+    'inventory.ready-to-sell-stock.product-details'
+);
+
+Route::get(
+    '/inventory/pattern-test-fit-stock',
+    [
+        ReadyToSellStockController::class,
+        'patternTestFitStock'
+    ]
+)->name(
+    'inventory.pattern-test-fit-stock'
+);
+
+Route::post(
+    '/inventory/pattern-test-fit-stock/save',
+    [
+        ReadyToSellStockController::class,
+        'savePatternTestFitStock'
+    ]
+)->name(
+    'inventory.pattern-test-fit-stock.save'
+);
+
+Route::get(
+    '/inventory/pattern-test-fit-stock/assignments',
+    [
+        ReadyToSellStockController::class,
+        'getPatternTestFitAssignments'
+    ]
+)->name(
+    'inventory.pattern-test-fit-stock.assignments'
+);
+
+Route::get(
+    '/inventory/pattern-test-fit-stock/view',
+    [
+        ReadyToSellStockController::class,
+        'viewPatternTestFitStock'
+    ]
+)->name(
+    'inventory.pattern-test-fit-stock.view'
+);
+
+Route::get(
+    '/inventory/pattern-test-fit-stock/data',
+    [
+        ReadyToSellStockController::class,
+        'getPatternTestFitStock'
+    ]
+)->name(
+    'inventory.pattern-test-fit-stock.data'
+);
+
+/*
+|--------------------------------------------------------------------------
+| Fabric-Yarn Buying Application
+|--------------------------------------------------------------------------
+*/
+
+/*
+|--------------------------------------------------------------------------
+| Fabric-Yarn Buying Application
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth')->group(function () {
+
+    // Main page
+    Route::get(
+        '/inventory/fabric-yarn-buying',
+        [FabricYarnBuyingController::class, 'index']
+    )->name(
+        'inventory.fabric-yarn-buying'
+    );
+
+
+    // Markets
+    Route::get(
+        '/inventory/fabric-yarn-buying/markets',
+        [FabricYarnBuyingController::class, 'getMarkets']
+    )->name(
+        'inventory.fabric-yarn-buying.markets'
+    );
+
+
+    // Shops according to selected market
+    Route::get(
+        '/inventory/fabric-yarn-buying/shops',
+        [FabricYarnBuyingController::class, 'getShops']
+    )->name(
+        'inventory.fabric-yarn-buying.shops'
+    );
+
+
+    // Selected shop details
+    Route::get(
+        '/inventory/fabric-yarn-buying/shop-details',
+        [FabricYarnBuyingController::class, 'getShopDetails']
+    )->name(
+        'inventory.fabric-yarn-buying.shop-details'
+    );
+
+
+    // Generate PKU number
+    Route::get(
+        '/inventory/fabric-yarn-buying/generate-pku',
+        [FabricYarnBuyingController::class, 'generatePku']
+    )->name(
+        'inventory.fabric-yarn-buying.generate-pku'
+    );
+
+
+    // Save complete Fabric/Yarn purchase
+    Route::post(
+        '/inventory/fabric-yarn-buying/save',
+        [FabricYarnBuyingController::class, 'save']
+    )->name(
+        'inventory.fabric-yarn-buying.save'
+    );
+
+});
+
+Route::get(
+    '/inventory/box-view',
+    [
+        ReadyToSellStockController::class,
+        'boxView'
+    ]
+)->name(
+    'inventory.ready-to-sell-stock.box-view'
+);
+
+
+});
