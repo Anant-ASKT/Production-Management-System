@@ -6,6 +6,8 @@ use App\Http\Controllers\ModuleAccessController;
 use App\Http\Controllers\DesignSpecificationController;
 use App\Http\Controllers\Inventory\ReadyToSellStockController;
 use App\Http\Controllers\Inventory\FabricYarnBuyingController;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
 
 
 Route::get('/', function () {
@@ -153,10 +155,6 @@ Route::get(
     [DesignSpecificationController::class, 'findByBarcode']
 )->name('design-specifications.find-by-barcode');
 
-Route::get(
-    '/inventory/ready-to-sell-stock',
-    [ReadyToSellStockController::class, 'index']
-)->name('inventory.ready-to-sell-stock');
 
 
 Route::get(
@@ -358,6 +356,25 @@ Route::middleware('auth')->group(function () {
 
 });
 
+/*
+|--------------------------------------------------------------------------
+| END PROTECTED ROUTES
+|--------------------------------------------------------------------------
+*/
+
+});
+
+
+/*
+|--------------------------------------------------------------------------
+| PUBLIC BOX QR VIEW
+|--------------------------------------------------------------------------
+|
+| IMPORTANT:
+| This route MUST be outside auth middleware.
+|
+*/
+
 Route::get(
     '/inventory/box-view',
     [
@@ -368,5 +385,66 @@ Route::get(
     'inventory.ready-to-sell-stock.box-view'
 );
 
+// Route::get('/inventory/box-view-debug', function (Request $request) {
 
-});
+//     $companyId = (int) $request->query('company_id');
+//     $subCompanyId = (int) $request->query('sub_company_id');
+//     $projectId = (int) $request->query('project_id');
+//     $warehouseId = (int) $request->query('warehouse_id');
+//     $locationId = (int) $request->query('location_id');
+//     $boxId = (int) $request->query('box_id');
+//     $boxQr = trim((string) $request->query('box_qr'));
+
+//     /*
+//     |--------------------------------------------------------------------------
+//     | Check box by ID only
+//     |--------------------------------------------------------------------------
+//     */
+
+//     $boxById = DB::table('tbl_boxes')
+//         ->where('sno', $boxId)
+//         ->first();
+
+
+//     /*
+//     |--------------------------------------------------------------------------
+//     | Check exact box
+//     |--------------------------------------------------------------------------
+//     */
+
+//     $exactBox = DB::table('tbl_boxes')
+//         ->where('sno', $boxId)
+//         ->where('companyid', $companyId)
+//         ->where('subcompanyid', $subCompanyId)
+//         ->where('projectid', $projectId)
+//         ->where('warehouseid', $warehouseId)
+//         ->where('location', $locationId)
+//         ->where('boxno', $boxQr)
+//         ->first();
+
+
+//     return response()->json([
+
+//         'success' => true,
+
+//         'received' => [
+//             'company_id' => $companyId,
+//             'sub_company_id' => $subCompanyId,
+//             'project_id' => $projectId,
+//             'warehouse_id' => $warehouseId,
+//             'location_id' => $locationId,
+//             'box_id' => $boxId,
+//             'box_qr' => $boxQr,
+//         ],
+
+//         'box_found_by_id' => $boxById ? true : false,
+
+//         'box_by_id' => $boxById,
+
+//         'exact_box_found' => $exactBox ? true : false,
+
+//         'exact_box' => $exactBox,
+
+//     ]);
+
+// });
