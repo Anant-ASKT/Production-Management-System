@@ -1044,12 +1044,10 @@ public function storeBox(Request $request)
     $user = Auth::user();
 
     if (!$user) {
-
         return response()->json([
             'success' => false,
             'message' => 'Unauthenticated.'
         ], 401);
-
     }
 
 
@@ -1060,16 +1058,9 @@ public function storeBox(Request $request)
     */
 
     $validated = $request->validate([
-
-        'warehouse_id' =>
-            'required|integer',
-
-        'location_id' =>
-            'required|integer',
-
-        'box_title' =>
-            'required|string|max:200',
-
+        'warehouse_id' => 'required|integer',
+        'location_id'  => 'required|integer',
+        'box_title'    => 'required|string|max:200',
     ]);
 
 
@@ -1079,14 +1070,11 @@ public function storeBox(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $companyId =
-        (int) ($user->company_id ?? 0);
+    $companyId = (int) ($user->company_id ?? 0);
 
-    $subCompanyId =
-        (int) ($user->sub_company_id ?? 0);
+    $subCompanyId = (int) ($user->sub_company_id ?? 0);
 
-    $projectId =
-        (int) ($user->project_id ?? 0);
+    $projectId = (int) ($user->project_id ?? 0);
 
 
     /*
@@ -1095,16 +1083,11 @@ public function storeBox(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $warehouseId =
-        (int) $validated['warehouse_id'];
+    $warehouseId = (int) $validated['warehouse_id'];
 
-    $locationId =
-        (int) $validated['location_id'];
+    $locationId = (int) $validated['location_id'];
 
-    $boxTitle =
-        trim(
-            $validated['box_title']
-        );
+    $boxTitle = trim($validated['box_title']);
 
 
     /*
@@ -1113,36 +1096,18 @@ public function storeBox(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $warehouse = DB::table(
-        'strs_warehouse'
-    )
-    ->where(
-        'sno',
-        $warehouseId
-    )
-    ->where(
-        'companyid',
-        $companyId
-    )
-    ->where(
-        'subcompanyid',
-        $subCompanyId
-    )
-    ->where(
-        'projectid',
-        $projectId
-    )
-    ->first();
-
+    $warehouse = DB::table('strs_warehouse')
+        ->where('sno', $warehouseId)
+        ->where('companyid', $companyId)
+        ->where('subcompanyid', $subCompanyId)
+        ->where('projectid', $projectId)
+        ->first();
 
     if (!$warehouse) {
-
         return response()->json([
             'success' => false,
-            'message' =>
-                'Selected warehouse was not found.'
+            'message' => 'Selected warehouse was not found.'
         ], 422);
-
     }
 
 
@@ -1152,126 +1117,73 @@ public function storeBox(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $location = DB::table(
-        'strs_locationmaster'
-    )
-    ->where(
-        'sno',
-        $locationId
-    )
-    ->where(
-        'warehouse_id',
-        $warehouseId
-    )
-    ->where(
-        'companyid',
-        $companyId
-    )
-    ->where(
-        'subcompanyid',
-        $subCompanyId
-    )
-    ->where(
-        'projectid',
-        $projectId
-    )
-    ->first();
-
+    $location = DB::table('strs_locationmaster')
+        ->where('sno', $locationId)
+        ->where('warehouse_id', $warehouseId)
+        ->where('companyid', $companyId)
+        ->where('subcompanyid', $subCompanyId)
+        ->where('projectid', $projectId)
+        ->first();
 
     if (!$location) {
-
         return response()->json([
             'success' => false,
-            'message' =>
-                'Selected location was not found for this warehouse.'
+            'message' => 'Selected location was not found for this warehouse.'
         ], 422);
-
     }
 
 
     /*
     |--------------------------------------------------------------------------
-    | GENERATE id_max
-    |--------------------------------------------------------------------------
-    |
-    | Same logic as your existing code.
-    |
-    */
-
-    $maxIdMax = DB::table(
-        'tbl_boxes'
-    )
-    ->where(
-        'warehouseid',
-        $warehouseId
-    )
-    ->where(
-        'location',
-        $locationId
-    )
-    ->whereRaw(
-        'LOWER(TRIM(box_title)) = LOWER(TRIM(?))',
-        [
-            $boxTitle
-        ]
-    )
-    ->max(
-        'id_max'
-    );
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | NEXT id_max
+    | GENERATE NEXT BOX SEQUENCE
     |--------------------------------------------------------------------------
     */
 
-    $nextIdMax =
-        $maxIdMax !== null
-            ? ((int) $maxIdMax + 1)
-            : 1;
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | GENERATE UNIQUE RECORD ID
-    |--------------------------------------------------------------------------
-    */
-
-    $maxRecordId =
-        DB::table(
-            'tbl_boxes'
+    $maxIdMax = DB::table('tbl_boxes')
+        ->where('warehouseid', $warehouseId)
+        ->where('location', $locationId)
+        ->whereRaw(
+            'LOWER(TRIM(box_title)) = LOWER(TRIM(?))',
+            [$boxTitle]
         )
-        ->max(
-            'id'
-        );
+        ->max('id_max');
 
 
-    $nextRecordId =
-        $maxRecordId !== null
-            ? ((int) $maxRecordId + 1)
-            : 1;
+    $nextIdMax = $maxIdMax !== null
+        ? ((int) $maxIdMax + 1)
+        : 1;
 
 
     /*
     |--------------------------------------------------------------------------
-    | MAKE SURE RECORD ID IS UNIQUE
+    | GENERATE UNIQUE DATABASE ID
+    |
+    | IMPORTANT:
+    | `id` is the Box ID.
+    | `sno` is NOT used as Box ID.
+    |--------------------------------------------------------------------------
+    */
+
+    $maxRecordId = DB::table('tbl_boxes')
+        ->max('id');
+
+    $boxId = $maxRecordId !== null
+        ? ((int) $maxRecordId + 1)
+        : 1;
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | MAKE SURE ID IS UNIQUE
     |--------------------------------------------------------------------------
     */
 
     while (
-        DB::table(
-            'tbl_boxes'
-        )
-        ->where(
-            'id',
-            $nextRecordId
-        )
-        ->exists()
+        DB::table('tbl_boxes')
+            ->where('id', $boxId)
+            ->exists()
     ) {
-
-        $nextRecordId++;
-
+        $boxId++;
     }
 
 
@@ -1281,10 +1193,7 @@ public function storeBox(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $boxNo =
-        $boxTitle .
-        '-' .
-        $nextIdMax;
+    $boxNo = $boxTitle . '-' . $nextIdMax;
 
 
     /*
@@ -1293,46 +1202,36 @@ public function storeBox(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $boxExists = DB::table(
-        'tbl_boxes'
-    )
-    ->where(
-        'boxno',
-        $boxNo
-    )
-    ->exists();
-
+    $boxExists = DB::table('tbl_boxes')
+        ->where('boxno', $boxNo)
+        ->exists();
 
     if ($boxExists) {
-
         return response()->json([
             'success' => false,
-            'message' =>
-                'Generated Box No already exists. Please try again.'
+            'message' => 'Generated Box No already exists. Please try again.'
         ], 422);
-
     }
 
 
     /*
     |--------------------------------------------------------------------------
     | INSERT BOX
+    |
+    | IMPORTANT:
+    | We explicitly save our generated `$boxId` into `id`.
     |--------------------------------------------------------------------------
     */
 
-    $boxSno = DB::table(
-        'tbl_boxes'
-    )
-    ->insertGetId([
+    DB::table('tbl_boxes')->insert([
 
         /*
         |--------------------------------------------------------------------------
-        | UNIQUE RECORD ID
+        | BOX ID
         |--------------------------------------------------------------------------
         */
 
-        'id' =>
-            $nextRecordId,
+        'id' => $boxId,
 
 
         /*
@@ -1341,14 +1240,11 @@ public function storeBox(Request $request)
         |--------------------------------------------------------------------------
         */
 
-        'companyid' =>
-            $companyId,
+        'companyid' => $companyId,
 
-        'subcompanyid' =>
-            $subCompanyId,
+        'subcompanyid' => $subCompanyId,
 
-        'projectid' =>
-            $projectId,
+        'projectid' => $projectId,
 
 
         /*
@@ -1357,8 +1253,7 @@ public function storeBox(Request $request)
         |--------------------------------------------------------------------------
         */
 
-        'id_max' =>
-            $nextIdMax,
+        'id_max' => $nextIdMax,
 
 
         /*
@@ -1367,8 +1262,7 @@ public function storeBox(Request $request)
         |--------------------------------------------------------------------------
         */
 
-        'box_title' =>
-            $boxTitle,
+        'box_title' => $boxTitle,
 
 
         /*
@@ -1377,8 +1271,7 @@ public function storeBox(Request $request)
         |--------------------------------------------------------------------------
         */
 
-        'boxno' =>
-            $boxNo,
+        'boxno' => $boxNo,
 
 
         /*
@@ -1387,8 +1280,7 @@ public function storeBox(Request $request)
         |--------------------------------------------------------------------------
         */
 
-        'warehouseid' =>
-            $warehouseId,
+        'warehouseid' => $warehouseId,
 
 
         /*
@@ -1397,8 +1289,7 @@ public function storeBox(Request $request)
         |--------------------------------------------------------------------------
         */
 
-        'location' =>
-            $locationId,
+        'location' => $locationId,
 
 
         /*
@@ -1407,36 +1298,28 @@ public function storeBox(Request $request)
         |--------------------------------------------------------------------------
         */
 
-        'FloorNo' =>
-            $location->floornumber,
+        'FloorNo' => $location->floornumber,
 
-        'StackNo' =>
-            $location->stackno,
+        'StackNo' => $location->stackno,
 
-        'RackNo' =>
-            $location->racknumber,
+        'RackNo' => $location->racknumber,
 
 
         /*
         |--------------------------------------------------------------------------
-        | NEW BOX STATUS
+        | STATUS
         |--------------------------------------------------------------------------
         */
 
-        'status' =>
-            null,
+        'status' => null,
 
-        'tedit' =>
-            null,
+        'tedit' => null,
 
-        'transferboxno' =>
-            null,
+        'transferboxno' => null,
 
-        'transferboxid' =>
-            null,
+        'transferboxid' => null,
 
-        'transfer_status' =>
-            null,
+        'transfer_status' => null,
 
     ]);
 
@@ -1444,40 +1327,34 @@ public function storeBox(Request $request)
     /*
     |--------------------------------------------------------------------------
     | CREATE QR URL
-    |--------------------------------------------------------------------------
     |
     | IMPORTANT:
     |
-    | We create the URL AFTER the box is inserted
-    | because we need $boxSno.
+    | box_id = $boxId
     |
+    | NOT $sno
+    |--------------------------------------------------------------------------
     */
 
     $qrUrl = route(
         'inventory.ready-to-sell-stock.box-view',
         [
+            'company_id' => $companyId,
 
-            'company_id' =>
-                $companyId,
+            'sub_company_id' => $subCompanyId,
 
-            'sub_company_id' =>
-                $subCompanyId,
+            'project_id' => $projectId,
 
-            'project_id' =>
-                $projectId,
+            'warehouse_id' => $warehouseId,
 
-            'warehouse_id' =>
-                $warehouseId,
+            'location_id' => $locationId,
 
-            'location_id' =>
-                $locationId,
+            // IMPORTANT:
+            // Use tbl_boxes.id
+            'box_id' => $boxId,
 
-            'box_id' =>
-                $boxSno,
-
-            'box_qr' =>
-                $boxNo,
-
+            // Human-readable box number
+            'box_qr' => $boxNo,
         ]
     );
 
@@ -1485,22 +1362,17 @@ public function storeBox(Request $request)
     /*
     |--------------------------------------------------------------------------
     | SAVE QR URL
+    |
+    | IMPORTANT:
+    | Update by `id`, NOT `sno`
     |--------------------------------------------------------------------------
     */
 
-    DB::table(
-        'tbl_boxes'
-    )
-    ->where(
-        'sno',
-        $boxSno
-    )
-    ->update([
-
-        'qr_code' =>
-            $qrUrl
-
-    ]);
+    DB::table('tbl_boxes')
+        ->where('id', $boxId)
+        ->update([
+            'qr_code' => $qrUrl
+        ]);
 
 
     /*
@@ -1509,14 +1381,9 @@ public function storeBox(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $box = DB::table(
-        'tbl_boxes'
-    )
-    ->where(
-        'sno',
-        $boxSno
-    )
-    ->first();
+    $box = DB::table('tbl_boxes')
+        ->where('id', $boxId)
+        ->first();
 
 
     /*
@@ -1527,14 +1394,11 @@ public function storeBox(Request $request)
 
     return response()->json([
 
-        'success' =>
-            true,
+        'success' => true,
 
-        'message' =>
-            'Box created successfully.',
+        'message' => 'Box created successfully.',
 
-        'data' =>
-            $box
+        'data' => $box
 
     ]);
 }
@@ -1543,115 +1407,71 @@ public function boxView(Request $request)
 {
     /*
     |--------------------------------------------------------------------------
-    | GET QR VALUES
+    | GET QR PARAMETERS
     |--------------------------------------------------------------------------
     */
 
-    $companyId =
-        (int) $request->query('company_id');
+    $companyId = (int) $request->query('company_id');
 
-    $subCompanyId =
-        (int) $request->query('sub_company_id');
+    $subCompanyId = (int) $request->query('sub_company_id');
 
-    $projectId =
-        (int) $request->query('project_id');
+    $projectId = (int) $request->query('project_id');
 
-    $warehouseId =
-        (int) $request->query('warehouse_id');
+    $warehouseId = (int) $request->query('warehouse_id');
 
-    $locationId =
-        (int) $request->query('location_id');
+    $locationId = (int) $request->query('location_id');
 
-    $boxId =
-        (int) $request->query('box_id');
+    // IMPORTANT:
+    // box_id is tbl_boxes.id
+    $boxId = (int) $request->query('box_id');
 
-    $boxQr =
-        trim(
-            (string) $request->query(
-                'box_qr',
-                ''
-            )
-        );
+    $boxQr = trim(
+        (string) $request->query('box_qr', '')
+    );
 
 
     /*
     |--------------------------------------------------------------------------
-    | BASIC VALIDATION
+    | VALIDATION
     |--------------------------------------------------------------------------
     */
 
     if (
-        !$companyId ||
-        !$subCompanyId ||
-        !$projectId ||
-        !$warehouseId ||
-        !$locationId ||
-        !$boxId ||
+        $companyId <= 0 ||
+        $subCompanyId <= 0 ||
+        $projectId <= 0 ||
+        $warehouseId <= 0 ||
+        $locationId <= 0 ||
+        $boxId <= 0 ||
         $boxQr === ''
     ) {
-
-        abort(
-            404,
-            'Invalid Box QR.'
-        );
-
+        abort(404, 'Invalid Box QR.');
     }
 
 
     /*
     |--------------------------------------------------------------------------
     | GET BOX
+    |
+    | IMPORTANT:
+    | tbl_boxes.id is the Box ID.
+    | DO NOT use tbl_boxes.sno here.
     |--------------------------------------------------------------------------
     */
 
-    $box =
-        DB::table('tbl_boxes')
-
-        ->where(
-            'sno',
-            $boxId
-        )
-
-        ->where(
-            'companyid',
-            $companyId
-        )
-
-        ->where(
-            'subcompanyid',
-            $subCompanyId
-        )
-
-        ->where(
-            'projectid',
-            $projectId
-        )
-
-        ->where(
-            'warehouseid',
-            $warehouseId
-        )
-
-        ->where(
-            'location',
-            $locationId
-        )
-
-        ->where(
-            'boxno',
-            $boxQr
-        )
-
+    $box = DB::table('tbl_boxes')
+        ->where('id', $boxId)
+        ->where('companyid', $companyId)
+        ->where('subcompanyid', $subCompanyId)
+        ->where('projectid', $projectId)
+        ->where('warehouseid', $warehouseId)
+        ->where('location', $locationId)
+        ->where('boxno', $boxQr)
         ->first();
 
 
     if (!$box) {
-
-        abort(
-            404,
-            'Box not found.'
-        );
-
+        abort(404, 'Box not found.');
     }
 
 
@@ -1661,29 +1481,8 @@ public function boxView(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $warehouse =
-        DB::table('strs_warehouse')
-
-        ->where(
-            'sno',
-            $warehouseId
-        )
-
-        ->where(
-            'companyid',
-            $companyId
-        )
-
-        ->where(
-            'subcompanyid',
-            $subCompanyId
-        )
-
-        ->where(
-            'projectid',
-            $projectId
-        )
-
+    $warehouse = DB::table('strs_warehouse')
+        ->where('sno', $warehouseId)
         ->first();
 
 
@@ -1693,81 +1492,238 @@ public function boxView(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $location =
-        DB::table('strs_locationmaster')
-
-        ->where(
-            'sno',
-            $locationId
-        )
-
-        ->where(
-            'warehouse_id',
-            $warehouseId
-        )
-
-        ->where(
-            'companyid',
-            $companyId
-        )
-
-        ->where(
-            'subcompanyid',
-            $subCompanyId
-        )
-
-        ->where(
-            'projectid',
-            $projectId
-        )
-
+    $location = DB::table('strs_locationmaster')
+        ->where('sno', $locationId)
         ->first();
 
 
     /*
     |--------------------------------------------------------------------------
-    | GET STOCK IN THIS BOX
+    | GET ALL STOCK INSIDE THIS BOX
+    |
+    | IMPORTANT:
+    |
+    | vendor_stock.boxid must contain tbl_boxes.id
+    |
+    | Therefore use $box->id.
     |--------------------------------------------------------------------------
-    |
-    | Your Ready-to-Sell save process stores stock
-    | in vendor_stock and uses boxid.
-    |
     */
 
-    $stock =
-        DB::table('vendor_stock as vs')
+    $stock = DB::table('vendor_stock as vs')
+
+        /*
+        |--------------------------------------------------------------------------
+        | DESIGN SPECIFICATION
+        |--------------------------------------------------------------------------
+        */
 
         ->leftJoin(
-            'auto_designer_specification_master as p',
+            'auto_designer_specification_master as dsm',
             function ($join) {
 
                 $join
                     ->on(
-                        'p.barcode',
+                        'dsm.barcode',
                         '=',
                         'vs.barcode'
                     )
-
                     ->on(
-                        'p.companyid',
+                        'dsm.companyid',
                         '=',
                         'vs.companyid'
                     )
-
                     ->on(
-                        'p.subcompanyid',
+                        'dsm.subcompanyid',
                         '=',
                         'vs.subcompanyid'
                     )
-
                     ->on(
-                        'p.projectid',
+                        'dsm.projectid',
                         '=',
                         'vs.projectid'
                     );
-
             }
         )
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DESIGNER
+        |--------------------------------------------------------------------------
+        */
+
+        ->leftJoin(
+            'auto_designer_master as designer',
+            'designer.sno',
+            '=',
+            'dsm.designer_name'
+        )
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ITEM TYPE
+        |--------------------------------------------------------------------------
+        */
+
+        ->leftJoin(
+            'auto_itemtype_master as itemtype',
+            'itemtype.sno',
+            '=',
+            'dsm.item_type'
+        )
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | GENDER
+        |--------------------------------------------------------------------------
+        */
+
+        ->leftJoin(
+            'auto_gender_master as gender',
+            'gender.sno',
+            '=',
+            'dsm.gender'
+        )
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ITEM NAME
+        |--------------------------------------------------------------------------
+        */
+
+        ->leftJoin(
+            'auto_itemname_master as itemname',
+            'itemname.sno',
+            '=',
+            'dsm.item_name'
+        )
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | COMPOSITION
+        |--------------------------------------------------------------------------
+        */
+
+        ->leftJoin(
+            'auto_composition_master_stock as composition',
+            'composition.sno',
+            '=',
+            'dsm.composition'
+        )
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | COLOUR
+        |--------------------------------------------------------------------------
+        */
+
+        ->leftJoin(
+            'auto_colour_master as colour',
+            'colour.sno',
+            '=',
+            'dsm.colour'
+        )
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SIZE
+        |--------------------------------------------------------------------------
+        */
+
+        ->leftJoin(
+            'auto_size_master as size',
+            'size.sno',
+            '=',
+            'dsm.sizes'
+        )
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | EMBELLISHMENT
+        |--------------------------------------------------------------------------
+        */
+
+        ->leftJoin(
+            'auto_embellishment_master as embellishment',
+            'embellishment.sno',
+            '=',
+            'dsm.embellishment'
+        )
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | MANUFACTURING PROCESS
+        |--------------------------------------------------------------------------
+        */
+
+        ->leftJoin(
+            'auto_manufacturing_process_master as manufacturing',
+            'manufacturing.sno',
+            '=',
+            'dsm.manufacturing_process'
+        )
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CRAFTSMAN
+        |--------------------------------------------------------------------------
+        */
+
+        ->leftJoin(
+            'auto_craftsman_master as craftsman',
+            'craftsman.sno',
+            '=',
+            'dsm.craftsman'
+        )
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | MANUFACTURER
+        |--------------------------------------------------------------------------
+        */
+
+        ->leftJoin(
+            'auto_manufacture_master as manufacture',
+            'manufacture.sno',
+            '=',
+            'dsm.manufecture'
+        )
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CLIENT
+        |--------------------------------------------------------------------------
+        |
+        | IMPORTANT:
+        | Your existing project uses client.name
+        | NOT client.clientname.
+        |--------------------------------------------------------------------------
+        */
+
+        ->leftJoin(
+            'auto_client_master as client',
+            'client.sno',
+            '=',
+            'dsm.client'
+        )
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | FILTER STOCK
+        |--------------------------------------------------------------------------
+        */
 
         ->where(
             'vs.companyid',
@@ -1794,10 +1750,26 @@ public function boxView(Request $request)
             $locationId
         )
 
+        /*
+        |--------------------------------------------------------------------------
+        | IMPORTANT:
+        | Use the actual Box ID.
+        |
+        | tbl_boxes.id
+        |--------------------------------------------------------------------------
+        */
+
         ->where(
             'vs.boxid',
-            $boxId
+            $box->id
         )
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SELECT
+        |--------------------------------------------------------------------------
+        */
 
         ->select([
 
@@ -1826,31 +1798,46 @@ public function boxView(Request $request)
 
             /*
             |--------------------------------------------------------------------------
-            | PRODUCT
+            | SPECIFICATION
             |--------------------------------------------------------------------------
             */
 
-            'p.sno as product_id',
+            'dsm.sno as specification_id',
 
-            'p.sku',
+            'dsm.sku',
 
-            'p.item_name',
+            'dsm.img_path',
 
-            'p.item_type',
 
-            'p.designer_name',
+            /*
+            |--------------------------------------------------------------------------
+            | MASTER DISPLAY NAMES
+            |--------------------------------------------------------------------------
+            */
 
-            'p.colour',
+            'itemname.itemname as item_name_text',
 
-            'p.sizes',
+            'itemtype.itemtype as item_type_text',
 
-            'p.gender',
+            'gender.name as gender_text',
 
-            'p.composition',
+            'designer.designername as designer_name_text',
 
-            'p.manufacturing_process',
+            'composition.composition_details as composition_text',
 
-            'p.img_path'
+            'colour.colourname as colour_text',
+
+            'size.size as size_text',
+
+            'embellishment.embellishmentname as embellishment_text',
+
+            'manufacturing.manufacturing_process as manufacturing_process_text',
+
+            'craftsman.name as craftsman_text',
+
+            'manufacture.name as manufacture_text',
+
+            'client.name as client_name_text',
 
         ])
 
@@ -1864,24 +1851,329 @@ public function boxView(Request $request)
 
     /*
     |--------------------------------------------------------------------------
+    | CREATE IMAGE URL
+    |--------------------------------------------------------------------------
+    |
+    | img_path can contain:
+    |
+    | 1. JSON array
+    | 2. Normal path
+    | 3. ../../ path
+    |
+    */
+
+    $stock->transform(
+    function ($item) {
+
+        $item->image_url = null;
+
+        if (empty($item->img_path)) {
+            return $item;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ORIGINAL VALUE
+        |--------------------------------------------------------------------------
+        */
+
+        $rawPath = trim(
+            (string) $item->img_path
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | NORMALIZE SLASHES
+        |--------------------------------------------------------------------------
+        */
+
+        $rawPath = str_replace(
+            '\\',
+            '/',
+            $rawPath
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | REMOVE ../../
+        |--------------------------------------------------------------------------
+        */
+
+        $rawPath = preg_replace(
+            '#^(\.\./)+#',
+            '',
+            $rawPath
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CASE 1:
+        | JSON ARRAY
+        |
+        | Example:
+        |
+        | ["ItemsDesigner_Masterwithbarcode/14791265121832/image.jpeg"]
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            str_starts_with($rawPath, '[')
+        ) {
+
+            $decoded = json_decode(
+                $rawPath,
+                true
+            );
+
+
+            if (
+                is_array($decoded) &&
+                !empty($decoded)
+            ) {
+
+                /*
+                | Use first valid image path
+                */
+
+                foreach ($decoded as $path) {
+
+                    $path = trim(
+                        (string) $path
+                    );
+
+                    if ($path === '') {
+                        continue;
+                    }
+
+                    $path = str_replace(
+                        '\\',
+                        '/',
+                        $path
+                    );
+
+                    $path = preg_replace(
+                        '#^(\.\./)+#',
+                        '',
+                        $path
+                    );
+
+                    $path = ltrim(
+                        $path,
+                        '/'
+                    );
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Check physical file
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $fullPath = public_path(
+                        $path
+                    );
+
+                    if (
+                        is_file($fullPath)
+                    ) {
+
+                        $item->image_url = asset(
+                            $path
+                        );
+
+                        break;
+                    }
+                }
+            }
+
+
+            return $item;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CASE 2:
+        | NORMAL FILE PATH
+        |
+        | Example:
+        |
+        | ItemsDesigner_Masterwithbarcode/abc/image.jpeg
+        |--------------------------------------------------------------------------
+        */
+
+        $path = ltrim(
+            $rawPath,
+            '/'
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Check if direct image file exists
+        |--------------------------------------------------------------------------
+        */
+
+        $fullPath = public_path(
+            $path
+        );
+
+
+        if (
+            is_file($fullPath)
+        ) {
+
+            $item->image_url = asset(
+                $path
+            );
+
+            return $item;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CASE 3:
+        | OLD DATA CONTAINS DIRECTORY ONLY
+        |
+        | Example:
+        |
+        | ../../ItemsDesigner_Masterwithbarcode/14791851242311112/
+        |--------------------------------------------------------------------------
+        */
+
+        $directoryPath = rtrim(
+            $path,
+            '/'
+        );
+
+
+        $fullDirectoryPath = public_path(
+            $directoryPath
+        );
+
+
+        if (
+            is_dir($fullDirectoryPath)
+        ) {
+
+            /*
+            |--------------------------------------------------------------------------
+            | Search image files inside directory
+            |--------------------------------------------------------------------------
+            */
+
+            $files = scandir(
+                $fullDirectoryPath
+            );
+
+
+            if (
+                is_array($files)
+            ) {
+
+                foreach ($files as $file) {
+
+                    /*
+                    | Ignore . and ..
+                    */
+
+                    if (
+                        $file === '.' ||
+                        $file === '..'
+                    ) {
+                        continue;
+                    }
+
+
+                    $fileFullPath =
+                        $fullDirectoryPath .
+                        DIRECTORY_SEPARATOR .
+                        $file;
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Only image files
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        !is_file($fileFullPath)
+                    ) {
+                        continue;
+                    }
+
+
+                    $extension = strtolower(
+                        pathinfo(
+                            $file,
+                            PATHINFO_EXTENSION
+                        )
+                    );
+
+
+                    if (
+                        in_array(
+                            $extension,
+                            [
+                                'jpg',
+                                'jpeg',
+                                'png',
+                                'webp',
+                                'gif'
+                            ],
+                            true
+                        )
+                    ) {
+
+                        $imageRelativePath =
+                            $directoryPath .
+                            '/' .
+                            $file;
+
+
+                        $item->image_url =
+                            asset(
+                                $imageRelativePath
+                            );
+
+                        break;
+                    }
+                }
+            }
+        }
+
+
+        return $item;
+
+    }
+);
+
+    /*
+    |--------------------------------------------------------------------------
     | TOTAL QUANTITY
     |--------------------------------------------------------------------------
     */
 
-    $totalQuantity =
-        $stock->sum(
-            function ($item) {
+    $totalQuantity = $stock->sum(
+        function ($item) {
 
-                return (int)
-                    ($item->quantity_received ?? 0);
+            return (int) (
+                $item->quantity_received ?? 0
+            );
 
-            }
-        );
+        }
+    );
 
 
     /*
     |--------------------------------------------------------------------------
-    | RETURN VIEW
+    | RETURN BOX VIEW
     |--------------------------------------------------------------------------
     */
 
