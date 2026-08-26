@@ -42,6 +42,14 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+        'supplier' => [
+            'driver' => 'session',
+            'provider' => 'suppliers',
+        ],
+        'ai_enhancer' => [
+            'driver' => 'session',
+            'provider' => 'ai_photo_enhancers',
+        ],
     ],
 
     /*
@@ -65,6 +73,14 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => App\Models\PMUser::class,
+        ],
+        'suppliers' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Supplier::class,
+        ],
+        'ai_photo_enhancers' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\AiPhotoEnhancer::class,
         ],
     ],
 
