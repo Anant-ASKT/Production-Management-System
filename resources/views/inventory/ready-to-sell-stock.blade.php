@@ -2805,7 +2805,7 @@ if (saveReadyStockButton) {
 
 
                             option.value =
-                                warehouse.sno;
+                                warehouse.id;
 
 
                             option.textContent =
@@ -3023,7 +3023,7 @@ if (saveReadyStockButton) {
 
 
                             option.value =
-                                location.sno;
+                                location.id;
 
 
                             let locationText =
@@ -3385,9 +3385,9 @@ async function loadBoxes(
                 */
 
                 option.value =
-                    String(
-                        box.sno
-                    );
+                   
+                        box.id;
+                   
 
 
                 /*

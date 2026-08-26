@@ -332,7 +332,7 @@ public function data(Request $request)
 
         ->leftJoin(
             'auto_itemtype_master as itemtype',
-            'itemtype.sno',
+            'itemtype.id',
             '=',
             'dsm.item_type'
         )
@@ -345,7 +345,7 @@ public function data(Request $request)
 
         ->leftJoin(
             'auto_gender_master as gender',
-            'gender.sno',
+            'gender.id',
             '=',
             'dsm.gender'
         )
@@ -358,7 +358,7 @@ public function data(Request $request)
 
         ->leftJoin(
             'auto_itemname_master as itemname',
-            'itemname.sno',
+            'itemname.id',
             '=',
             'dsm.item_name'
         )
@@ -371,7 +371,7 @@ public function data(Request $request)
 
         ->leftJoin(
             'auto_composition_master_stock as composition',
-            'composition.sno',
+            'composition.id',
             '=',
             'dsm.composition'
         )
@@ -384,7 +384,7 @@ public function data(Request $request)
 
         ->leftJoin(
             'auto_colour_master as colour',
-            'colour.sno',
+            'colour.id',
             '=',
             'dsm.colour'
         )
@@ -397,42 +397,42 @@ public function data(Request $request)
 
         ->leftJoin(
             'auto_size_master as size',
-            'size.sno',
+            'size.id',
             '=',
             'dsm.sizes'
         )
 
         ->leftJoin(
                 'auto_embellishment_master as embellishment',
-                'embellishment.sno',
+                'embellishment.id',
                 '=',
                 'dsm.embellishment'
             )
 
             ->leftJoin(
                 'auto_manufacturing_process_master as manufacturing',
-                'manufacturing.sno',
+                'manufacturing.id',
                 '=',
                 'dsm.manufacturing_process'
             )
 
             ->leftJoin(
                 'auto_craftsman_master as craftsman',
-                'craftsman.sno',
+                'craftsman.id',
                 '=',
                 'dsm.craftsman'
             )
 
             ->leftJoin(
                 'auto_manufacture_master as manufacture',
-                'manufacture.sno',
+                'manufacture.id',
                 '=',
                 'dsm.manufecture'
             )
 
             ->leftJoin(
                 'auto_client_master as client',
-                'client.sno',
+                'client.id',
                 '=',
                 'dsm.client'
             )
@@ -472,7 +472,7 @@ public function data(Request $request)
                     'dsm.companyid'
                 )
                 ->on(
-                    'subcompany.sno',
+                    'subcompany.subcompanyid',
                     '=',
                     'dsm.subcompanyid'
                 );
@@ -499,7 +499,7 @@ public function data(Request $request)
                     'dsm.subcompanyid'
                 )
                 ->on(
-                    'project.sno',
+                    'project.projectid',
                     '=',
                     'dsm.projectid'
                 );
@@ -3092,7 +3092,7 @@ public function findByBarcode(Request $request)
         return $config[$master];
     }
 
-    public function masterList(string $master)
+   public function masterList(string $master)
     {
         $user = Auth::user();
 
@@ -3115,9 +3115,9 @@ public function findByBarcode(Request $request)
             ->where('projectid', $projectId)
             ->orderBy($config['name_column'])
             ->get([
-                'sno',
+                'id',
                 $config['name_column'],
-                ...( $config['has_code'] ? ['code'] : [] )
+                ...($config['has_code'] ? ['code'] : [])
             ]);
 
         return response()->json([
