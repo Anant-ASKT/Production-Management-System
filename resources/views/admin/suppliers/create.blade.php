@@ -32,10 +32,8 @@
                         <label class="form-label">Password *</label>
                         <input type="password" name="password" class="form-control" required>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Store URL</label>
-                        <input type="url" name="store_url" class="form-control">
-                    </div>
+
+
                     <div class="col-md-12 mb-3">
                         <label class="form-label">Address</label>
                         <textarea name="address" class="form-control" rows="2"></textarea>
@@ -43,6 +41,10 @@
                     
                     <div class="col-md-12 mb-3 mt-3 border-top pt-3">
                         <h5>API Credentials</h5>
+                    </div>
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label">Store URL</label>
+                        <input type="url" name="store_url" class="form-control">
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Consumer Key</label>

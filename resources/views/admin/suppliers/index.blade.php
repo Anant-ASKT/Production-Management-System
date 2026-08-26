@@ -31,7 +31,6 @@
                             <th>Name</th>
                             <th>Email</th>
                             <th>Phone</th>
-                            <th>Store URL</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -42,7 +41,6 @@
                                 <td>{{ $supplier->name }}</td>
                                 <td>{{ $supplier->email }}</td>
                                 <td>{{ $supplier->phone ?? 'N/A' }}</td>
-                                <td>{{ $supplier->store_url ?? 'N/A' }}</td>
                                 <td>
                                     <a href="{{ route('admin.suppliers.edit', $supplier->sno) }}" class="btn btn-sm btn-outline-primary">Edit</a>
                                 </td>
