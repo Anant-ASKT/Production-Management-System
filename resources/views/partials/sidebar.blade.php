@@ -256,10 +256,19 @@
                 </li>
 
                 <li>
-                    <a href="{{ route('admin.suppliers.index') }}">
+                    <a href="{{ route('admin.suppliers.index') }}" class="{{ request()->routeIs('admin.suppliers.*') ? 'active' : '' }}">
                         <i class="bi bi-truck"></i>
                         <span>
                             Suppliers
+                        </span>
+                    </a>
+                </li>
+
+                <li>
+                    <a href="{{ route('admin.ai-photo-enhancers.index') }}" class="{{ request()->routeIs('admin.ai-photo-enhancers.*') ? 'active' : '' }}">
+                        <i class="bi bi-camera"></i>
+                        <span>
+                            AI Photo Enhancers
                         </span>
                     </a>
                 </li>

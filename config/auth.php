@@ -46,6 +46,10 @@ return [
             'driver' => 'session',
             'provider' => 'suppliers',
         ],
+        'ai_enhancer' => [
+            'driver' => 'session',
+            'provider' => 'ai_photo_enhancers',
+        ],
     ],
 
     /*
@@ -73,6 +77,10 @@ return [
         'suppliers' => [
             'driver' => 'eloquent',
             'model' => App\Models\Supplier::class,
+        ],
+        'ai_photo_enhancers' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\AiPhotoEnhancer::class,
         ],
     ],
 

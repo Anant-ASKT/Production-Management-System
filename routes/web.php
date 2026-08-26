@@ -98,6 +98,27 @@ Route::middleware('auth')->group(function () {
 
 });
 
+use App\Http\Controllers\AdminAiPhotoEnhancerController;
+
+Route::middleware('auth')->group(function () {
+    Route::resource('admin/ai-photo-enhancers', AdminAiPhotoEnhancerController::class)->names('admin.ai-photo-enhancers')->except(['show', 'destroy']);
+});
+
+use App\Http\Controllers\AiEnhancer\Auth\LoginController as AiEnhancerLoginController;
+use App\Http\Controllers\AiEnhancer\DashboardController as AiEnhancerDashboardController;
+
+Route::prefix('ai-enhancer')->name('ai-enhancer.')->group(function () {
+    Route::middleware('guest:ai_enhancer')->group(function () {
+        Route::get('login', [AiEnhancerLoginController::class, 'showLoginForm'])->name('login');
+        Route::post('login', [AiEnhancerLoginController::class, 'login'])->name('login.submit');
+    });
+    
+    Route::middleware('auth:ai_enhancer')->group(function () {
+        Route::get('dashboard', [AiEnhancerDashboardController::class, 'index'])->name('dashboard');
+        Route::post('logout', [AiEnhancerLoginController::class, 'logout'])->name('logout');
+    });
+});
+
 Route::middleware('auth')->group(function () {
 
    Route::get(
