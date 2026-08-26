@@ -98,6 +98,33 @@ Route::middleware('auth')->group(function () {
 
 });
 
+use App\Http\Controllers\AdminAiPhotoEnhancerController;
+
+Route::middleware('auth')->group(function () {
+    Route::resource('admin/ai-photo-enhancers', AdminAiPhotoEnhancerController::class)->names('admin.ai-photo-enhancers')->except(['show', 'destroy']);
+});
+
+use App\Http\Controllers\AiEnhancer\Auth\LoginController as AiEnhancerLoginController;
+use App\Http\Controllers\AiEnhancer\DashboardController as AiEnhancerDashboardController;
+use App\Http\Controllers\AiEnhancer\AssignedProductController;
+
+Route::prefix('ai-enhancer')->name('ai-enhancer.')->group(function () {
+    Route::middleware('guest:ai_enhancer')->group(function () {
+        Route::get('login', [AiEnhancerLoginController::class, 'showLoginForm'])->name('login');
+        Route::post('login', [AiEnhancerLoginController::class, 'login'])->name('login.submit');
+    });
+    
+    Route::middleware('auth:ai_enhancer')->group(function () {
+        Route::get('dashboard', [AiEnhancerDashboardController::class, 'index'])->name('dashboard');
+        Route::get('assigned-products', [AssignedProductController::class, 'index'])->name('assigned-products.index');
+        Route::get('assigned-products/{id}', [AssignedProductController::class, 'show'])->name('assigned-products.show');
+        Route::post('submissions/upload', [AssignedProductController::class, 'uploadEnhancedImage'])->name('submissions.upload');
+        Route::get('upload-history', [App\Http\Controllers\AiEnhancer\UploadHistoryController::class, 'index'])->name('upload-history.index');
+        Route::get('upload-history/{id}', [App\Http\Controllers\AiEnhancer\UploadHistoryController::class, 'show'])->name('upload-history.show');
+        Route::post('logout', [AiEnhancerLoginController::class, 'logout'])->name('logout');
+    });
+});
+
 Route::middleware('auth')->group(function () {
 
    Route::get(
@@ -150,10 +177,53 @@ Route::get(
     [ReadyToSellStockController::class, 'index']
 )->name('inventory.ready-to-sell-stock');
 
-Route::get(
-    '/admin/design-specifications/find-by-barcode',
-    [DesignSpecificationController::class, 'findByBarcode']
-)->name('design-specifications.find-by-barcode');
+    Route::get(
+        '/admin/design-specifications/find-by-barcode',
+        [DesignSpecificationController::class, 'findByBarcode']
+    )->name('design-specifications.find-by-barcode');
+
+    // ==========================================
+    // AI Photo Enhancing Admin Module
+    // ==========================================
+    Route::get(
+        '/admin/ai-photo-enhancing/pending',
+        [App\Http\Controllers\AdminAiPhotoEnhancingController::class, 'pendingProducts']
+    )->name('admin.ai-photo-enhancing.pending');
+
+    Route::get(
+        '/admin/ai-photo-enhancing/pending/data',
+        [App\Http\Controllers\AdminAiPhotoEnhancingController::class, 'pendingData']
+    )->name('admin.ai-photo-enhancing.pending.data');
+
+    Route::post(
+        '/admin/ai-photo-enhancing/assign',
+        [App\Http\Controllers\AdminAiPhotoEnhancingController::class, 'assignToEnhancers']
+    )->name('admin.ai-photo-enhancing.assign');
+
+    Route::get(
+        '/admin/ai-photo-enhancing/receiving',
+        [App\Http\Controllers\AdminAiPhotoReceivingController::class, 'index']
+    )->name('admin.ai-photo-enhancing.receiving');
+
+    Route::get(
+        '/admin/ai-photo-enhancing/receiving/{id}',
+        [App\Http\Controllers\AdminAiPhotoReceivingController::class, 'show']
+    )->name('admin.ai-photo-enhancing.receiving.show');
+
+    Route::post(
+        '/admin/ai-photo-enhancing/receiving/{id}/approve',
+        [App\Http\Controllers\AdminAiPhotoReceivingController::class, 'approve']
+    )->name('admin.ai-photo-enhancing.receiving.approve');
+
+    Route::post(
+        '/admin/ai-photo-enhancing/receiving/{id}/approve-need-version',
+        [App\Http\Controllers\AdminAiPhotoReceivingController::class, 'approveNeedVersion']
+    )->name('admin.ai-photo-enhancing.receiving.approve-need-version');
+
+    Route::post(
+        '/admin/ai-photo-enhancing/receiving/{id}/reject',
+        [App\Http\Controllers\AdminAiPhotoReceivingController::class, 'reject']
+    )->name('admin.ai-photo-enhancing.receiving.reject');
 
 
 
@@ -448,3 +518,31 @@ Route::get(
 //     ]);
 
 // });
+
+
+use App\Http\Controllers\AdminSupplierController;
+
+Route::middleware('auth')->group(function () {
+    Route::resource('admin/suppliers', AdminSupplierController::class)->names('admin.suppliers')->except(['show', 'destroy']);
+});
+
+
+
+use App\Http\Controllers\Supplier\Auth\LoginController as SupplierLoginController;
+use App\Http\Controllers\Supplier\DashboardController as SupplierDashboardController;
+
+Route::prefix('supplier')->name('supplier.')->group(function () {
+    Route::middleware('guest:supplier')->group(function () {
+        Route::get('login', [SupplierLoginController::class, 'showLoginForm'])->name('login');
+        Route::post('login', [SupplierLoginController::class, 'login'])->name('login.submit');
+    });
+    
+    Route::middleware('auth:supplier')->group(function () {
+        Route::get('dashboard', [SupplierDashboardController::class, 'index'])->name('dashboard');
+        Route::post('logout', [SupplierLoginController::class, 'logout'])->name('logout');
+        
+        Route::delete('products/{product}/image', [\App\Http\Controllers\Supplier\ProductController::class, 'deleteImage'])->name('products.delete-image');
+        Route::resource('products', \App\Http\Controllers\Supplier\ProductController::class)->except(['show', 'destroy']);
+    });
+});
+

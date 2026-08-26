@@ -255,8 +255,52 @@
 
                 </li>
 
+                <li>
+                    <a href="{{ route('admin.suppliers.index') }}" class="{{ request()->routeIs('admin.suppliers.*') ? 'active' : '' }}">
+                        <i class="bi bi-truck"></i>
+                        <span>
+                            Suppliers
+                        </span>
+                    </a>
+                </li>
 
                 <li>
+                    <a href="{{ route('admin.ai-photo-enhancers.index') }}" class="{{ request()->routeIs('admin.ai-photo-enhancers.*') ? 'active' : '' }}">
+                        <i class="bi bi-camera"></i>
+                        <span>
+                            AI Photo Enhancers
+                        </span>
+                    </a>
+                </li>
+
+            </ul>
+    </div>
+
+    {{-- AI PHOTO ENHANCING --}}
+    <div class="sidebar-section">
+        <div class="sidebar-section-title">AI Photo Enhancing</div>
+        <ul class="sidebar-menu">
+            <li>
+                <a href="{{ route('admin.ai-photo-enhancing.pending') }}"
+                class="{{ request()->routeIs('admin.ai-photo-enhancing.pending') ? 'active' : '' }}">
+                    <i class="bi bi-hourglass-split"></i>
+                    <span>Pending Products</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ route('admin.ai-photo-enhancing.receiving') }}"
+                class="{{ request()->routeIs('admin.ai-photo-enhancing.receiving*') ? 'active' : '' }}">
+                    <i class="bi bi-box-arrow-in-down"></i>
+                    <span>Receiving Products</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <div class="sidebar-section">
+        <div class="sidebar-section-title">System</div>
+        <ul class="sidebar-menu">
+            <li>
 
                     <a href="{{ route('admin.module-access') }}">
 
