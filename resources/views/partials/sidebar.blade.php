@@ -255,6 +255,15 @@
 
                 </li>
 
+                <li>
+                    <a href="{{ route('admin.suppliers.index') }}">
+                        <i class="bi bi-truck"></i>
+                        <span>
+                            Suppliers
+                        </span>
+                    </a>
+                </li>
+
 
                 <li>
 

@@ -448,3 +448,31 @@ Route::get(
 //     ]);
 
 // });
+
+
+use App\Http\Controllers\AdminSupplierController;
+
+Route::middleware('auth')->group(function () {
+    Route::resource('admin/suppliers', AdminSupplierController::class)->names('admin.suppliers')->except(['show', 'destroy']);
+});
+
+
+
+use App\Http\Controllers\Supplier\Auth\LoginController as SupplierLoginController;
+use App\Http\Controllers\Supplier\DashboardController as SupplierDashboardController;
+
+Route::prefix('supplier')->name('supplier.')->group(function () {
+    Route::middleware('guest:supplier')->group(function () {
+        Route::get('login', [SupplierLoginController::class, 'showLoginForm'])->name('login');
+        Route::post('login', [SupplierLoginController::class, 'login'])->name('login.submit');
+    });
+    
+    Route::middleware('auth:supplier')->group(function () {
+        Route::get('dashboard', [SupplierDashboardController::class, 'index'])->name('dashboard');
+        Route::post('logout', [SupplierLoginController::class, 'logout'])->name('logout');
+        
+        Route::delete('products/{product}/image', [\App\Http\Controllers\Supplier\ProductController::class, 'deleteImage'])->name('products.delete-image');
+        Route::resource('products', \App\Http\Controllers\Supplier\ProductController::class)->except(['show', 'destroy']);
+    });
+});
+
