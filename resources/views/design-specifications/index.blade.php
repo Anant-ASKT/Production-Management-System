@@ -319,7 +319,7 @@
 
                                 @foreach($itemNames as $itemName)
 
-                                    <option value="{{ $itemName->sno }}">
+                                    <option value="{{ $itemName->id }}">
                                         {{ $itemName->itemname }}
                                     </option>
 
@@ -364,7 +364,7 @@
 
                                 @foreach($itemTypes as $itemType)
 
-                                    <option value="{{ $itemType->sno }}">
+                                    <option value="{{ $itemType->id }}">
                                         {{ $itemType->itemtype }}
                                     </option>
 
@@ -406,7 +406,7 @@
 
                                 @foreach($designers as $designer)
 
-                                    <option value="{{ $designer->sno }}">
+                                    <option value="{{ $designer->id }}">
                                         {{ $designer->designername }}
                                     </option>
 
@@ -450,7 +450,7 @@
 
                                 @foreach($genders as $gender)
 
-                                    <option value="{{ $gender->sno }}">
+                                    <option value="{{ $gender->id }}">
                                         {{ $gender->name }}
                                     </option>
 
@@ -496,7 +496,7 @@
 
                                 @foreach($compositions as $composition)
 
-                                    <option value="{{ $composition->sno }}">
+                                    <option value="{{ $composition->id }}">
                                         {{ $composition->composition_details }}
                                     </option>
 
@@ -540,7 +540,7 @@
 
                                 @foreach($colours as $colour)
 
-                                    <option value="{{ $colour->sno }}">
+                                    <option value="{{ $colour->id }}">
                                         {{ $colour->colourname }}
                                     </option>
 
@@ -584,7 +584,7 @@
 
                                 @foreach($sizes as $size)
 
-                                    <option value="{{ $size->sno }}">
+                                    <option value="{{ $size->id }}">
                                         {{ $size->size }}
                                     </option>
 
@@ -627,7 +627,7 @@
 
                                 @foreach($embellishments as $embellishment)
 
-                                    <option value="{{ $embellishment->sno }}">
+                                    <option value="{{ $embellishment->id }}">
                                         {{ $embellishment->embellishmentname }}
                                     </option>
 
@@ -674,7 +674,7 @@
                                     as $process
                                 )
 
-                                    <option value="{{ $process->sno }}">
+                                    <option value="{{ $process->id }}">
                                         {{ $process->manufacturing_process }}
                                     </option>
 
@@ -718,7 +718,7 @@
                                 @foreach($craftsmen as $craftsman)
 
                                     <option
-                                        value="{{ $craftsman->sno }}"
+                                        value="{{ $craftsman->id }}"
                                         data-code="{{ $craftsman->code }}">
 
                                         {{ $craftsman->name }}
@@ -769,7 +769,7 @@
 
                                 @foreach($manufactures as $manufacture)
 
-                                    <option value="{{ $manufacture->sno }}">
+                                    <option value="{{ $manufacture->id }}">
                                         {{ $manufacture->name }}
                                     </option>
 
@@ -814,7 +814,7 @@
 
                                 @foreach($clients as $client)
 
-                                    <option value="{{ $client->sno }}">
+                                    <option value="{{ $client->id }}">
                                         {{ $client->name }}
                                     </option>
 

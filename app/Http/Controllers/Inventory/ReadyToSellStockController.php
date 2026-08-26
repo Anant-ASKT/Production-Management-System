@@ -102,77 +102,81 @@ class ReadyToSellStockController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    public function getLocations(Request $request)
-    {
-        $user = Auth::user();
+   public function getLocations(Request $request)
+{
+    $user = Auth::user();
 
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthenticated.'
-            ], 401);
-        }
+    if (!$user) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Unauthenticated.'
+        ], 401);
+    }
 
+    $warehouseId = (int) $request->input('warehouse_id');
 
-        $warehouseId =
-            $request->input('warehouse_id');
+    if ($warehouseId <= 0) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Warehouse is required.'
+        ], 422);
+    }
 
+    $companyId =
+        (int) ($user->company_id ?? 0);
 
-        if (
-            $warehouseId === null ||
-            $warehouseId === ''
-        ) {
+    $subCompanyId =
+        (int) ($user->sub_company_id ?? 0);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Warehouse is required.'
-            ], 422);
-
-        }
-
-
-        $companyId =
-            (int) $user->company_id;
-
-        $subCompanyId =
-            (int) $user->sub_company_id;
-
-        $projectId =
-            (int) $user->project_id;
+    $projectId =
+        (int) ($user->project_id ?? 0);
 
 
-        $locations = DB::table(
-            'strs_locationmaster'
-        )
+    /*
+    |--------------------------------------------------------------------------
+    | CHECK WAREHOUSE USING id
+    |--------------------------------------------------------------------------
+    */
 
-        ->where(
-            'companyid',
-            $companyId
-        )
+    $warehouse = DB::table('strs_warehouse')
+        ->where('id', $warehouseId)
+        ->where('companyid', $companyId)
+        ->where('subcompanyid', $subCompanyId)
+        ->where('projectid', $projectId)
+        ->first();
 
-        ->where(
-            'subcompanyid',
-            $subCompanyId
-        )
+    if (!$warehouse) {
 
-        ->where(
-            'projectid',
-            $projectId
-        )
+        return response()->json([
+            'success' => false,
+            'message' => 'Warehouse not found.'
+        ], 422);
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | GET LOCATIONS
+    |--------------------------------------------------------------------------
+    */
+
+    $locations = DB::table('strs_locationmaster')
+        ->where('companyid', $companyId)
+        ->where('subcompanyid', $subCompanyId)
+        ->where('projectid', $projectId)
 
         /*
         |--------------------------------------------------------------------------
-        | Warehouse relation
+        | IMPORTANT
+        |
+        | warehouse_id now contains strs_warehouse.id
         |--------------------------------------------------------------------------
-        |
-        | strs_locationmaster.warehouse_id
-        | points to strs_warehouse.sno.
-        |
         */
 
         ->where(
             'warehouse_id',
-            (int) $warehouseId
+            $warehouseId
         )
 
         ->orderBy(
@@ -180,7 +184,6 @@ class ReadyToSellStockController extends Controller
         )
 
         ->select([
-            'sno',
             'id',
             'locationname',
             'warehousename',
@@ -195,14 +198,11 @@ class ReadyToSellStockController extends Controller
         ->get();
 
 
-        return response()->json([
-
-            'success' => true,
-
-            'data' => $locations
-
-        ]);
-    }
+    return response()->json([
+        'success' => true,
+        'data' => $locations
+    ]);
+}
 
 
     /*
@@ -212,76 +212,75 @@ class ReadyToSellStockController extends Controller
     */
 
     public function getBoxes(Request $request)
-    {
-        $user = Auth::user();
+{
+    $user = Auth::user();
 
-        if (!$user) {
+    if (!$user) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Unauthenticated.'
+        ], 401);
+    }
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthenticated.'
-            ], 401);
+    $warehouseId =
+        (int) $request->input('warehouse_id');
 
-        }
-
-
-        $companyId =
-            (int) $user->company_id;
-
-        $subCompanyId =
-            (int) $user->sub_company_id;
-
-        $projectId =
-            (int) $user->project_id;
+    $locationId =
+        (int) $request->input('location_id');
 
 
-        $warehouseId =
-            (int) $request->input(
-                'warehouse_id'
-            );
+    if ($warehouseId <= 0) {
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Warehouse is required.'
+        ], 422);
+
+    }
 
 
-        $locationId =
-            (int) $request->input(
-                'location_id'
-            );
+    if ($locationId <= 0) {
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Location is required.'
+        ], 422);
+
+    }
 
 
-        if (!$warehouseId) {
+    $companyId =
+        (int) ($user->company_id ?? 0);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Warehouse is required.'
-            ], 422);
+    $subCompanyId =
+        (int) ($user->sub_company_id ?? 0);
 
-        }
-
-
-        if (!$locationId) {
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Location is required.'
-            ], 422);
-
-        }
+    $projectId =
+        (int) ($user->project_id ?? 0);
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | GET BOXES
-        |--------------------------------------------------------------------------
-        |
-        | tbl_boxes:
-        |
-        | warehouseid = warehouse
-        | location    = location
-        | status      = NULL / empty
-        |
-        */
+    /*
+    |--------------------------------------------------------------------------
+    | BOXES
+    |--------------------------------------------------------------------------
+    |
+    | warehouseid = strs_warehouse.id
+    | location    = strs_locationmaster.id
+    |
+    | tbl_boxes.id is returned to frontend.
+    |--------------------------------------------------------------------------
+    */
 
-        $boxes = DB::table(
-            'tbl_boxes'
+    $boxes = DB::table('tbl_boxes')
+
+        ->where(
+            'warehouseid',
+            $warehouseId
+        )
+
+        ->where(
+            'location',
+            $locationId
         )
 
         ->where(
@@ -299,29 +298,15 @@ class ReadyToSellStockController extends Controller
             $projectId
         )
 
-        ->where(
-            'warehouseid',
-            $warehouseId
-        )
+        ->where(function ($query) {
 
-        ->where(
-            'location',
-            $locationId
-        )
+            $query
+                ->whereNull('status')
+                ->orWhere('status', '');
 
-        ->where(
-            function ($query) {
+        })
 
-                $query
-                    ->whereNull('status')
-                    ->orWhere('status', '');
-
-            }
-        )
-
-        ->whereNotNull(
-            'boxno'
-        )
+        ->whereNotNull('boxno')
 
         ->where(
             'boxno',
@@ -330,14 +315,9 @@ class ReadyToSellStockController extends Controller
         )
 
         ->select([
-            'sno',
             'id',
             'box_title',
             'boxno',
-
-            // ADD THIS
-            'qr_code',
-
             'warehouseid',
             'FloorNo',
             'StackNo',
@@ -347,21 +327,18 @@ class ReadyToSellStockController extends Controller
         ])
 
         ->orderBy(
-            'sno',
+            'boxno',
             'asc'
         )
 
         ->get();
 
 
-        return response()->json([
-
-            'success' => true,
-
-            'data' => $boxes
-
-        ]);
-    }
+    return response()->json([
+        'success' => true,
+        'data' => $boxes
+    ]);
+}
 
    public function storeWarehouse(Request $request)
 {
@@ -3189,7 +3166,7 @@ public function viewStock(Request $request)
 
         ->leftJoin(
             'strs_warehouse as wh',
-            'wh.sno',
+            'wh.id',
             '=',
             'vs.warehouse_id'
         )
@@ -3203,7 +3180,7 @@ public function viewStock(Request $request)
 
         ->leftJoin(
             'strs_locationmaster as lm',
-            'lm.sno',
+            'lm.id',
             '=',
             'vs.location_id'
         )
@@ -3217,7 +3194,7 @@ public function viewStock(Request $request)
 
         ->leftJoin(
             'tbl_boxes as bx',
-            'bx.sno',
+            'bx.id',
             '=',
             'vs.boxid'
         )
@@ -3337,16 +3314,20 @@ public function viewStock(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    if (
-        $request->filled('warehouse_id')
-    ) {
+    if ($request->filled('warehouse_id')) {
+
+    $warehouseId =
+        (int) $request->input('warehouse_id');
+
+    if ($warehouseId > 0) {
 
         $query->where(
             'vs.warehouse_id',
-            $request->warehouse_id
+            $warehouseId
         );
 
     }
+}
 
 
     /*
@@ -3355,16 +3336,20 @@ public function viewStock(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    if (
-        $request->filled('location_id')
-    ) {
+    if ($request->filled('location_id')) {
+
+    $locationId =
+        (int) $request->input('location_id');
+
+    if ($locationId > 0) {
 
         $query->where(
             'vs.location_id',
-            $request->location_id
+            $locationId
         );
 
     }
+}
 
 
     /*
@@ -3373,15 +3358,18 @@ public function viewStock(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    if (
-        $request->filled('box_id')
-    ) {
+    if ($request->filled('box_id')) {
 
-        $query->where(
-            'vs.boxid',
-            $request->box_id
-        );
+        $boxId = (int) $request->input('box_id');
 
+        if ($boxId > 0) {
+
+            $query->where(
+                'vs.boxid',
+                $boxId
+            );
+
+        }
     }
 
 
