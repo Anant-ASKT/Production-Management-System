@@ -37,6 +37,18 @@
                     <span>Dashboard</span>
                 </a>
             </li>
+            <li>
+                <a href="{{ route('ai-enhancer.assigned-products.index') }}" class="{{ request()->routeIs('ai-enhancer.assigned-products.*') ? 'active' : '' }}">
+                    <i class="bi bi-list-task"></i>
+                    <span>Assigned Products</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ route('ai-enhancer.upload-history.index') }}" class="{{ request()->routeIs('ai-enhancer.upload-history.*') ? 'active' : '' }}">
+                    <i class="bi bi-clock-history"></i>
+                    <span>Upload History</span>
+                </a>
+            </li>
         </ul>
     </div>
 

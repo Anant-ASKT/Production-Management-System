@@ -106,6 +106,7 @@ Route::middleware('auth')->group(function () {
 
 use App\Http\Controllers\AiEnhancer\Auth\LoginController as AiEnhancerLoginController;
 use App\Http\Controllers\AiEnhancer\DashboardController as AiEnhancerDashboardController;
+use App\Http\Controllers\AiEnhancer\AssignedProductController;
 
 Route::prefix('ai-enhancer')->name('ai-enhancer.')->group(function () {
     Route::middleware('guest:ai_enhancer')->group(function () {
@@ -115,6 +116,11 @@ Route::prefix('ai-enhancer')->name('ai-enhancer.')->group(function () {
     
     Route::middleware('auth:ai_enhancer')->group(function () {
         Route::get('dashboard', [AiEnhancerDashboardController::class, 'index'])->name('dashboard');
+        Route::get('assigned-products', [AssignedProductController::class, 'index'])->name('assigned-products.index');
+        Route::get('assigned-products/{id}', [AssignedProductController::class, 'show'])->name('assigned-products.show');
+        Route::post('submissions/upload', [AssignedProductController::class, 'uploadEnhancedImage'])->name('submissions.upload');
+        Route::get('upload-history', [App\Http\Controllers\AiEnhancer\UploadHistoryController::class, 'index'])->name('upload-history.index');
+        Route::get('upload-history/{id}', [App\Http\Controllers\AiEnhancer\UploadHistoryController::class, 'show'])->name('upload-history.show');
         Route::post('logout', [AiEnhancerLoginController::class, 'logout'])->name('logout');
     });
 });
@@ -171,10 +177,53 @@ Route::get(
     [ReadyToSellStockController::class, 'index']
 )->name('inventory.ready-to-sell-stock');
 
-Route::get(
-    '/admin/design-specifications/find-by-barcode',
-    [DesignSpecificationController::class, 'findByBarcode']
-)->name('design-specifications.find-by-barcode');
+    Route::get(
+        '/admin/design-specifications/find-by-barcode',
+        [DesignSpecificationController::class, 'findByBarcode']
+    )->name('design-specifications.find-by-barcode');
+
+    // ==========================================
+    // AI Photo Enhancing Admin Module
+    // ==========================================
+    Route::get(
+        '/admin/ai-photo-enhancing/pending',
+        [App\Http\Controllers\AdminAiPhotoEnhancingController::class, 'pendingProducts']
+    )->name('admin.ai-photo-enhancing.pending');
+
+    Route::get(
+        '/admin/ai-photo-enhancing/pending/data',
+        [App\Http\Controllers\AdminAiPhotoEnhancingController::class, 'pendingData']
+    )->name('admin.ai-photo-enhancing.pending.data');
+
+    Route::post(
+        '/admin/ai-photo-enhancing/assign',
+        [App\Http\Controllers\AdminAiPhotoEnhancingController::class, 'assignToEnhancers']
+    )->name('admin.ai-photo-enhancing.assign');
+
+    Route::get(
+        '/admin/ai-photo-enhancing/receiving',
+        [App\Http\Controllers\AdminAiPhotoReceivingController::class, 'index']
+    )->name('admin.ai-photo-enhancing.receiving');
+
+    Route::get(
+        '/admin/ai-photo-enhancing/receiving/{id}',
+        [App\Http\Controllers\AdminAiPhotoReceivingController::class, 'show']
+    )->name('admin.ai-photo-enhancing.receiving.show');
+
+    Route::post(
+        '/admin/ai-photo-enhancing/receiving/{id}/approve',
+        [App\Http\Controllers\AdminAiPhotoReceivingController::class, 'approve']
+    )->name('admin.ai-photo-enhancing.receiving.approve');
+
+    Route::post(
+        '/admin/ai-photo-enhancing/receiving/{id}/approve-need-version',
+        [App\Http\Controllers\AdminAiPhotoReceivingController::class, 'approveNeedVersion']
+    )->name('admin.ai-photo-enhancing.receiving.approve-need-version');
+
+    Route::post(
+        '/admin/ai-photo-enhancing/receiving/{id}/reject',
+        [App\Http\Controllers\AdminAiPhotoReceivingController::class, 'reject']
+    )->name('admin.ai-photo-enhancing.receiving.reject');
 
 
 
