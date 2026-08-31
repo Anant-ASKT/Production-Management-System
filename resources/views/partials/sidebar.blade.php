@@ -138,7 +138,10 @@
 
             <li>
 
-                <a href="javascript:void(0)">
+                <a
+                    href="{{ route('all-garments.index') }}"
+                    class="{{ request()->routeIs('all-garments.*') ? 'active' : '' }}"
+                >
 
                     <i class="bi bi-grid-3x3-gap"></i>
 

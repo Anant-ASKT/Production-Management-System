@@ -261,6 +261,205 @@ class DesignSpecificationController extends Controller
     }
 
 
+public function supplierProducts(Request $request)
+{
+    try {
+
+        /*
+        |--------------------------------------------------------------------------
+        | GET CURRENT PROJECT CONTEXT
+        |--------------------------------------------------------------------------
+        |
+        | Use the same session values used by your existing application.
+        |
+        */
+
+        $companyId =
+            session('companyid');
+
+        $subCompanyId =
+            session('subcompanyid');
+
+        $projectId =
+            session('projectid');
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SUPPLIER PRODUCTS QUERY
+        |--------------------------------------------------------------------------
+        */
+
+        $query = DB::table(
+            'supplier_products as sp'
+        )
+
+        /*
+        |--------------------------------------------------------------------------
+        | SUPPLIER
+        |--------------------------------------------------------------------------
+        */
+
+        ->leftJoin(
+            'suppliers as s',
+            's.sno',
+            '=',
+            'sp.supplier_id'
+        )
+
+        /*
+        |--------------------------------------------------------------------------
+        | SELECT
+        |--------------------------------------------------------------------------
+        */
+
+        ->select(
+            'sp.sno',
+
+            'sp.companyid',
+            'sp.subcompanyid',
+            'sp.projectid',
+
+            'sp.supplier_id',
+
+            's.name as supplier_name',
+
+            'sp.name',
+            'sp.description',
+
+            'sp.main_image',
+            'sp.sub_images',
+
+            'sp.design_names',
+            'sp.compositions',
+            'sp.mfg_processes',
+            'sp.craftsmen',
+            'sp.designers',
+            'sp.variations',
+
+            'sp.item_type',
+            'sp.designer',
+            'sp.gender',
+            'sp.composition',
+            'sp.colour',
+            'sp.size',
+
+            'sp.embellishment',
+            'sp.manufacturing_process',
+            'sp.craftsman',
+            'sp.manufacture',
+            'sp.collection',
+
+            'sp.status',
+            'sp.stock',
+            'sp.price',
+            'sp.sale_price',
+
+            'sp.created_at',
+            'sp.updated_at'
+        )
+
+        ->where(
+            'sp.status',
+            'active'
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | COMPANY FILTER
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $companyId !== null &&
+            $companyId !== ''
+        ) {
+
+            $query->where(
+                'sp.companyid',
+                $companyId
+            );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SUB COMPANY FILTER
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $subCompanyId !== null &&
+            $subCompanyId !== ''
+        ) {
+
+            $query->where(
+                'sp.subcompanyid',
+                $subCompanyId
+            );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PROJECT FILTER
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $projectId !== null &&
+            $projectId !== ''
+        ) {
+
+            $query->where(
+                'sp.projectid',
+                $projectId
+            );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | GET DATA
+        |--------------------------------------------------------------------------
+        */
+
+        $products =
+            $query
+                ->orderBy(
+                    'sp.sno',
+                    'desc'
+                )
+                ->get();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | RETURN
+        |--------------------------------------------------------------------------
+        */
+
+        return response()->json([
+            'success' => true,
+            'data' => $products
+        ]);
+
+
+    } catch (\Throwable $e) {
+
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage()
+        ], 500);
+
+    }
+}
+
+
     /**
      * AJAX:
      * Load all design specifications.
@@ -648,6 +847,9 @@ public function data(Request $request)
             'dsm.sku',
             'dsm.status',
             'dsm.img_path',
+            // NEW
+            'dsm.subimg_path',
+            
             'dsm.edatetime',
             'dsm.clientreference',
             // Optional specification values
@@ -690,132 +892,132 @@ public function data(Request $request)
     */
 
     /*
-|--------------------------------------------------------------------------
-| Prepare Image URL
-|--------------------------------------------------------------------------
-*/
-
-$specifications->getCollection()->transform(function ($item) {
-
-    $item->image_url = null;
-
-    if (empty($item->img_path)) {
-        return $item;
-    }
-
-    /*
     |--------------------------------------------------------------------------
-    | Example database value
-    |--------------------------------------------------------------------------
-    |
-    | ../../ItemsDesigner_Masterwithbarcode/147921111111/
-    |
-    */
-
-    $imgPath = str_replace('\\', '/', trim($item->img_path));
-
-    /*
-    |--------------------------------------------------------------------------
-    | Find ItemsDesigner_Masterwithbarcode
+    | Prepare Image URL
     |--------------------------------------------------------------------------
     */
 
-    $marker = 'ItemsDesigner_Masterwithbarcode/';
+    $specifications->getCollection()->transform(function ($item) {
 
-    $position = strpos($imgPath, $marker);
+        $item->image_url = null;
 
-    if ($position === false) {
-        return $item;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Get barcode folder
-    |--------------------------------------------------------------------------
-    */
-
-    $barcodeFolder = substr(
-        $imgPath,
-        $position + strlen($marker)
-    );
-
-    $barcodeFolder = trim($barcodeFolder, '/');
-
-    if ($barcodeFolder === '') {
-        return $item;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Physical folder
-    |--------------------------------------------------------------------------
-    */
-
-    $folderPath = public_path(
-        'ItemsDesigner_Masterwithbarcode/' . $barcodeFolder
-    );
-
-    /*
-    |--------------------------------------------------------------------------
-    | Check folder exists
-    |--------------------------------------------------------------------------
-    */
-
-    if (!is_dir($folderPath)) {
-        return $item;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Find image
-    |--------------------------------------------------------------------------
-    */
-
-    $files = scandir($folderPath);
-
-    foreach ($files as $file) {
-
-        if ($file === '.' || $file === '..') {
-            continue;
+        if (empty($item->img_path)) {
+            return $item;
         }
 
-        $extension = strtolower(
-            pathinfo($file, PATHINFO_EXTENSION)
+        /*
+        |--------------------------------------------------------------------------
+        | Example database value
+        |--------------------------------------------------------------------------
+        |
+        | ../../ItemsDesigner_Masterwithbarcode/147921111111/
+        |
+        */
+
+        $imgPath = str_replace('\\', '/', trim($item->img_path));
+
+        /*
+        |--------------------------------------------------------------------------
+        | Find ItemsDesigner_Masterwithbarcode
+        |--------------------------------------------------------------------------
+        */
+
+        $marker = 'ItemsDesigner_Masterwithbarcode/';
+
+        $position = strpos($imgPath, $marker);
+
+        if ($position === false) {
+            return $item;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Get barcode folder
+        |--------------------------------------------------------------------------
+        */
+
+        $barcodeFolder = substr(
+            $imgPath,
+            $position + strlen($marker)
         );
 
-        if (
-            in_array(
-                $extension,
-                [
-                    'jpg',
-                    'jpeg',
-                    'png',
-                    'webp',
-                    'gif'
-                ],
-                true
-            )
-        ) {
+        $barcodeFolder = trim($barcodeFolder, '/');
 
-            /*
-            |--------------------------------------------------------------------------
-            | Browser URL
-            |--------------------------------------------------------------------------
-            */
+        if ($barcodeFolder === '') {
+            return $item;
+        }
 
-            $item->image_url = asset(
-                'ItemsDesigner_Masterwithbarcode/' .
-                $barcodeFolder .
-                '/' .
-                $file
+        /*
+        |--------------------------------------------------------------------------
+        | Physical folder
+        |--------------------------------------------------------------------------
+        */
+
+        $folderPath = public_path(
+            'ItemsDesigner_Masterwithbarcode/' . $barcodeFolder
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Check folder exists
+        |--------------------------------------------------------------------------
+        */
+
+        if (!is_dir($folderPath)) {
+            return $item;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Find image
+        |--------------------------------------------------------------------------
+        */
+
+        $files = scandir($folderPath);
+
+        foreach ($files as $file) {
+
+            if ($file === '.' || $file === '..') {
+                continue;
+            }
+
+            $extension = strtolower(
+                pathinfo($file, PATHINFO_EXTENSION)
             );
 
-            break;
-        }
-    }
+            if (
+                in_array(
+                    $extension,
+                    [
+                        'jpg',
+                        'jpeg',
+                        'png',
+                        'webp',
+                        'gif'
+                    ],
+                    true
+                )
+            ) {
 
-    return $item;
-});
+                /*
+                |--------------------------------------------------------------------------
+                | Browser URL
+                |--------------------------------------------------------------------------
+                */
+
+                $item->image_url = asset(
+                    'ItemsDesigner_Masterwithbarcode/' .
+                    $barcodeFolder .
+                    '/' .
+                    $file
+                );
+
+                break;
+            }
+        }
+
+        return $item;
+    });
 
     /*
     |--------------------------------------------------------------------------
@@ -1722,525 +1924,914 @@ public function findByBarcode(Request $request)
     ]);
 }
 
+    /*
+|--------------------------------------------------------------------------
+| Generate Automatic Product SKU
+|--------------------------------------------------------------------------
+|
+| Format:
+|
+| companyid-productid-ITEM-TYP-GEN-SIZ-COL-COM
+|
+| Example:
+|
+| 1-125-SHI-CAS-MAL-LAR-BLU-COT
+|
+*/
+
+private function generateProductSku(
+    int $companyId,
+    int $productId,
+    int $itemNameId,
+    int $itemTypeId,
+    int $genderId,
+    int $sizeId,
+    int $colourId,
+    int $compositionId
+) {
+
+    /*
+    |--------------------------------------------------------------------------
+    | Get Item Name
+    |--------------------------------------------------------------------------
+    */
+
+    $itemName = DB::table('auto_itemname_master')
+        ->where('id', $itemNameId)
+        ->where('companyid', $companyId)
+        ->first(['itemname']);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Get Item Type
+    |--------------------------------------------------------------------------
+    */
+
+    $itemType = DB::table('auto_itemtype_master')
+        ->where('id', $itemTypeId)
+        ->where('companyid', $companyId)
+        ->first(['itemtype']);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Get Gender
+    |--------------------------------------------------------------------------
+    */
+
+    $gender = DB::table('auto_gender_master')
+        ->where('id', $genderId)
+        ->where('companyid', $companyId)
+        ->first(['name']);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Get Size
+    |--------------------------------------------------------------------------
+    */
+
+    $size = DB::table('auto_size_master')
+        ->where('id', $sizeId)
+        ->where('companyid', $companyId)
+        ->first(['size']);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Get Colour
+    |--------------------------------------------------------------------------
+    */
+
+    $colour = DB::table('auto_colour_master')
+        ->where('id', $colourId)
+        ->where('companyid', $companyId)
+        ->first(['colourname']);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Get Composition
+    |--------------------------------------------------------------------------
+    */
+
+    $composition = DB::table('auto_composition_master_stock')
+        ->where('id', $compositionId)
+        ->where('companyid', $companyId)
+        ->first(['composition_details']);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Convert value to first 3 characters
+    |--------------------------------------------------------------------------
+    */
+
+    $shortCode = function ($value) {
+
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return 'XXX';
+        }
+
+        /*
+        | Remove special characters.
+        */
+        $value = preg_replace(
+            '/[^A-Za-z0-9]/',
+            '',
+            $value
+        );
+
+        /*
+        | First 3 characters only.
+        */
+        return strtoupper(
+            substr($value, 0, 3)
+        );
+    };
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Create SKU
+    |--------------------------------------------------------------------------
+    */
+
+    return
+        $companyId .
+        '-' .
+        $productId .
+        '-' .
+        $shortCode(
+            $itemName?->itemname
+        ) .
+        '-' .
+        $shortCode(
+            $itemType?->itemtype
+        ) .
+        '-' .
+        $shortCode(
+            $gender?->name
+        ) .
+        '-' .
+        $shortCode(
+            $size?->size
+        ) .
+        '-' .
+        $shortCode(
+            $colour?->colourname
+        ) .
+        '-' .
+        $shortCode(
+            $composition?->composition_details
+        );
+}
+
 
     /**
      * Save new Design Specification.
      */
     public function store(Request $request)
     {
-        $user = Auth::user();
+            $user = Auth::user();
 
-        if (!$user) {
+            if (!$user) {
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthenticated.'
-            ], 401);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthenticated.'
+                ], 401);
 
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Current Login Context
-        |--------------------------------------------------------------------------
-        */
-
-        $companyId    = (int) $user->company_id;
-        $subCompanyId = (int) $user->sub_company_id;
-        $projectId    = (int) $user->project_id;
+            }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | Validation
-        |--------------------------------------------------------------------------
-        */
+            /*
+            |--------------------------------------------------------------------------
+            | Current Login Context
+            |--------------------------------------------------------------------------
+            */
 
-       $validated = $request->validate([
-            'item_name' => 'required',
-            'item_type' => 'required',
-            'designer_name' => 'required',
-            'gender' => 'required',
-            'composition' => 'required',
-            'colour' => 'required',
-            'sizes' => 'required',
-
-            'embellishment' => 'nullable',
-            'manufacturing_process' => 'nullable',
-            'craftsman' => 'nullable',
-            'craftsman_code' => 'nullable|string|max:45',
-            'manufecture' => 'nullable',
-            'client' => 'nullable',
-
-            'sku' => [
-                'nullable',
-                'string',
-                'max:255',
-                Rule::unique('auto_designer_specification_master', 'sku'),
-            ],
-            'clientreference' => 'nullable|string',
-
-            'AI_product_name' => 'nullable|string',
-            'AI_product_description' => 'nullable|string',
-            'AI_Metatitle' => 'nullable|string',
-            'AI_Metakeywards' => 'nullable|string',
-            'AI_Metadescription' => 'nullable|string',
-            'AI_Producttag' => 'nullable|string',
-            'AI_Imagealttext' => 'nullable|string',
-        ]);
+            $companyId    = (int) $user->company_id;
+            $subCompanyId = (int) $user->sub_company_id;
+            $projectId    = (int) $user->project_id;
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | Verify selected master records belong to current context
-        |--------------------------------------------------------------------------
-        */
+            /*
+            |--------------------------------------------------------------------------
+            | Validation
+            |--------------------------------------------------------------------------
+            */
 
-        $this->validateMasterRecord(
-            'auto_designer_master',
-            $validated['designer_name'],
-            $companyId,
-            $subCompanyId,
-            $projectId
-        );
+        $validated = $request->validate([
+                'item_name' => 'required',
+                'item_type' => 'required',
+                'designer_name' => 'required',
+                'gender' => 'required',
+                'composition' => 'required',
+                'colour' => 'required',
+                'sizes' => 'required',
 
+                'embellishment' => 'nullable',
+                'manufacturing_process' => 'nullable',
+                'craftsman' => 'nullable',
+                'craftsman_code' => 'nullable|string|max:45',
+                'manufecture' => 'nullable',
+                'client' => 'nullable',
 
-        $this->validateMasterRecord(
-            'auto_itemtype_master',
-            $validated['item_type'],
-            $companyId,
-            $subCompanyId,
-            $projectId
-        );
+                'sku' => [
+                    'nullable',
+                    'string',
+                    'max:1000',
+                    Rule::unique('auto_designer_specification_master', 'sku'),
+                ],
+                'clientreference' => 'nullable|string',
 
-
-        $this->validateMasterRecord(
-            'auto_gender_master',
-            $validated['gender'],
-            $companyId,
-            $subCompanyId,
-            $projectId
-        );
-
-
-        $this->validateMasterRecord(
-            'auto_itemname_master',
-            $validated['item_name'],
-            $companyId,
-            $subCompanyId,
-            $projectId
-        );
+                'AI_product_name' => 'nullable|string',
+                'AI_product_description' => 'nullable|string',
+                'AI_Metatitle' => 'nullable|string',
+                'AI_Metakeywards' => 'nullable|string',
+                'AI_Metadescription' => 'nullable|string',
+                'AI_Producttag' => 'nullable|string',
+                'AI_Imagealttext' => 'nullable|string',
+            ]);
 
 
-        $this->validateMasterRecord(
-            'auto_composition_master_stock',
-            $validated['composition'],
-            $companyId,
-            $subCompanyId,
-            $projectId
-        );
-
-
-        $this->validateMasterRecord(
-            'auto_colour_master',
-            $validated['colour'],
-            $companyId,
-            $subCompanyId,
-            $projectId
-        );
-
-
-        $this->validateMasterRecord(
-            'auto_size_master',
-            $validated['sizes'],
-            $companyId,
-            $subCompanyId,
-            $projectId
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Optional master validation
-        |--------------------------------------------------------------------------
-        */
-
-        if (!empty($validated['embellishment'])) {
+            /*
+            |--------------------------------------------------------------------------
+            | Verify selected master records belong to current context
+            |--------------------------------------------------------------------------
+            */
 
             $this->validateMasterRecord(
-                'auto_embellishment_master',
-                $validated['embellishment'],
+                'auto_designer_master',
+                $validated['designer_name'],
                 $companyId,
                 $subCompanyId,
                 $projectId
             );
 
-        }
-
-
-        if (!empty($validated['manufacturing_process'])) {
 
             $this->validateMasterRecord(
-                'auto_manufacturing_process_master',
-                $validated['manufacturing_process'],
+                'auto_itemtype_master',
+                $validated['item_type'],
                 $companyId,
                 $subCompanyId,
                 $projectId
             );
 
-        }
-
-
-        if (!empty($validated['craftsman'])) {
 
             $this->validateMasterRecord(
-                'auto_craftsman_master',
-                $validated['craftsman'],
+                'auto_gender_master',
+                $validated['gender'],
                 $companyId,
                 $subCompanyId,
                 $projectId
             );
 
-        }
-
-
-        if (!empty($validated['manufecture'])) {
 
             $this->validateMasterRecord(
-                'auto_manufacture_master',
-                $validated['manufecture'],
+                'auto_itemname_master',
+                $validated['item_name'],
                 $companyId,
                 $subCompanyId,
                 $projectId
             );
 
-        }
-
-
-        if (!empty($validated['client'])) {
 
             $this->validateMasterRecord(
-                'auto_client_master',
-                $validated['client'],
+                'auto_composition_master_stock',
+                $validated['composition'],
                 $companyId,
                 $subCompanyId,
                 $projectId
             );
 
-        }
 
+            $this->validateMasterRecord(
+                'auto_colour_master',
+                $validated['colour'],
+                $companyId,
+                $subCompanyId,
+                $projectId
+            );
+
+
+            $this->validateMasterRecord(
+                'auto_size_master',
+                $validated['sizes'],
+                $companyId,
+                $subCompanyId,
+                $projectId
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Optional master validation
+            |--------------------------------------------------------------------------
+            */
+
+            if (!empty($validated['embellishment'])) {
+
+                $this->validateMasterRecord(
+                    'auto_embellishment_master',
+                    $validated['embellishment'],
+                    $companyId,
+                    $subCompanyId,
+                    $projectId
+                );
+
+            }
+
+
+            if (!empty($validated['manufacturing_process'])) {
+
+                $this->validateMasterRecord(
+                    'auto_manufacturing_process_master',
+                    $validated['manufacturing_process'],
+                    $companyId,
+                    $subCompanyId,
+                    $projectId
+                );
+
+            }
+
+
+            if (!empty($validated['craftsman'])) {
+
+                $this->validateMasterRecord(
+                    'auto_craftsman_master',
+                    $validated['craftsman'],
+                    $companyId,
+                    $subCompanyId,
+                    $projectId
+                );
+
+            }
+
+
+            if (!empty($validated['manufecture'])) {
+
+                $this->validateMasterRecord(
+                    'auto_manufacture_master',
+                    $validated['manufecture'],
+                    $companyId,
+                    $subCompanyId,
+                    $projectId
+                );
+
+            }
+
+
+            if (!empty($validated['client'])) {
+
+                $this->validateMasterRecord(
+                    'auto_client_master',
+                    $validated['client'],
+                    $companyId,
+                    $subCompanyId,
+                    $projectId
+                );
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Craftsman Code
+            |--------------------------------------------------------------------------
+            */
+
+            $craftsmanCode =
+                $validated['craftsman_code'] ?? null;
+
+
+            if (!empty($validated['craftsman'])) {
+
+                $craftsman =
+                    DB::table('auto_craftsman_master')
+                        ->where('sno', $validated['craftsman'])
+                        ->where('companyid', $companyId)
+                        ->where('subcompanyid', $subCompanyId)
+                        ->where('projectid', $projectId)
+                        ->first([
+                            'code'
+                        ]);
+
+
+                if ($craftsman) {
+
+                    $craftsmanCode =
+                        $craftsman->code;
+
+                }
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Generate Barcode
+            |--------------------------------------------------------------------------
+            |
+            | Existing data uses the company/sub-company/project
+            | context followed by the selected specification IDs.
+            |
+            */
 
         /*
-        |--------------------------------------------------------------------------
-        | Craftsman Code
-        |--------------------------------------------------------------------------
-        */
+            |--------------------------------------------------------------------------
+            | NEW OR EDIT
+            |--------------------------------------------------------------------------
+            */
 
-        $craftsmanCode =
-            $validated['craftsman_code'] ?? null;
+            /*
+            |--------------------------------------------------------------------------
+            | Generate Barcode
+            |--------------------------------------------------------------------------
+            | NEW RECORD ONLY
+            |--------------------------------------------------------------------------
+            */
+
+            $barcode =
+                $this->generateBarcode(
+                    $companyId,
+                    $subCompanyId,
+                    $projectId,
+                    $validated
+                );
+
+            $nextId = ((int) DB::table(
+                'auto_designer_specification_master'
+            )->max('id')) + 1;
+
+            /*
+            |--------------------------------------------------------------------------
+            | Generate Automatic SKU
+            |--------------------------------------------------------------------------
+            */
+
+            $generatedSku = $this->generateProductSku(
+                $companyId,
+                $nextId,
+                (int) $validated['item_name'],
+                (int) $validated['item_type'],
+                (int) $validated['gender'],
+                (int) $validated['sizes'],
+                (int) $validated['colour'],
+                (int) $validated['composition']
+            );
 
 
-        if (!empty($validated['craftsman'])) {
+            /*
+            |--------------------------------------------------------------------------
+            | Supplier SKU
+            |--------------------------------------------------------------------------
+            |
+            | The SKU entered by user from frontend is now treated as
+            | supplier SKU.
+            |
+            */
 
-            $craftsman =
-                DB::table('auto_craftsman_master')
-                    ->where('sno', $validated['craftsman'])
-                    ->where('companyid', $companyId)
-                    ->where('subcompanyid', $subCompanyId)
-                    ->where('projectid', $projectId)
-                    ->first([
-                        'code'
+            $supplierSku = !empty($validated['sku'])
+                ? trim($validated['sku'])
+                : null;
+
+            $barcodeExists = DB::table(
+                'auto_designer_specification_master'
+            )->where('barcode', $barcode)->exists();
+
+            if ($barcodeExists) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This barcode already exists. Please check the selected specification values.'
+                ], 422);
+            }
+
+
+        
+        
+        
+
+                
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Image path
+            |--------------------------------------------------------------------------
+            */
+
+            $imgPath = null;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Save Database Record
+            |--------------------------------------------------------------------------
+            */
+
+            $insertId =
+                DB::table(
+                    'auto_designer_specification_master'
+                )->insertGetId([
+
+                    'designer_name' =>
+                        $validated['designer_name'],
+
+                    'item_type' =>
+                        $validated['item_type'],
+
+                    'gender' =>
+                        $validated['gender'],
+
+                    'item_name' =>
+                        $validated['item_name'],
+
+                    'composition' =>
+                        $validated['composition'],
+
+                    'colour' =>
+                        $validated['colour'],
+
+                    'sizes' =>
+                        $validated['sizes'],
+
+                    'embellishment' =>
+                        $validated['embellishment'] ?? 0,
+
+                    'manufacturing_process' =>
+                        $validated['manufacturing_process'] ?? 0,
+
+                    'craftsman' =>
+                        $validated['craftsman'] ?? 0,
+
+                    'craftsman_code' =>
+                        $craftsmanCode,
+
+                    'manufecture' =>
+                        $validated['manufecture'] ?? 0,
+
+                    'client' =>
+                        $validated['client'] ?? 0,
+
+                    'clientreference' =>
+                        $validated['clientreference'] ?? null,
+
+                    'companyid' =>
+                        $companyId,
+
+                    'subcompanyid' =>
+                        $subCompanyId,
+
+                    'projectid' =>
+                        $projectId,
+
+                    
+
+                    'loginid' =>
+                        $user->username,
+
+                    'edatetime' =>
+                        now(),
+
+                    'id' =>
+                        $nextId,
+
+                    'barcode' =>
+                        $barcode,
+
+                    'sku' =>
+                        $generatedSku,
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Supplier SKU
+                    |--------------------------------------------------------------------------
+                    */
+
+                    'sku_supplier' =>
+                        $supplierSku,
+
+                    'img_path' =>
+                        $imgPath,
+
+                    'status' =>
+                        '',
+
+                    'box_assign' =>
+                        '',
+
+                    'print_status' =>
+                        null,
+
+                    'description_id' =>
+                        null,
+
+                    'oc_product_id' =>
+                        null,
+
+                    'oc_main_img' =>
+                        null,
+
+                ]);
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Image Upload
+            |--------------------------------------------------------------------------
+            |
+            | For now store uploaded images under:
+            |
+            | storage/app/public/design-specifications/{barcode}/
+            |
+            */
+
+        if ($request->hasFile('design_images')) {
+
+                /*
+                * Main product directory
+                */
+                $imageDirectory =
+                    public_path(
+                        'ItemsDesigner_Masterwithbarcode/' .
+                        $barcode
+                    );
+
+
+                /*
+                * Create directory if it doesn't exist
+                */
+                if (!is_dir($imageDirectory)) {
+
+                    mkdir(
+                        $imageDirectory,
+                        0755,
+                        true
+                    );
+                }
+
+
+                /*
+                * Store relative paths for database
+                */
+                $uploadedPaths = [];
+
+
+                foreach (
+                    $request->file('design_images')
+                    as $image
+                ) {
+
+                    /*
+                    * Generate unique filename
+                    */
+                    $fileName =
+                        \Illuminate\Support\Str::random(40) .
+                        '.' .
+                        strtolower(
+                            $image->getClientOriginalExtension()
+                        );
+
+
+                    /*
+                    * Move image directly into:
+                    *
+                    * public/ItemsDesigner_Masterwithbarcode/{barcode}/
+                    */
+                    $image->move(
+                        $imageDirectory,
+                        $fileName
+                    );
+
+
+                    /*
+                    * Save web-accessible relative path
+                    *
+                    * Example:
+                    *
+                    * ItemsDesigner_Masterwithbarcode/
+                    * 147953564101461562/
+                    * abc123.webp
+                    */
+                    $uploadedPaths[] =
+                        'ItemsDesigner_Masterwithbarcode/' .
+                        $barcode .
+                        '/' .
+                        $fileName;
+                }
+
+
+                /*
+                * Save paths in img_path
+                */
+                if (!empty($uploadedPaths)) {
+
+                    $imgPath =
+                        json_encode(
+                            $uploadedPaths,
+                            JSON_UNESCAPED_SLASHES
+                        );
+
+
+                    DB::table(
+                        'auto_designer_specification_master'
+                    )
+                    ->where(
+                        'sno',
+                        $insertId
+                    )
+                    ->update([
+                        'img_path' => $imgPath
                     ]);
+                }
+            }
+
+            /*
+        |--------------------------------------------------------------------------
+        | SUB IMAGES
+        |--------------------------------------------------------------------------
+        |
+        | Save into:
+        |
+        | public/
+        |   ItemsDesigner_Masterwithbarcode/
+        |       {barcode}/
+        |           SubImgs/
+        |
+        |--------------------------------------------------------------------------
+        */
+
+        $subImagePaths = [];
 
 
-            if ($craftsman) {
+        /*
+        |--------------------------------------------------------------------------
+        | Check uploaded sub images
+        |--------------------------------------------------------------------------
+        */
 
-                $craftsmanCode =
-                    $craftsman->code;
+        if ($request->hasFile('sub_images')) {
+
+            $subImages =
+                $request->file('sub_images');
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Make sure it is an array
+            |--------------------------------------------------------------------------
+            */
+
+            if (!is_array($subImages)) {
+
+                $subImages = [
+                    $subImages
+                ];
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Sub Image Directory
+            |--------------------------------------------------------------------------
+            */
+
+            $subImageDirectory =
+                public_path(
+                    'ItemsDesigner_Masterwithbarcode/' .
+                    $barcode .
+                    '/SubImgs'
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Create Directory
+            |--------------------------------------------------------------------------
+            */
+
+            if (!is_dir($subImageDirectory)) {
+
+                mkdir(
+                    $subImageDirectory,
+                    0755,
+                    true
+                );
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Upload Each Sub Image
+            |--------------------------------------------------------------------------
+            */
+
+            foreach (
+                $subImages
+                as $subImage
+            ) {
+
+                /*
+                |--------------------------------------------------------------------------
+                | Check Valid Uploaded File
+                |--------------------------------------------------------------------------
+                */
+
+                if (
+                    !$subImage ||
+                    !$subImage->isValid()
+                ) {
+
+                    continue;
+
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | Generate Unique File Name
+                |--------------------------------------------------------------------------
+                */
+
+                $extension =
+                    strtolower(
+                        $subImage
+                            ->getClientOriginalExtension()
+                    );
+
+
+                $fileName =
+                    \Illuminate\Support\Str::random(40) .
+                    '.' .
+                    $extension;
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | Move File
+                |--------------------------------------------------------------------------
+                */
+
+                $subImage->move(
+                    $subImageDirectory,
+                    $fileName
+                );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | Relative Database Path
+                |--------------------------------------------------------------------------
+                */
+
+                $subImagePaths[] =
+                    'ItemsDesigner_Masterwithbarcode/' .
+                    $barcode .
+                    '/SubImgs/' .
+                    $fileName;
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Save JSON Path
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                !empty($subImagePaths)
+            ) {
+
+                DB::table(
+                    'auto_designer_specification_master'
+                )
+                ->where(
+                    'sno',
+                    $insertId
+                )
+                ->update([
+                    'subimg_path' =>
+                        json_encode(
+                            $subImagePaths,
+                            JSON_UNESCAPED_SLASHES
+                        )
+                ]);
 
             }
 
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | Generate Barcode
-        |--------------------------------------------------------------------------
-        |
-        | Existing data uses the company/sub-company/project
-        | context followed by the selected specification IDs.
-        |
-        */
-
-       /*
-        |--------------------------------------------------------------------------
-        | NEW OR EDIT
-        |--------------------------------------------------------------------------
-        */
-
-        /*
-        |--------------------------------------------------------------------------
-        | Generate Barcode
-        |--------------------------------------------------------------------------
-        | NEW RECORD ONLY
-        |--------------------------------------------------------------------------
-        */
-
-        $barcode =
-            $this->generateBarcode(
-                $companyId,
-                $subCompanyId,
-                $projectId,
-                $validated
-            );
-
-        $nextId = ((int) DB::table(
-            'auto_designer_specification_master'
-        )->max('id')) + 1;
-
-        $barcodeExists = DB::table(
-            'auto_designer_specification_master'
-        )->where('barcode', $barcode)->exists();
-
-        if ($barcodeExists) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This barcode already exists. Please check the selected specification values.'
-            ], 422);
-        }
-
-
-      
-     
-       
-
             
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | Image path
-        |--------------------------------------------------------------------------
-        */
-
-        $imgPath = null;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Save Database Record
-        |--------------------------------------------------------------------------
-        */
-
-        $insertId =
-            DB::table(
-                'auto_designer_specification_master'
-            )->insertGetId([
-
-                'designer_name' =>
-                    $validated['designer_name'],
-
-                'item_type' =>
-                    $validated['item_type'],
-
-                'gender' =>
-                    $validated['gender'],
-
-                'item_name' =>
-                    $validated['item_name'],
-
-                'composition' =>
-                    $validated['composition'],
-
-                'colour' =>
-                    $validated['colour'],
-
-                'sizes' =>
-                    $validated['sizes'],
-
-                'embellishment' =>
-                    $validated['embellishment'] ?? 0,
-
-                'manufacturing_process' =>
-                    $validated['manufacturing_process'] ?? 0,
-
-                'craftsman' =>
-                    $validated['craftsman'] ?? 0,
-
-                'craftsman_code' =>
-                    $craftsmanCode,
-
-                'manufecture' =>
-                    $validated['manufecture'] ?? 0,
-
-                'client' =>
-                    $validated['client'] ?? 0,
-
-                'clientreference' =>
-                    $validated['clientreference'] ?? null,
-
-                'companyid' =>
-                    $companyId,
-
-                'subcompanyid' =>
-                    $subCompanyId,
-
-                'projectid' =>
-                    $projectId,
-
-                
-
-                'loginid' =>
-                    $user->username,
-
-                'edatetime' =>
-                    now(),
-
-                'id' =>
-                    $nextId,
-
-                'barcode' =>
-                    $barcode,
-
-                'sku' =>
-                    $validated['sku'] ?? null,
-
-                'img_path' =>
-                    $imgPath,
-
-                'status' =>
-                    '',
-
-                'box_assign' =>
-                    '',
-
-                'print_status' =>
-                    null,
-
-                'description_id' =>
-                    null,
-
-                'oc_product_id' =>
-                    null,
-
-                'oc_main_img' =>
-                    null,
-
-            ]);
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Image Upload
-        |--------------------------------------------------------------------------
-        |
-        | For now store uploaded images under:
-        |
-        | storage/app/public/design-specifications/{barcode}/
-        |
-        */
-
-       if ($request->hasFile('design_images')) {
-
-        /*
-        * Main product directory
-        */
-        $imageDirectory =
-            public_path(
-                'ItemsDesigner_Masterwithbarcode/' .
-                $barcode
-            );
-
-
-        /*
-        * Create directory if it doesn't exist
-        */
-        if (!is_dir($imageDirectory)) {
-
-            mkdir(
-                $imageDirectory,
-                0755,
-                true
-            );
-        }
-
-
-        /*
-        * Store relative paths for database
-        */
-        $uploadedPaths = [];
-
-
-        foreach (
-            $request->file('design_images')
-            as $image
-        ) {
-
-            /*
-            * Generate unique filename
-            */
-            $fileName =
-                \Illuminate\Support\Str::random(40) .
-                '.' .
-                strtolower(
-                    $image->getClientOriginalExtension()
-                );
-
-
-            /*
-            * Move image directly into:
-            *
-            * public/ItemsDesigner_Masterwithbarcode/{barcode}/
-            */
-            $image->move(
-                $imageDirectory,
-                $fileName
-            );
-
-
-            /*
-            * Save web-accessible relative path
-            *
-            * Example:
-            *
-            * ItemsDesigner_Masterwithbarcode/
-            * 147953564101461562/
-            * abc123.webp
-            */
-            $uploadedPaths[] =
-                'ItemsDesigner_Masterwithbarcode/' .
-                $barcode .
-                '/' .
-                $fileName;
-        }
-
-
-        /*
-        * Save paths in img_path
-        */
-        if (!empty($uploadedPaths)) {
-
-            $imgPath =
-                json_encode(
-                    $uploadedPaths,
-                    JSON_UNESCAPED_SLASHES
-                );
-
-
-            DB::table(
-                'auto_designer_specification_master'
-            )
-            ->where(
-                'sno',
-                $insertId
-            )
-            ->update([
-                'img_path' => $imgPath
-            ]);
-        }
-        }
+           
 
 
         /*
@@ -2614,6 +3205,37 @@ public function findByBarcode(Request $request)
             'auto_designer_specification_master'
         )->max('id')) + 1;
 
+            /*
+            |--------------------------------------------------------------------------
+            | Generate NEW automatic SKU for new version
+            |--------------------------------------------------------------------------
+            */
+
+            $generatedSku = $this->generateProductSku(
+                $companyId,
+                $nextId,
+                (int) $validated['item_name'],
+                (int) $validated['item_type'],
+                (int) $validated['gender'],
+                (int) $validated['sizes'],
+                (int) $validated['colour'],
+                (int) $validated['composition']
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Supplier SKU
+            |--------------------------------------------------------------------------
+            |
+            | User-entered SKU from frontend.
+            |
+            */
+
+            $supplierSku = !empty($validated['sku'])
+                ? trim($validated['sku'])
+                : null;
+
         /*
          * Mark old version as history.
          */
@@ -2700,7 +3322,10 @@ public function findByBarcode(Request $request)
                 $barcode,
 
             'sku' =>
-                $validated['sku'] ?? null,
+                $generatedSku,
+
+            'sku_supplier' =>
+                $supplierSku,
 
             'img_path' =>
                 $imgPath,
@@ -3102,6 +3727,7 @@ public function findByBarcode(Request $request)
                 'message' => 'Unauthenticated.'
             ], 401);
         }
+
 
         $config = $this->masterConfig($master);
 

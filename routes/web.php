@@ -8,6 +8,7 @@ use App\Http\Controllers\Inventory\ReadyToSellStockController;
 use App\Http\Controllers\Inventory\FabricYarnBuyingController;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use App\Http\Controllers\AllGarmentsController;
 
 
 Route::get('/', function () {
@@ -545,4 +546,34 @@ Route::prefix('supplier')->name('supplier.')->group(function () {
         Route::resource('products', \App\Http\Controllers\Supplier\ProductController::class)->except(['show', 'destroy']);
     });
 });
+
+Route::get(
+    '/admin/design-specifications/supplier-products',
+    [DesignSpecificationController::class, 'supplierProducts']
+)->name(
+    'design-specifications.supplier-products'
+);
+
+Route::get(
+        '/admin/all-garments',
+        [AllGarmentsController::class, 'index']
+    )->name('all-garments.index');
+
+
+    Route::get(
+        '/admin/all-garments/data',
+        [AllGarmentsController::class, 'data']
+    )->name('all-garments.data');
+
+
+    Route::get(
+        '/admin/all-garments/sub-companies',
+        [AllGarmentsController::class, 'subCompanies']
+    )->name('all-garments.sub-companies');
+
+
+    Route::get(
+        '/admin/all-garments/projects',
+        [AllGarmentsController::class, 'projects']
+    )->name('all-garments.projects');
 
