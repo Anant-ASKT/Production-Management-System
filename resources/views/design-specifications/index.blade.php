@@ -65,6 +65,16 @@
                 Use Uploaded Image
 
             </button>
+            <button
+                type="button"
+                class="btn btn-outline-info"
+                id="btnUseSupplierdImage">
+
+                <i class="bi bi-images me-1"></i>
+
+                 Uploaded Supplier Raw Data
+
+            </button>
 
         </div>
 
@@ -142,7 +152,40 @@
 
         </div>
 
+        
+
     </div>
+
+    {{-- Supplier --}}
+    <div class="context-item">
+
+    <div class="context-icon">
+        <i class="bi bi-shop"></i>
+    </div>
+
+    <div class="context-content">
+
+        <span class="context-label">
+            Supplier
+        </span>
+
+        <strong
+            class="context-value"
+            id="supplierContextName"
+        >
+           {{ $projectName }}
+        </strong>
+
+        <input
+            type="hidden"
+            id="supplierContextId"
+            name="supplier_id"
+            value=""
+        >
+
+    </div>
+
+</div>
 
 </div>
 
@@ -293,6 +336,45 @@
                         </small>
 
                     </div>
+
+                    <!-- =========================================================
+                            DESIGN SUB IMAGES
+                        ========================================================= -->
+                        <div class="card mt-3">
+                            <div class="card-header">
+                                <strong>Design Sub Images</strong>
+                            </div>
+
+                            <div class="card-body">
+
+                                <div class="row">
+                                    <div class="col-12">
+
+                                        <label class="form-label fw-bold">
+                                            Add Sub Images
+                                        </label>
+
+                                        <input
+                                            type="file"
+                                            class="form-control"
+                                            id="sub_images"
+                                            name="sub_images[]"
+                                            accept="image/*"
+                                            multiple
+                                        >
+
+                                        <small class="text-muted">
+                                            You can select multiple images.
+                                        </small>
+
+                                    </div>
+                                </div>
+
+                                <!-- Preview -->
+                               <div class="row mt-3" id="subImagesPreview"></div>
+
+                            </div>
+                        </div>
 
 
                   
@@ -1334,6 +1416,35 @@
                         id="viewSpecificationImage"
                         class="view-product-image">
                     </div>
+                    <!-- =========================================================
+                        DESIGN SUB IMAGES
+                    ========================================================== -->
+                    <div
+                        class="view-section mt-4"
+                        id="viewSubImagesSection"
+                        style="display:none;"
+                    >
+
+                        <div class="view-section-header">
+
+                            <i class="bi bi-images"></i>
+
+                            <div>
+                                <h6>Design Sub Images</h6>
+
+                                <small>
+                                    Additional images of this design
+                                </small>
+                            </div>
+
+                        </div>
+
+                        <div
+                            id="viewSubImages"
+                            class="view-sub-images-grid"
+                        ></div>
+
+                    </div>
 
                     <div class="view-product-summary">
 
@@ -2233,6 +2344,8 @@
 
                     </div>
 
+                    
+
 
                     <div class="confirm-product-main">
 
@@ -2453,6 +2566,23 @@
                     <div
                         id="confirmImages"
                         class="confirm-images-grid">
+
+                    </div>
+
+                    <!-- =========================================================
+                        DESIGN SUB IMAGES
+                    ========================================================= -->
+                    <div class="confirm-section mt-3">
+
+                        <div class="confirm-section-title">
+                            <i class="bi bi-images"></i>
+                            Design Sub Images
+                        </div>
+
+                        <div
+                            id="confirmSubImages"
+                            class="confirm-images-grid">
+                        </div>
 
                     </div>
 
@@ -2895,6 +3025,183 @@
 
                     Close
 
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- =========================================================
+     SUPPLIER PRODUCT RAW DATA MODAL
+========================================================= -->
+
+<div
+    class="modal fade"
+    id="supplierProductModal"
+    tabindex="-1"
+    aria-labelledby="supplierProductModalLabel"
+    aria-hidden="true"
+>
+
+    <div
+        class="modal-dialog modal-xl modal-dialog-scrollable"
+    >
+
+        <div class="modal-content">
+
+
+            <!-- HEADER -->
+
+            <div class="modal-header">
+
+                <h5
+                    class="modal-title fw-bold"
+                    id="supplierProductModalLabel"
+                >
+                    <i class="bi bi-box-seam me-2"></i>
+                    Supplier Product Raw Data
+                </h5>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+
+            </div>
+
+
+            <!-- BODY -->
+
+            <div class="modal-body">
+
+
+                <!-- LOADING -->
+
+                <div
+                    id="supplierProductsLoading"
+                    class="text-center py-4"
+                    style="display:none;"
+                >
+
+                    <div
+                        class="spinner-border text-primary"
+                        role="status"
+                    ></div>
+
+                    <div class="mt-2 text-muted">
+                        Loading supplier products...
+                    </div>
+
+                </div>
+
+
+                <!-- TABLE -->
+
+                <div
+                    class="table-responsive"
+                    id="supplierProductsTableWrapper"
+                >
+
+                    <table
+                        class="table table-bordered table-hover align-middle"
+                        id="supplierProductsTable"
+                    >
+
+                        <thead class="table-light">
+
+                            <tr>
+
+                                <th>
+                                    #
+                                </th>
+
+                                <th>
+                                    Product
+                                </th>
+
+                                <th>
+                                    Supplier
+                                </th>
+
+                                <th>
+                                    Item Type
+                                </th>
+
+                                <th>
+                                    Gender
+                                </th>
+
+                                <th>
+                                    Composition
+                                </th>
+
+                                <th>
+                                    Colour
+                                </th>
+
+                                <th>
+                                    Size
+                                </th>
+
+                                <th>
+                                    Main Image
+                                </th>
+
+                                <th>
+                                    Action
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody
+                            id="supplierProductsTableBody"
+                        >
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+
+                <!-- NO DATA -->
+
+                <div
+                    id="supplierProductsNoData"
+                    class="text-center text-muted py-5"
+                    style="display:none;"
+                >
+
+                    <i
+                        class="bi bi-box-seam fs-1 d-block mb-2"
+                    ></i>
+
+                    No supplier products found.
+
+                </div>
+
+
+            </div>
+
+
+            <!-- FOOTER -->
+
+            <div class="modal-footer">
+
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                >
+                    Close
                 </button>
 
             </div>
@@ -6385,6 +6692,150 @@
 }
 
 
+/* =========================================================
+   DESIGN SUB IMAGES PREVIEW
+   ========================================================= */
+
+#subImagesPreview {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.sub-image-preview-card {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    background: #fff;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    transition: all 0.2s ease;
+}
+
+.sub-image-preview-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 14px rgba(0, 0, 0, 0.12);
+}
+
+.sub-image-preview-image-wrapper {
+    width: 100%;
+    height: 170px;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.sub-image-preview-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.sub-image-preview-info {
+    padding: 9px 10px;
+    background: #fff;
+}
+
+.sub-image-preview-name {
+    font-size: 13px;
+    color: #495057;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sub-image-remove {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+
+    width: 30px;
+    height: 30px;
+
+    border: none;
+    border-radius: 50%;
+
+    background: rgba(220, 53, 69, 0.95);
+    color: #fff;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+    z-index: 5;
+
+    font-size: 14px;
+    line-height: 1;
+
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.sub-image-remove:hover {
+    background: #dc3545;
+    transform: scale(1.05);
+}
+
+.sub-images-empty {
+    width: 100%;
+    padding: 25px;
+    border: 1px dashed #ced4da;
+    border-radius: 10px;
+    text-align: center;
+    color: #6c757d;
+    background: #f8f9fa;
+}
+
+/* Tablet */
+@media (max-width: 768px) {
+
+    #subImagesPreview {
+        grid-template-columns:
+            repeat(auto-fill, minmax(130px, 1fr));
+
+        gap: 12px;
+    }
+
+    .sub-image-preview-image-wrapper {
+        height: 150px;
+    }
+
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+
+    #subImagesPreview {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+
+        gap: 10px;
+    }
+
+    .sub-image-preview-image-wrapper {
+        height: 135px;
+    }
+
+    .sub-image-preview-name {
+        font-size: 12px;
+    }
+
+    .sub-image-remove {
+        width: 27px;
+        height: 27px;
+        top: 6px;
+        right: 6px;
+    }
+
+}
+
+
 @media (max-width: 480px) {
 
     .selected-barcode-product-name {
@@ -6409,15 +6860,209 @@
 
 }
 
+/* =========================================================
+   VIEW DESIGN SUB IMAGES
+========================================================= */
+
+.view-sub-images-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(auto-fill, minmax(160px, 1fr));
+    gap: 16px;
+    margin-top: 15px;
+}
+
+.view-sub-image-card {
+    position: relative;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    transition: .2s ease;
+}
+
+.view-sub-image-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,.12);
+}
+
+.view-sub-image-wrapper {
+    width: 100%;
+    height: 180px;
+    background: #f8f9fa;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    overflow: hidden;
+}
+
+.view-sub-image-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    cursor: pointer;
+}
+
+.view-sub-image-name {
+    padding: 8px 10px;
+
+    font-size: 12px;
+    color: #6c757d;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+
+    .view-sub-images-grid {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+
+        gap: 10px;
+    }
+
+    .view-sub-image-wrapper {
+        height: 150px;
+    }
+}
+
+@media (max-width: 420px) {
+
+    .view-sub-images-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .view-sub-image-wrapper {
+        height: 220px;
+    }
+}
+
+/* =========================================================
+   DESIGN SUB IMAGE PREVIEW
+   ========================================================= */
+
+#subImagesPreview {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.sub-image-preview-card {
+    position: relative;
+    width: 100%;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    background: #fff;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+.sub-image-preview-wrapper {
+    position: relative;
+    width: 100%;
+    height: 180px;
+    background: #f5f6f8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.sub-image-preview-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.sub-image-preview-name {
+    padding: 8px 10px;
+    font-size: 12px;
+    color: #495057;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sub-image-existing-badge,
+.sub-image-new-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 5;
+    padding: 3px 8px;
+    border-radius: 5px;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.sub-image-existing-badge {
+    background: #198754;
+}
+
+.sub-image-new-badge {
+    background: #0d6efd;
+}
+
+.sub-image-remove-btn {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 50%;
+    background: #dc3545;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+}
+
+.sub-image-remove-btn:hover {
+    opacity: 0.85;
+}
+
+.sub-image-error {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #adb5bd;
+    gap: 6px;
+}
+
+.sub-image-error i {
+    font-size: 35px;
+}
+
+.sub-image-error span {
+    font-size: 12px;
+}
+
 body {
     overflow-x: hidden;
 }
+
 
 </style>
 <script>
 
     let existingImages = [];
+  
     let selectedBarcodeSpecifications = [];
+
+    let existingSubImages = [];
 
     /*
     |--------------------------------------------------------------------------
@@ -7793,6 +8438,36 @@ body {
 
                 }
 
+                            
+                 // =========================================================
+                    // SUB IMAGES
+                    // =========================================================
+
+                    if (
+                        Array.isArray(selectedSubImages) &&
+                        selectedSubImages.length > 0
+                    ) {
+
+                        selectedSubImages.forEach(
+                            function (file) {
+
+                                formData.append(
+                                    'sub_images[]',
+                                    file,
+                                    file.name
+                                );
+
+                            }
+                        );
+
+                    }
+
+
+                    console.log(
+                        'SUB IMAGES TO UPLOAD:',
+                        selectedSubImages.length
+                    );
+
 
                 /*
                 |--------------------------------------------------------------------------
@@ -8033,6 +8708,36 @@ body {
                     result.barcode ||
                     editBarcode
                 );
+
+
+                /*
+                    |--------------------------------------------------------------------------
+                    | CLEAR DESIGN SUB IMAGES
+                    |--------------------------------------------------------------------------
+                    */
+
+                    selectedSubImages = [];
+
+                    const subImagesInput =
+                        document.getElementById('sub_images');
+
+                    if (subImagesInput) {
+                        subImagesInput.value = '';
+                    }
+
+                    const subImagesPreview =
+                        document.getElementById('subImagesPreview');
+
+                    if (subImagesPreview) {
+                        subImagesPreview.innerHTML = '';
+                    }
+
+                    const confirmSubImages =
+                        document.getElementById('confirmSubImages');
+
+                    if (confirmSubImages) {
+                        confirmSubImages.innerHTML = '';
+                    }
 
 
                 /*
@@ -8688,6 +9393,10 @@ body {
         */
 
         window.renderConfirmationImages();
+
+
+        window.renderConfirmationSubImages();
+
 
 
         /*
@@ -10390,6 +11099,11 @@ document.addEventListener(
             'btnUseUploadedImage'
         );
 
+     const btnUseSupplierdImage =
+        document.getElementById(
+            'btnUseSupplierdImage'
+        );
+
 
     const uploadedImageSearch =
         document.getElementById(
@@ -10809,6 +11523,38 @@ if (btnUseUploadedImage) {
 }
 
 
+if (btnUseSupplierdImage) {
+
+    btnUseSupplierdImage.addEventListener(
+        'click',
+        function () {
+
+              const modalElement =
+            document.getElementById(
+                'supplierProductModal'
+            );
+
+        const modal =
+            bootstrap.Modal.getOrCreateInstance(
+                modalElement
+            );
+
+            modal.show();
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | LOAD SUPPLIER PRODUCTS
+            |--------------------------------------------------------------------------
+            */
+
+            loadSupplierProducts();
+
+        }
+    );
+
+}
+
 /*
 |--------------------------------------------------------------------------
 | Search
@@ -11148,6 +11894,80 @@ document.addEventListener(
     }
 );
 
+document.addEventListener(
+    'click',
+    async function (event) {
+
+        const button =
+            event.target.closest(
+                '.btn-select-supplier-product'
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | NOT SUPPLIER PRODUCT BUTTON
+        |--------------------------------------------------------------------------
+        */
+
+        if (!button) {
+            return;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | GET PRODUCT FROM CLICKED BUTTON
+        |--------------------------------------------------------------------------
+        */
+
+        const product =
+            $(button).data('product');
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CHECK PRODUCT
+        |--------------------------------------------------------------------------
+        */
+
+        if (!product) {
+
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Supplier product data not found.'
+            });
+
+            return;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DEBUG
+        |--------------------------------------------------------------------------
+        */
+
+        console.log(
+            'Selected Supplier Product:',
+            product
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SELECT SUPPLIER PRODUCT
+        |--------------------------------------------------------------------------
+        */
+
+        selectSupplierProduct(
+            product
+        );
+
+    }
+);
+
                 /*
                 |--------------------------------------------------------------------------
                 | Existing images of edited specification
@@ -11346,7 +12166,7 @@ document.addEventListener(
                     */
                     setTimeout(function () {
 
-                        generateBtn.click();
+                        //generateBtn.click();
 
                     }, 300);
 
@@ -12967,6 +13787,102 @@ document.addEventListener(
 
 
                     /*
+|--------------------------------------------------------------------------
+| DESIGN SUB IMAGES
+|--------------------------------------------------------------------------
+*/
+
+const subImagesSection =
+    document.getElementById(
+        'viewSubImagesSection'
+    );
+
+const subImagesContainer =
+    document.getElementById(
+        'viewSubImages'
+    );
+
+if (
+    subImagesSection &&
+    subImagesContainer
+) {
+
+    const subImages =
+        getExistingSpecificationSubImages(
+            specification
+        );
+
+    subImagesContainer.innerHTML = '';
+
+    if (
+        subImages.length > 0
+    ) {
+
+        subImages.forEach(
+            function (image, index) {
+
+                const card =
+                    document.createElement(
+                        'div'
+                    );
+
+                card.className =
+                    'view-sub-image-card';
+
+                const imageName =
+                    image.split('/').pop();
+
+                card.innerHTML = `
+
+                    <div
+                        class="view-sub-image-wrapper"
+                    >
+
+                        <img
+                            src="${escapeHtml(image)}"
+                            alt="Design Sub Image ${index + 1}"
+                            onclick="openLargeImage(this.src)"
+                            loading="lazy"
+                            onerror="
+                                this.parentElement.innerHTML =
+                                '<div class=&quot;no-image&quot;>
+                                    <i class=&quot;bi bi-image&quot;></i>
+                                    <span>Image unavailable</span>
+                                </div>';
+                            "
+                        >
+
+                    </div>
+
+                    <div
+                        class="view-sub-image-name"
+                        title="${escapeHtml(imageName)}"
+                    >
+                        ${escapeHtml(imageName)}
+                    </div>
+
+                `;
+
+                subImagesContainer.appendChild(
+                    card
+                );
+
+            }
+        );
+
+        subImagesSection.style.display =
+            '';
+
+    } else {
+
+        subImagesSection.style.display =
+            'none';
+
+    }
+}
+
+
+                    /*
                     * AI Product Information
                     */
 
@@ -13136,13 +14052,11 @@ document.addEventListener(
                 }
 
 
-                                /* =================================================
-                                EDIT
-                                ================================================== */
+                               
 
                                 /* =================================================
-                EDIT
-                ================================================= */
+                                EDIT
+                                ================================================= */
 
                             const editButton =
                                 card.querySelector(
@@ -13755,11 +14669,109 @@ document.addEventListener(
 
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | CONVERT DATABASE IMAGE PATH TO URL
-    |--------------------------------------------------------------------------
-    */
+    function getExistingSpecificationSubImages(
+      specification
+        ) {
+
+            let imageData =
+                specification.subimg_path || '';
+
+            if (!imageData) {
+                return [];
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Already an array
+            |--------------------------------------------------------------------------
+            */
+
+            if (Array.isArray(imageData)) {
+
+                return imageData
+                    .map(function (image) {
+
+                        return getSpecificationImageFromPath(
+                            image
+                        );
+
+                    })
+                    .filter(Boolean);
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | JSON string
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                typeof imageData === 'string'
+            ) {
+
+                imageData =
+                    imageData.trim();
+
+                if (
+                    imageData.startsWith('[')
+                ) {
+
+                    try {
+
+                        const parsed =
+                            JSON.parse(
+                                imageData
+                            );
+
+                        if (
+                            Array.isArray(parsed)
+                        ) {
+
+                            return parsed
+                                .map(function (image) {
+
+                                    return getSpecificationImageFromPath(
+                                        image
+                                    );
+
+                                })
+                                .filter(Boolean);
+                        }
+
+                    } catch (error) {
+
+                        console.warn(
+                            'Unable to parse sub images:',
+                            error
+                        );
+
+                    }
+                }
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Single image fallback
+            |--------------------------------------------------------------------------
+            */
+
+            const singleImage =
+                getSpecificationImageFromPath(
+                    imageData
+                );
+
+            return singleImage
+                ? [singleImage]
+                : [];
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | CONVERT DATABASE IMAGE PATH TO URL
+        |--------------------------------------------------------------------------
+        */
 
     function getSpecificationImageFromPath(
         image
@@ -14324,12 +15336,18 @@ document.addEventListener(
             | EXISTING IMAGES
             |--------------------------------------------------------------------------
             */
+            /*
+            |--------------------------------------------------------------------------
+            | EXISTING IMAGES
+            |--------------------------------------------------------------------------
+            */
 
             existingImages =
                 getExistingSpecificationImages(
                     specification
                 );
 
+            renderSelectedImages();
 
             console.log(
                 'Existing Images:',
@@ -14345,28 +15363,66 @@ document.addEventListener(
 
             selectedFiles = [];
 
-
             if (imageInput) {
-
                 imageInput.value = '';
-
             }
 
 
+                /*
+                |--------------------------------------------------------------------------
+                | SHOW EXISTING IMAGES
+                |--------------------------------------------------------------------------
+                */
+
+                renderSelectedImages();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | EXISTING DESIGN SUB IMAGES
+        |--------------------------------------------------------------------------
+        */
+
+            existingSubImages =
+                getExistingSpecificationSubImages(
+                    specification
+                );
+
+            console.log(
+                'Existing Sub Images:',
+                existingSubImages
+            );
+
+
             /*
             |--------------------------------------------------------------------------
-            | SHOW EXISTING IMAGES
+            | CLEAR NEW SUB IMAGE SELECTION
             |--------------------------------------------------------------------------
             */
 
-         renderSelectedImages();
+            selectedSubImages = [];
+
+            if (subImagesInput) {
+                subImagesInput.value = '';
+            }
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | CHANGE SAVE BUTTON TO UPDATE
-            |--------------------------------------------------------------------------
-            */
+                /*
+                |--------------------------------------------------------------------------
+                | SHOW EXISTING + NEW SUB IMAGES
+                |--------------------------------------------------------------------------
+                */
+
+                renderSubImagesPreview();
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | CHANGE SAVE BUTTON TO UPDATE
+                |--------------------------------------------------------------------------
+                */
+
+  
 
             const saveButton =
                 document.getElementById(
@@ -14401,221 +15457,302 @@ document.addEventListener(
         }
 
             function setSelectValue(
-    id,
-    value
-    ) {
+            id,
+            value
+            ) {
 
-        const element =
-            document.getElementById(
-                id
-            );
-
-
-        if (!element) {
-
-            console.warn(
-                'Select not found:',
-                id
-            );
-
-            return;
-
-        }
+                const element =
+                    document.getElementById(
+                        id
+                    );
 
 
-        if (
-            value === null ||
-            value === undefined ||
-            value === ''
-        ) {
+                if (!element) {
 
-            element.value =
-                '';
+                    console.warn(
+                        'Select not found:',
+                        id
+                    );
 
-        } else {
+                    return;
 
-            element.value =
-                String(value);
-
-        }
+                }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | Update Select2 UI
-        |--------------------------------------------------------------------------
-        */
+                if (
+                    value === null ||
+                    value === undefined ||
+                    value === ''
+                ) {
 
-        if (
-            typeof jQuery !==
-                'undefined' &&
-            jQuery.fn.select2 &&
-            jQuery(element).hasClass(
-                'select2-hidden-accessible'
-            )
-        ) {
+                    element.value =
+                        '';
 
-            jQuery(element)
-                .val(element.value)
-                .trigger('change');
+                } else {
 
-        }
+                    element.value =
+                        String(value);
 
-    }
+                }
 
-    window.renderConfirmationImages = function () {
 
-        const container =
-            document.getElementById(
-                'confirmImages'
-            );
+                /*
+                |--------------------------------------------------------------------------
+                | Update Select2 UI
+                |--------------------------------------------------------------------------
+                */
 
-        if (!container) {
-            return;
-        }
+                if (
+                    typeof jQuery !==
+                        'undefined' &&
+                    jQuery.fn.select2 &&
+                    jQuery(element).hasClass(
+                        'select2-hidden-accessible'
+                    )
+                ) {
+
+                    jQuery(element)
+                        .val(element.value)
+                        .trigger('change');
+
+                }
+
+            }
+
+            window.renderConfirmationImages = function () {
+
+                const container =
+                    document.getElementById(
+                        'confirmImages'
+                    );
+
+                if (!container) {
+                    return;
+                }
+
+                container.innerHTML = '';
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | EXISTING DATABASE IMAGES
+                |--------------------------------------------------------------------------
+                */
+
+                if (
+                    typeof existingImages !==
+                    'undefined' &&
+                    Array.isArray(existingImages)
+                ) {
+
+                    existingImages.forEach(
+                        function (imageUrl) {
+
+                            if (!imageUrl) {
+                                return;
+                            }
+
+                            const div =
+                                document.createElement(
+                                    'div'
+                                );
+
+                            div.className =
+                                'confirm-image-item';
+
+                            const img =
+                                document.createElement(
+                                    'img'
+                                );
+
+                            img.src =
+                                imageUrl;
+
+                            img.alt =
+                                'Design Image';
+
+                            div.appendChild(
+                                img
+                            );
+
+                            container.appendChild(
+                                div
+                            );
+
+                        }
+                    );
+
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | NEW IMAGES
+                |--------------------------------------------------------------------------
+                */
+
+                const imageInput =
+                    document.getElementById(
+                        'filenew'
+                    );
+
+                if (
+                    imageInput &&
+                    imageInput.files
+                ) {
+
+                    Array.from(
+                        imageInput.files
+                    ).forEach(
+                        function (file) {
+
+                            const div =
+                                document.createElement(
+                                    'div'
+                                );
+
+                            div.className =
+                                'confirm-image-item';
+
+                            const img =
+                                document.createElement(
+                                    'img'
+                                );
+
+                            img.alt =
+                                'New Design Image';
+
+                            div.appendChild(
+                                img
+                            );
+
+                            container.appendChild(
+                                div
+                            );
+
+
+                            const reader =
+                                new FileReader();
+
+                            reader.onload =
+                                function (event) {
+
+                                    img.src =
+                                        event.target.result;
+
+                                };
+
+                            reader.readAsDataURL(
+                                file
+                            );
+
+                        }
+                    );
+
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | NO IMAGE
+                |--------------------------------------------------------------------------
+                */
+
+                if (
+                    !container.children.length
+                ) {
+
+                    container.innerHTML = `
+                        <div
+                            class="text-muted p-3">
+                            No design images selected.
+                        </div>
+                    `;
+
+                }
+
+            }
+
+            window.renderConfirmationSubImages = function () {
+
+            const container =
+                document.getElementById('confirmSubImages');
+
+            if (!container) {
+                return;
+            }
 
         container.innerHTML = '';
 
+    /*
+    |--------------------------------------------------------------------------
+    | NEW SUB IMAGES SELECTED BY USER
+    |--------------------------------------------------------------------------
+    */
 
-        /*
-        |--------------------------------------------------------------------------
-        | EXISTING DATABASE IMAGES
-        |--------------------------------------------------------------------------
-        */
+    if (
+        Array.isArray(selectedSubImages) &&
+        selectedSubImages.length > 0
+    ) {
 
-        if (
-            typeof existingImages !==
-            'undefined' &&
-            Array.isArray(existingImages)
-        ) {
+        selectedSubImages.forEach(
+            function (file) {
 
-            existingImages.forEach(
-                function (imageUrl) {
-
-                    if (!imageUrl) {
-                        return;
-                    }
-
-                    const div =
-                        document.createElement(
-                            'div'
-                        );
-
-                    div.className =
-                        'confirm-image-item';
-
-                    const img =
-                        document.createElement(
-                            'img'
-                        );
-
-                    img.src =
-                        imageUrl;
-
-                    img.alt =
-                        'Design Image';
-
-                    div.appendChild(
-                        img
-                    );
-
-                    container.appendChild(
-                        div
-                    );
-
+                if (!file) {
+                    return;
                 }
-            );
 
-        }
+                const div =
+                    document.createElement('div');
 
+                div.className =
+                    'confirm-image-item';
 
-        /*
-        |--------------------------------------------------------------------------
-        | NEW IMAGES
-        |--------------------------------------------------------------------------
-        */
+                const img =
+                    document.createElement('img');
 
-        const imageInput =
-            document.getElementById(
-                'filenew'
-            );
+                img.alt =
+                    'Design Sub Image';
 
-        if (
-            imageInput &&
-            imageInput.files
-        ) {
+                div.appendChild(img);
 
-            Array.from(
-                imageInput.files
-            ).forEach(
-                function (file) {
+                container.appendChild(div);
 
-                    const div =
-                        document.createElement(
-                            'div'
-                        );
+                const reader =
+                    new FileReader();
 
-                    div.className =
-                        'confirm-image-item';
+                reader.onload =
+                    function (event) {
 
-                    const img =
-                        document.createElement(
-                            'img'
-                        );
+                        img.src =
+                            event.target.result;
 
-                    img.alt =
-                        'New Design Image';
+                    };
 
-                    div.appendChild(
-                        img
-                    );
+                reader.readAsDataURL(file);
 
-                    container.appendChild(
-                        div
-                    );
-
-
-                    const reader =
-                        new FileReader();
-
-                    reader.onload =
-                        function (event) {
-
-                            img.src =
-                                event.target.result;
-
-                        };
-
-                    reader.readAsDataURL(
-                        file
-                    );
-
-                }
-            );
-
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | NO IMAGE
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            !container.children.length
-        ) {
-
-            container.innerHTML = `
-                <div
-                    class="text-muted p-3">
-                    No design images selected.
-                </div>
-            `;
-
-        }
+            }
+        );
 
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | NO SUB IMAGES
+    |--------------------------------------------------------------------------
+    */
+
+    if (!container.children.length) {
+
+        container.innerHTML = `
+            <div class="text-muted p-3">
+                No design sub images selected.
+            </div>
+        `;
+
+    }
+
+};
 
     window.renderConfirmationMainImage = function () {
 
@@ -14742,6 +15879,8 @@ document.addEventListener(
         `;
 
     }
+
+
 
 
         function setInputValue(
@@ -16759,6 +17898,1436 @@ if (btnClearMasterSearch) {
         preview.style.display = 'none';
     }
 }
+
+// =========================================================
+// DESIGN SUB IMAGES
+// =========================================================
+
+let selectedSubImages = [];
+
+const subImagesInput =
+    document.getElementById('sub_images');
+
+const subImagesPreview =
+    document.getElementById('subImagesPreview');
+
+
+// =========================================================
+// SELECT SUB IMAGES
+// =========================================================
+
+if (subImagesInput) {
+
+    subImagesInput.addEventListener(
+        'change',
+        function (e) {
+
+            const files =
+                Array.from(
+                    e.target.files || []
+                );
+
+            files.forEach(function (file) {
+
+                if (
+                    !file.type ||
+                    !file.type.startsWith('image/')
+                ) {
+                    return;
+                }
+
+                selectedSubImages.push(file);
+
+            });
+
+            renderSubImagesPreview();
+
+            /*
+            IMPORTANT:
+
+            We intentionally clear the input so the
+            same image can be selected again.
+
+            The actual files are kept inside
+            selectedSubImages.
+            */
+
+            subImagesInput.value = '';
+
+        }
+    );
+
+}
+
+
+// =========================================================
+// RENDER SUB IMAGE PREVIEW
+// =========================================================
+
+function renderSubImagesPreview() {
+
+    const preview =
+        document.getElementById('subImagesPreview');
+
+    if (!preview) {
+        return;
+    }
+
+    preview.innerHTML = '';
+
+    /*
+    |--------------------------------------------------------------------------
+    | COMBINE EXISTING + NEW IMAGES
+    |--------------------------------------------------------------------------
+    */
+
+    let images = [];
+
+    /*
+    |--------------------------------------------------------------------------
+    | EXISTING IMAGES
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        Array.isArray(existingSubImages) &&
+        existingSubImages.length > 0
+    ) {
+
+        existingSubImages.forEach(function (item) {
+
+            let imagePath = '';
+
+            /*
+            | If database value is string
+            */
+
+            if (typeof item === 'string') {
+
+                imagePath = item;
+
+            }
+
+            /*
+            | If database value is object
+            */
+
+            else if (item && typeof item === 'object') {
+
+                imagePath =
+                    item.path ||
+                    item.url ||
+                    item.src ||
+                    item.image ||
+                    item.subimg_path ||
+                    '';
+
+            }
+
+            if (!imagePath) {
+                return;
+            }
+
+            images.push({
+                type: 'existing',
+                path: imagePath
+            });
+
+        });
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | NEWLY SELECTED IMAGES
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        Array.isArray(selectedSubImages) &&
+        selectedSubImages.length > 0
+    ) {
+
+        selectedSubImages.forEach(function (file) {
+
+            if (!file) {
+                return;
+            }
+
+            images.push({
+                type: 'new',
+                file: file
+            });
+
+        });
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | NO IMAGES
+    |--------------------------------------------------------------------------
+    */
+
+    if (images.length === 0) {
+
+        preview.innerHTML = `
+            <div class="col-12">
+                <div class="text-muted small">
+                    No sub images added.
+                </div>
+            </div>
+        `;
+
+        return;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | RENDER IMAGES
+    |--------------------------------------------------------------------------
+    */
+
+    images.forEach(function (image, index) {
+
+        const col =
+            document.createElement('div');
+
+        col.className =
+            'col-6 col-sm-4 col-md-3 col-lg-3 mb-3';
+
+
+        const card =
+            document.createElement('div');
+
+        card.className =
+            'sub-image-preview-card';
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | IMAGE WRAPPER
+        |--------------------------------------------------------------------------
+        */
+
+        const imageWrapper =
+            document.createElement('div');
+
+        imageWrapper.className =
+            'sub-image-preview-wrapper';
+
+
+        const img =
+            document.createElement('img');
+
+        img.className =
+            'sub-image-preview-img';
+
+        img.alt =
+            'Design Sub Image';
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | EXISTING IMAGE
+        |--------------------------------------------------------------------------
+        */
+
+        if (image.type === 'existing') {
+
+            let path =
+                image.path;
+
+            /*
+            | Remove leading slash
+            */
+
+            path =
+                path.replace(/^\/+/, '');
+
+
+            /*
+            | If stored path already contains public/
+            */
+
+            if (
+                path.startsWith('public/')
+            ) {
+
+                path =
+                    path.substring(7);
+
+            }
+
+
+            /*
+            | Build browser URL
+            */
+
+            img.src =
+                '/' + path;
+
+
+            /*
+            | Existing badge
+            */
+
+            const badge =
+                document.createElement('span');
+
+            badge.className =
+                'sub-image-existing-badge';
+
+            badge.innerHTML =
+                'Existing';
+
+            imageWrapper.appendChild(
+                badge
+            );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | NEW IMAGE
+        |--------------------------------------------------------------------------
+        */
+
+        else if (image.type === 'new') {
+
+            img.src =
+                URL.createObjectURL(
+                    image.file
+                );
+
+
+            /*
+            | New badge
+            */
+
+            const badge =
+                document.createElement('span');
+
+            badge.className =
+                'sub-image-new-badge';
+
+            badge.innerHTML =
+                'New';
+
+            imageWrapper.appendChild(
+                badge
+            );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ERROR HANDLING
+        |--------------------------------------------------------------------------
+        */
+
+        img.onerror =
+            function () {
+
+                this.style.display =
+                    'none';
+
+                const errorBox =
+                    document.createElement('div');
+
+                errorBox.className =
+                    'sub-image-error';
+
+                errorBox.innerHTML = `
+                    <i class="bi bi-image"></i>
+                    <span>Image unavailable</span>
+                `;
+
+                imageWrapper.appendChild(
+                    errorBox
+                );
+
+            };
+
+
+        imageWrapper.appendChild(
+            img
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | FILE NAME
+        |--------------------------------------------------------------------------
+        */
+
+        const filename =
+            document.createElement('div');
+
+        filename.className =
+            'sub-image-preview-name';
+
+
+        let displayName = '';
+
+
+        if (image.type === 'existing') {
+
+            const path =
+                image.path || '';
+
+            displayName =
+                path.split('/').pop() ||
+                'Sub Image';
+
+        }
+        else {
+
+            displayName =
+                image.file?.name ||
+                'New Image';
+
+        }
+
+
+        filename.textContent =
+            displayName;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | REMOVE BUTTON FOR NEW IMAGES
+        |--------------------------------------------------------------------------
+        */
+
+        if (image.type === 'new') {
+
+            const removeBtn =
+                document.createElement('button');
+
+            removeBtn.type =
+                'button';
+
+            removeBtn.className =
+                'sub-image-remove-btn';
+
+            removeBtn.innerHTML =
+                '<i class="bi bi-x"></i>';
+
+            removeBtn.onclick =
+                function () {
+
+                    const newIndex =
+                        selectedSubImages.indexOf(
+                            image.file
+                        );
+
+                    if (newIndex !== -1) {
+
+                        selectedSubImages.splice(
+                            newIndex,
+                            1
+                        );
+
+                    }
+
+                    renderSubImagesPreview();
+
+                };
+
+
+            imageWrapper.appendChild(
+                removeBtn
+            );
+
+        }
+
+
+        card.appendChild(
+            imageWrapper
+        );
+
+        card.appendChild(
+            filename
+        );
+
+        col.appendChild(
+            card
+        );
+
+        preview.appendChild(
+            col
+        );
+
+    });
+
+}
+function getSubImageUrl(image)
+{
+    if (!image) {
+        return '';
+    }
+
+    image =
+        String(image)
+        .trim();
+
+    /*
+    |--------------------------------------------------------------------------
+    | Already full URL
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        image.startsWith('http://') ||
+        image.startsWith('https://') ||
+        image.startsWith('data:')
+    ) {
+        return image;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Remove ../ or ../../ from old database paths
+    |--------------------------------------------------------------------------
+    */
+
+    const marker =
+        'ItemsDesigner_Masterwithbarcode/';
+
+    const position =
+        image.indexOf(marker);
+
+    if (position !== -1) {
+
+        return '/' +
+            image.substring(position);
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Laravel storage path
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        image.startsWith('/storage/')
+    ) {
+        return image;
+    }
+
+
+    if (
+        image.startsWith('storage/')
+    ) {
+        return '/' + image;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Normal public path
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        image.startsWith('/')
+    ) {
+        return image;
+    }
+
+
+    return '/' + image;
+}
+
+
+subImagesPreview.addEventListener(
+    'click',
+    function (event) {
+
+        const removeButton =
+            event.target.closest(
+                '.sub-image-remove'
+            );
+
+
+        if (!removeButton) {
+            return;
+        }
+
+
+        const index =
+            parseInt(
+                removeButton.dataset.index,
+                10
+            );
+
+
+        selectedSubImages.splice(
+            index,
+            1
+        );
+
+
+        renderSubImagesPreview();
+
+    }
+);
+
+// =========================================================
+// REMOVE SUB IMAGE
+// =========================================================
+
+function removeSubImage(index) {
+
+    if (
+        index < 0 ||
+        index >= selectedSubImages.length
+    ) {
+        return;
+    }
+
+
+    selectedSubImages.splice(
+        index,
+        1
+    );
+
+
+    renderSubImagesPreview();
+
+}
+
+function loadSupplierProducts()
+{
+    const tbody =
+        $('#supplierProductsTableBody');
+
+    const loading =
+        $('#supplierProductsLoading');
+
+    const noData =
+        $('#supplierProductsNoData');
+
+    const tableWrapper =
+        $('#supplierProductsTableWrapper');
+
+
+    tbody.empty();
+
+    noData.hide();
+
+    tableWrapper.show();
+
+    loading.show();
+
+
+    $.ajax({
+
+        url:
+            "{{ route('design-specifications.supplier-products') }}",
+
+        type:
+            "GET",
+
+        dataType:
+            "json",
+
+        success:
+            function (response) {
+
+                loading.hide();
+
+
+                if (
+                    !response.success ||
+                    !Array.isArray(response.data) ||
+                    response.data.length === 0
+                ) {
+
+                    tableWrapper.hide();
+
+                    noData.show();
+
+                    return;
+
+                }
+
+
+                response.data.forEach(
+                    function (product, index) {
+
+                        appendSupplierProductRow(
+                            product,
+                            index + 1
+                        );
+
+                    }
+                );
+
+            },
+
+        error:
+            function (xhr) {
+
+                loading.hide();
+
+                tableWrapper.hide();
+
+                noData.show();
+
+                console.error(
+                    'Supplier products error:',
+                    xhr
+                );
+
+            }
+
+    });
+}
+
+function appendSupplierProductRow(
+    product,
+    serialNo
+)
+{
+
+    const tbody =
+        $('#supplierProductsTableBody');
+
+
+    const mainImage =
+        product.main_image
+            ? '/' + String(
+                product.main_image
+            ).replace(/^\/+/, '')
+            : '';
+
+
+    const productName =
+        product.name || '-';
+
+
+    const supplierName =
+        product.supplier_name || '-';
+
+
+    const itemType =
+        product.item_type || '-';
+
+
+    const gender =
+        product.gender || '-';
+
+
+    const composition =
+        product.composition || '-';
+
+
+    const colour =
+        product.colour || '-';
+
+
+    const size =
+        product.size || '-';
+
+
+    let imageHtml =
+        `
+        <div
+            class="text-muted text-center"
+        >
+            No Image
+        </div>
+        `;
+
+
+    if (mainImage) {
+
+        imageHtml = `
+
+            <img
+                src="${escapeHtml(mainImage)}"
+                style="
+                    width:70px;
+                    height:70px;
+                    object-fit:cover;
+                    border-radius:6px;
+                    border:1px solid #dee2e6;
+                "
+                onerror="
+                    this.style.display='none';
+                "
+            >
+
+        `;
+
+    }
+
+
+    const row = `
+
+        <tr>
+
+            <td>
+                ${serialNo}
+            </td>
+
+
+            <td>
+                <strong>
+                    ${escapeHtml(productName)}
+                </strong>
+            </td>
+
+
+            <td>
+                ${escapeHtml(supplierName)}
+            </td>
+
+
+            <td>
+                ${escapeHtml(itemType)}
+            </td>
+
+
+            <td>
+                ${escapeHtml(gender)}
+            </td>
+
+
+            <td>
+                ${escapeHtml(composition)}
+            </td>
+
+
+            <td>
+                ${escapeHtml(colour)}
+            </td>
+
+
+            <td>
+                ${escapeHtml(size)}
+            </td>
+
+
+            <td class="text-center">
+
+                ${imageHtml}
+
+            </td>
+
+
+            <td class="text-center">
+
+                <button
+                    type="button"
+                    class="btn btn-sm btn-primary btn-select-supplier-product"
+                    data-product-id="${product.sno}"
+                >
+
+                    <i class="bi bi-check2-circle me-1"></i>
+
+                    Select
+
+                </button>
+
+            </td>
+
+        </tr>
+
+    `;
+
+
+    tbody.append(row);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | STORE COMPLETE PRODUCT OBJECT
+    |--------------------------------------------------------------------------
+    */
+
+    $('#supplierProductsTableBody')
+        .find(
+            `button[data-product-id="${product.sno}"]`
+        )
+        .data(
+            'product',
+            product
+        );
+
+}
+
+async function selectSupplierProduct(product) {
+
+    /*
+    |--------------------------------------------------------------------------
+    | CHECK PRODUCT
+    |--------------------------------------------------------------------------
+    */
+
+    if (!product) {
+
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Supplier product data not found.'
+        });
+
+        return;
+    }
+
+    /*
+|--------------------------------------------------------------------------
+| SUPPLIER DETAILS
+|--------------------------------------------------------------------------
+*/
+
+const supplierId =
+    product.supplier_id || '';
+
+const supplierName =
+    product.supplier_name || '';
+
+
+/*
+|--------------------------------------------------------------------------
+| SHOW SUPPLIER NAME
+|--------------------------------------------------------------------------
+*/
+
+$('#supplierContextName').text(
+    supplierName || '-'
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| STORE SUPPLIER ID
+|--------------------------------------------------------------------------
+*/
+
+$('#supplierContextId').val(
+    supplierId
+);
+
+
+console.log(
+    'Selected Supplier ID:',
+    supplierId
+);
+
+console.log(
+    'Selected Supplier Name:',
+    supplierName
+);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SHOW LOADING
+    |--------------------------------------------------------------------------
+    */
+
+    Swal.fire({
+        title: 'Loading Product',
+        text: 'Loading supplier product images...',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+
+
+    try {
+
+        /*
+        |--------------------------------------------------------------------------
+        | HELPER - NORMALIZE IMAGE PATH
+        |--------------------------------------------------------------------------
+        */
+
+        function normalizeImagePath(path) {
+
+            if (!path) {
+                return '';
+            }
+
+            path = String(path).trim();
+
+            /*
+            |--------------------------------------------------------------------------
+            | If JSON accidentally contains quotes
+            |--------------------------------------------------------------------------
+            */
+
+            path = path.replace(/^["']|["']$/g, '');
+
+            /*
+            |--------------------------------------------------------------------------
+            | Already full URL
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                path.startsWith('http://') ||
+                path.startsWith('https://') ||
+                path.startsWith('blob:')
+            ) {
+                return path;
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Remove leading slash
+            |--------------------------------------------------------------------------
+            */
+
+            path = path.replace(/^\/+/, '');
+
+            /*
+            |--------------------------------------------------------------------------
+            | Remove ./ if present
+            |--------------------------------------------------------------------------
+            */
+
+            path = path.replace(/^\.\/+/, '');
+
+            return '/' + path;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 1. MAIN IMAGE
+        |--------------------------------------------------------------------------
+        */
+
+        if (product.main_image) {
+
+            const mainUrl =
+                normalizeImagePath(
+                    product.main_image
+                );
+
+
+            console.log(
+                'Supplier Main Image:',
+                mainUrl
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | DOWNLOAD MAIN IMAGE
+            |--------------------------------------------------------------------------
+            */
+
+            const response =
+                await fetch(mainUrl);
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    'Unable to load supplier main image.'
+                );
+            }
+
+
+            const blob =
+                await response.blob();
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | GET FILE NAME
+            |--------------------------------------------------------------------------
+            */
+
+            let fileName =
+                String(
+                    product.main_image
+                )
+                    .split('/')
+                    .pop()
+                    .split('?')[0];
+
+
+            if (!fileName) {
+                fileName = 'supplier-main-image.jpg';
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CREATE FILE
+            |--------------------------------------------------------------------------
+            */
+
+            const file =
+                new File(
+                    [blob],
+                    fileName,
+                    {
+                        type:
+                            blob.type ||
+                            'image/jpeg',
+                        lastModified:
+                            Date.now()
+                    }
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PUT MAIN IMAGE INTO EXISTING #filenew INPUT
+            |--------------------------------------------------------------------------
+            */
+
+            const mainImageInput =
+                document.getElementById(
+                    'filenew'
+                );
+
+
+            if (mainImageInput) {
+
+                const dataTransfer =
+                    new DataTransfer();
+
+
+                dataTransfer.items.add(
+                    file
+                );
+
+
+                mainImageInput.files =
+                    dataTransfer.files;
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | VERY IMPORTANT
+                |--------------------------------------------------------------------------
+                |
+                | Fire the EXISTING change event.
+                |
+                | Your normal #filenew change event will then:
+                |
+                |   1. Read this file
+                |   2. Set selectedFiles
+                |   3. Render main image preview
+                |   4. Run your existing Generate Content logic
+                |
+                |--------------------------------------------------------------------------
+                */
+
+                mainImageInput.dispatchEvent(
+                    new Event(
+                        'change',
+                        {
+                            bubbles: true
+                        }
+                    )
+                );
+
+            } else {
+
+                console.warn(
+                    '#filenew input not found.'
+                );
+            }
+
+        } else {
+
+            console.warn(
+                'Supplier product has no main_image.'
+            );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 2. SUPPLIER SUB IMAGES
+        |--------------------------------------------------------------------------
+        */
+
+        selectedSubImages = [];
+
+
+        let supplierSubImages =
+            product.sub_images;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PARSE JSON
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            typeof supplierSubImages ===
+            'string'
+        ) {
+
+            try {
+
+                supplierSubImages =
+                    JSON.parse(
+                        supplierSubImages
+                    );
+
+            } catch (error) {
+
+                console.error(
+                    'Supplier sub_images JSON error:',
+                    error
+                );
+
+                supplierSubImages = [];
+            }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | MAKE SURE ARRAY
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            !Array.isArray(
+                supplierSubImages
+            )
+        ) {
+
+            supplierSubImages = [];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DOWNLOAD ALL SUB IMAGES
+        |--------------------------------------------------------------------------
+        */
+
+        for (
+            const subImagePath
+            of supplierSubImages
+        ) {
+
+            if (!subImagePath) {
+                continue;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | NORMALIZE SUB IMAGE PATH
+            |--------------------------------------------------------------------------
+            */
+
+            const subUrl =
+                normalizeImagePath(
+                    subImagePath
+                );
+
+
+            console.log(
+                'Supplier Sub Image:',
+                subUrl
+            );
+
+
+            try {
+
+                /*
+                |--------------------------------------------------------------------------
+                | DOWNLOAD
+                |--------------------------------------------------------------------------
+                */
+
+                const response =
+                    await fetch(subUrl);
+
+
+                if (!response.ok) {
+
+                    console.warn(
+                        'Unable to load sub image:',
+                        subUrl
+                    );
+
+                    continue;
+                }
+
+
+                const blob =
+                    await response.blob();
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | GET FILE NAME
+                |--------------------------------------------------------------------------
+                */
+
+                let fileName =
+                    String(
+                        subImagePath
+                    )
+                        .split('/')
+                        .pop()
+                        .split('?')[0];
+
+
+                if (!fileName) {
+
+                    fileName =
+                        'supplier-sub-image-' +
+                        Date.now() +
+                        '.jpg';
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | CREATE FILE
+                |--------------------------------------------------------------------------
+                */
+
+                const file =
+                    new File(
+                        [blob],
+                        fileName,
+                        {
+                            type:
+                                blob.type ||
+                                'image/jpeg',
+                            lastModified:
+                                Date.now()
+                        }
+                    );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | ADD TO EXISTING SUB IMAGE ARRAY
+                |--------------------------------------------------------------------------
+                */
+
+                selectedSubImages.push(
+                    file
+                );
+
+            } catch (error) {
+
+                console.warn(
+                    'Sub image loading failed:',
+                    subUrl,
+                    error
+                );
+            }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | RENDER SUB IMAGES
+        |--------------------------------------------------------------------------
+        */
+
+        renderSubImagesPreview();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CLOSE SUPPLIER PRODUCT MODAL
+        |--------------------------------------------------------------------------
+        */
+
+        const modalElement =
+            document.getElementById(
+                'supplierProductModal'
+            );
+
+
+        if (modalElement) {
+
+            const modal =
+                bootstrap.Modal.getInstance(
+                    modalElement
+                );
+
+
+            if (modal) {
+                modal.hide();
+            }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CLOSE LOADING
+        |--------------------------------------------------------------------------
+        */
+
+        Swal.close();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SUCCESS
+        |--------------------------------------------------------------------------
+        */
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Product Selected',
+            text:
+                'Supplier product images have been attached.',
+            timer: 1500,
+            showConfirmButton: false
+        });
+
+
+        console.log(
+            'Supplier product successfully attached:',
+            product
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            'Supplier product selection error:',
+            error
+        );
+
+
+        Swal.close();
+
+
+        Swal.fire({
+            icon: 'error',
+            title: 'Image Loading Error',
+            text:
+                error.message ||
+                'Unable to load supplier product images.'
+        });
+    }
+}
+
 
 
 </script>
