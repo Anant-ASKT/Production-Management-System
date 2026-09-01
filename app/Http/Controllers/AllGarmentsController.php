@@ -1515,7 +1515,7 @@ public function aiDescriptionApprovedImages(Request $request)
         ->orderByRaw("
             CASE
                 WHEN image_type = 'main' THEN 0
-                WHEN image_type = 'subimage' THEN 1
+                WHEN image_type = 'sub' THEN 1
                 ELSE 2
             END
         ")
