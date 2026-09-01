@@ -153,6 +153,19 @@
 
             </li>
 
+            <li>
+                <a
+                    href="{{ route('ai-description.index') }}"
+                    class="{{ request()->routeIs('ai-description.*') ? 'active' : '' }}"
+                >
+                    <i class="bi bi-stars"></i>
+
+                    <span>
+                        Make AI Description
+                    </span>
+                </a>
+            </li>
+
 
             <li>
                 <a href="{{ route('inventory.ready-to-sell-stock') }}">

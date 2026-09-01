@@ -313,6 +313,25 @@
 
             </div>
 
+            <!-- =========================================================
+     SELECTED SUPPLIER PRODUCT DETAILS
+========================================================= -->
+<div style="display:flex; gap:20px; align-items:flex-start;">
+    
+    <!-- YOUR EXISTING MAIN IMAGE SECTION -->
+    
+    <div id="supplierProductInfo"
+         style="
+            flex:1;
+            padding:15px;
+            border:1px solid #dee2e6;
+            border-radius:8px;
+            background:#fff;
+         ">
+    </div>
+
+</div>
+
 
                 <div class="form-grid-2">
 
@@ -7052,6 +7071,148 @@
 
 body {
     overflow-x: hidden;
+}
+
+/* ============================================================
+   SELECTED SUPPLIER PRODUCT
+============================================================ */
+
+.selected-supplier-product-section {
+    border: 1px solid #dbe4f0;
+    border-radius: 12px;
+    background: #fff;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, .04);
+}
+
+.selected-supplier-product-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    padding: 14px 18px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.selected-supplier-product-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.selected-supplier-product-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: #eff6ff;
+    color: #2563eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+.selected-supplier-product-header h6 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #172033;
+}
+
+.selected-supplier-product-header small {
+    color: #64748b;
+    font-size: 11px;
+}
+
+.selected-supplier-product-body {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 20px;
+    padding: 18px;
+}
+
+.selected-supplier-main-image-wrapper {
+    min-width: 0;
+}
+
+.selected-supplier-main-image {
+    width: 100%;
+    height: 360px;
+    border: 1px solid #dbe2ea;
+    border-radius: 10px;
+    background: #f8fafc;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.selected-supplier-main-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 8px;
+}
+
+.selected-supplier-no-image {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+.selected-supplier-no-image i {
+    font-size: 40px;
+}
+
+.selected-supplier-details {
+    min-width: 0;
+}
+
+.selected-supplier-details-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 10px;
+}
+
+.selected-supplier-details table {
+    margin-bottom: 0;
+}
+
+.selected-supplier-details table td {
+    padding: 9px 12px;
+    vertical-align: top;
+    font-size: 12px;
+}
+
+.selected-supplier-details table td:first-child {
+    width: 190px;
+    color: #64748b;
+    font-weight: 600;
+    background: #f8fafc;
+}
+
+.selected-supplier-details table td:last-child {
+    color: #1e293b;
+    font-weight: 500;
+    word-break: break-word;
+}
+
+@media (max-width: 768px) {
+
+    .selected-supplier-product-body {
+        grid-template-columns: 1fr;
+    }
+
+    .selected-supplier-main-image {
+        height: 300px;
+    }
+
 }
 
 
@@ -18767,8 +18928,14 @@ function appendSupplierProductRow(
 
 }
 
-async function selectSupplierProduct(product) {
+/* =========================================================
+   DISPLAY SELECTED SUPPLIER PRODUCT
+========================================================= */
 
+
+
+async function selectSupplierProduct(product)
+{
     /*
     |--------------------------------------------------------------------------
     | CHECK PRODUCT
@@ -18786,50 +18953,402 @@ async function selectSupplierProduct(product) {
         return;
     }
 
+    showSupplierProductInfo(product);
+
+
+    console.log(
+        'SELECTED SUPPLIER PRODUCT:',
+        product
+    );
+
+
     /*
-|--------------------------------------------------------------------------
-| SUPPLIER DETAILS
-|--------------------------------------------------------------------------
-*/
+    |--------------------------------------------------------------------------
+    | SUPPLIER DETAILS
+    |--------------------------------------------------------------------------
+    */
 
-const supplierId =
-    product.supplier_id || '';
-
-const supplierName =
-    product.supplier_name || '';
-
-
-/*
-|--------------------------------------------------------------------------
-| SHOW SUPPLIER NAME
-|--------------------------------------------------------------------------
-*/
-
-$('#supplierContextName').text(
-    supplierName || '-'
-);
+    const supplierId =
+        product.supplier_id ||
+        product.supplierid ||
+        '';
 
 
-/*
-|--------------------------------------------------------------------------
-| STORE SUPPLIER ID
-|--------------------------------------------------------------------------
-*/
-
-$('#supplierContextId').val(
-    supplierId
-);
+    const supplierName =
+        product.supplier_name ||
+        product.suppliername ||
+        '';
 
 
-console.log(
-    'Selected Supplier ID:',
-    supplierId
-);
+    /*
+    |--------------------------------------------------------------------------
+    | SHOW SUPPLIER
+    |--------------------------------------------------------------------------
+    */
 
-console.log(
-    'Selected Supplier Name:',
-    supplierName
-);
+    const supplierContextName =
+        document.getElementById(
+            'supplierContextName'
+        );
+
+    if (supplierContextName) {
+
+        supplierContextName.textContent =
+            supplierName || '-';
+
+    }
+
+
+    const supplierContextId =
+        document.getElementById(
+            'supplierContextId'
+        );
+
+    if (supplierContextId) {
+
+        supplierContextId.value =
+            supplierId;
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | HELPER - SET SELECT VALUE
+    |--------------------------------------------------------------------------
+    */
+
+    function setSelectValue(
+        selector,
+        value
+    ) {
+
+        const element =
+            document.querySelector(
+                selector
+            );
+
+        if (!element) {
+            return;
+        }
+
+
+        value =
+            value === null ||
+            value === undefined
+                ? ''
+                : String(value);
+
+
+        element.value =
+            value;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SELECT2
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            typeof $ !== 'undefined' &&
+            $(element).hasClass('select2-hidden-accessible')
+        ) {
+
+            $(element)
+                .val(value)
+                .trigger('change');
+
+        } else {
+
+            element.dispatchEvent(
+                new Event(
+                    'change',
+                    {
+                        bubbles: true
+                    }
+                )
+            );
+
+        }
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | HELPER - SET INPUT
+    |--------------------------------------------------------------------------
+    */
+
+    function setInputValue(
+        selector,
+        value
+    ) {
+
+        const element =
+            document.querySelector(
+                selector
+            );
+
+        if (!element) {
+            return;
+        }
+
+
+        element.value =
+            value === null ||
+            value === undefined
+                ? ''
+                : value;
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 1. GET PRODUCT DETAILS
+    |--------------------------------------------------------------------------
+    |
+    | IMPORTANT:
+    |
+    | The supplier-products endpoint should return the IDs
+    | of master values.
+    |
+    | If it already returns those IDs, use them here.
+    |
+    |--------------------------------------------------------------------------
+    */
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ITEM NAME
+    |--------------------------------------------------------------------------
+    */
+
+    setSelectValue(
+        '#item_name',
+        product.item_name_id ||
+        product.item_name ||
+        product.itemname_id ||
+        product.itemnameid ||
+        ''
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ITEM TYPE
+    |--------------------------------------------------------------------------
+    */
+
+    setSelectValue(
+        '#item_type',
+        product.item_type_id ||
+        product.item_type ||
+        product.itemtype_id ||
+        product.itemtypeid ||
+        ''
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | DESIGNER
+    |--------------------------------------------------------------------------
+    */
+
+    setSelectValue(
+        '#designer_name',
+        product.designer_id ||
+        product.designer ||
+        product.designer_name_id ||
+        ''
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | GENDER
+    |--------------------------------------------------------------------------
+    */
+
+    setSelectValue(
+        '#gender_type',
+        product.gender_id ||
+        product.gender ||
+        ''
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | COMPOSITION
+    |--------------------------------------------------------------------------
+    */
+
+    setSelectValue(
+        '#composition',
+        product.composition_id ||
+        product.composition ||
+        ''
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | COLOUR
+    |--------------------------------------------------------------------------
+    */
+
+    setSelectValue(
+        '#colour',
+        product.colour_id ||
+        product.colour ||
+        ''
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SIZE
+    |--------------------------------------------------------------------------
+    */
+
+    setSelectValue(
+        '#sizes',
+        product.size_id ||
+        product.sizes ||
+        product.size ||
+        ''
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | EMBELLISHMENT
+    |--------------------------------------------------------------------------
+    */
+
+    setSelectValue(
+        '#embellishment',
+        product.embellishment_id ||
+        product.embellishment ||
+        ''
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | MANUFACTURING PROCESS
+    |--------------------------------------------------------------------------
+    */
+
+    setSelectValue(
+        '#manufacturing_process',
+        product.manufacturing_process_id ||
+        product.manufacturing_process ||
+        ''
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CRAFTSMAN
+    |--------------------------------------------------------------------------
+    */
+
+    setSelectValue(
+        '#mcraftsman',
+        product.craftsman_id ||
+        product.craftsman ||
+        ''
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CRAFTSMAN CODE
+    |--------------------------------------------------------------------------
+    */
+
+    setInputValue(
+        '#craftsman_code',
+        product.craftsman_code ||
+        ''
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | MANUFACTURE
+    |--------------------------------------------------------------------------
+    */
+
+    setSelectValue(
+        '#cmbmanufacture',
+        product.manufecture_id ||
+        product.manufacture_id ||
+        product.manufecture ||
+        product.manufacture ||
+        ''
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CLIENT / COLLECTION
+    |--------------------------------------------------------------------------
+    */
+
+    setSelectValue(
+        '#cmbclient',
+        product.client_id ||
+        product.client ||
+        ''
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SKU
+    |--------------------------------------------------------------------------
+    */
+
+    setInputValue(
+        '#sku',
+        product.sku ||
+        ''
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CLIENT REFERENCE
+    |--------------------------------------------------------------------------
+    */
+
+    setInputValue(
+        '#txt_clientreference',
+        product.clientreference ||
+        product.client_reference ||
+        ''
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SUPPLIER PRODUCT NAME
+    |--------------------------------------------------------------------------
+    |
+    | If supplier endpoint gives a product name but not item-name ID,
+    | don't put the text into the select.
+    |
+    | The master ID should be used for #item_name.
+    |
+    |--------------------------------------------------------------------------
+    */
 
 
     /*
@@ -18839,80 +19358,163 @@ console.log(
     */
 
     Swal.fire({
-        title: 'Loading Product',
-        text: 'Loading supplier product images...',
-        allowOutsideClick: false,
-        didOpen: () => {
-            Swal.showLoading();
-        }
+
+        title:
+            'Loading Supplier Product',
+
+        text:
+            'Loading product images...',
+
+        allowOutsideClick:
+            false,
+
+        allowEscapeKey:
+            false,
+
+        didOpen:
+            function () {
+
+                Swal.showLoading();
+
+            }
+
     });
 
 
     try {
 
+
         /*
         |--------------------------------------------------------------------------
-        | HELPER - NORMALIZE IMAGE PATH
+        | NORMALIZE IMAGE PATH
         |--------------------------------------------------------------------------
         */
 
-        function normalizeImagePath(path) {
+        function normalizeImagePath(path)
+        {
 
             if (!path) {
                 return '';
             }
 
-            path = String(path).trim();
+
+            path =
+                String(path)
+                    .trim();
+
 
             /*
-            |--------------------------------------------------------------------------
-            | If JSON accidentally contains quotes
-            |--------------------------------------------------------------------------
-            */
-
-            path = path.replace(/^["']|["']$/g, '');
-
-            /*
-            |--------------------------------------------------------------------------
-            | Already full URL
-            |--------------------------------------------------------------------------
+            | Already URL
             */
 
             if (
-                path.startsWith('http://') ||
-                path.startsWith('https://') ||
-                path.startsWith('blob:')
+                path.startsWith(
+                    'http://'
+                ) ||
+                path.startsWith(
+                    'https://'
+                ) ||
+                path.startsWith(
+                    'blob:'
+                ) ||
+                path.startsWith(
+                    'data:'
+                )
             ) {
+
                 return path;
+
             }
 
-            /*
-            |--------------------------------------------------------------------------
-            | Remove leading slash
-            |--------------------------------------------------------------------------
-            */
-
-            path = path.replace(/^\/+/, '');
 
             /*
-            |--------------------------------------------------------------------------
-            | Remove ./ if present
-            |--------------------------------------------------------------------------
+            | Remove quotes
             */
 
-            path = path.replace(/^\.\/+/, '');
+            path =
+                path.replace(
+                    /^["']|["']$/g,
+                    ''
+                );
+
+
+            /*
+            | Remove old ../../ path
+            */
+
+            const marker =
+                'ItemsDesigner_Masterwithbarcode/';
+
+
+            const markerPosition =
+                path.indexOf(
+                    marker
+                );
+
+
+            if (
+                markerPosition !== -1
+            ) {
+
+                return '/' +
+                    path.substring(
+                        markerPosition
+                    );
+
+            }
+
+
+            /*
+            | Storage
+            */
+
+            if (
+                path.startsWith(
+                    '/storage/'
+                )
+            ) {
+
+                return path;
+
+            }
+
+
+            if (
+                path.startsWith(
+                    'storage/'
+                )
+            ) {
+
+                return '/' + path;
+
+            }
+
+
+            /*
+            | Normal path
+            */
+
+            path =
+                path.replace(
+                    /^\/+/,
+                    ''
+                );
+
 
             return '/' + path;
+
         }
 
 
         /*
         |--------------------------------------------------------------------------
-        | 1. MAIN IMAGE
+        | 2. MAIN IMAGE
         |--------------------------------------------------------------------------
         */
 
-        if (product.main_image) {
+        if (
+            product.main_image
+        ) {
 
             const mainUrl =
                 normalizeImagePath(
@@ -18926,14 +19528,10 @@ console.log(
             );
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | DOWNLOAD MAIN IMAGE
-            |--------------------------------------------------------------------------
-            */
-
             const response =
-                await fetch(mainUrl);
+                await fetch(
+                    mainUrl
+                );
 
 
             if (!response.ok) {
@@ -18941,6 +19539,7 @@ console.log(
                 throw new Error(
                     'Unable to load supplier main image.'
                 );
+
             }
 
 
@@ -18948,31 +19547,22 @@ console.log(
                 await response.blob();
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | GET FILE NAME
-            |--------------------------------------------------------------------------
-            */
-
             let fileName =
                 String(
                     product.main_image
                 )
-                    .split('/')
-                    .pop()
-                    .split('?')[0];
+                .split('/')
+                .pop()
+                .split('?')[0];
 
 
             if (!fileName) {
-                fileName = 'supplier-main-image.jpg';
+
+                fileName =
+                    'supplier-main-image.jpg';
+
             }
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | CREATE FILE
-            |--------------------------------------------------------------------------
-            */
 
             const file =
                 new File(
@@ -18982,6 +19572,7 @@ console.log(
                         type:
                             blob.type ||
                             'image/jpeg',
+
                         lastModified:
                             Date.now()
                     }
@@ -18990,7 +19581,7 @@ console.log(
 
             /*
             |--------------------------------------------------------------------------
-            | PUT MAIN IMAGE INTO EXISTING #filenew INPUT
+            | PUT INTO MAIN IMAGE INPUT
             |--------------------------------------------------------------------------
             */
 
@@ -19017,17 +19608,11 @@ console.log(
 
                 /*
                 |--------------------------------------------------------------------------
-                | VERY IMPORTANT
+                | IMPORTANT
                 |--------------------------------------------------------------------------
                 |
-                | Fire the EXISTING change event.
-                |
-                | Your normal #filenew change event will then:
-                |
-                |   1. Read this file
-                |   2. Set selectedFiles
-                |   3. Render main image preview
-                |   4. Run your existing Generate Content logic
+                | Your existing #filenew change handler
+                | will update selectedFiles and preview.
                 |
                 |--------------------------------------------------------------------------
                 */
@@ -19041,24 +19626,14 @@ console.log(
                     )
                 );
 
-            } else {
-
-                console.warn(
-                    '#filenew input not found.'
-                );
             }
 
-        } else {
-
-            console.warn(
-                'Supplier product has no main_image.'
-            );
         }
 
 
         /*
         |--------------------------------------------------------------------------
-        | 2. SUPPLIER SUB IMAGES
+        | 3. SUPPLIER SUB IMAGES
         |--------------------------------------------------------------------------
         */
 
@@ -19066,7 +19641,9 @@ console.log(
 
 
         let supplierSubImages =
-            product.sub_images;
+            product.sub_images ||
+            product.subimg_path ||
+            [];
 
 
         /*
@@ -19089,19 +19666,21 @@ console.log(
 
             } catch (error) {
 
-                console.error(
-                    'Supplier sub_images JSON error:',
+                console.warn(
+                    'Supplier sub images JSON error:',
                     error
                 );
 
                 supplierSubImages = [];
+
             }
+
         }
 
 
         /*
         |--------------------------------------------------------------------------
-        | MAKE SURE ARRAY
+        | NORMALIZE ARRAY
         |--------------------------------------------------------------------------
         */
 
@@ -19112,12 +19691,13 @@ console.log(
         ) {
 
             supplierSubImages = [];
+
         }
 
 
         /*
         |--------------------------------------------------------------------------
-        | DOWNLOAD ALL SUB IMAGES
+        | LOAD SUB IMAGES
         |--------------------------------------------------------------------------
         */
 
@@ -19130,12 +19710,6 @@ console.log(
                 continue;
             }
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | NORMALIZE SUB IMAGE PATH
-            |--------------------------------------------------------------------------
-            */
 
             const subUrl =
                 normalizeImagePath(
@@ -19151,24 +19725,21 @@ console.log(
 
             try {
 
-                /*
-                |--------------------------------------------------------------------------
-                | DOWNLOAD
-                |--------------------------------------------------------------------------
-                */
-
                 const response =
-                    await fetch(subUrl);
+                    await fetch(
+                        subUrl
+                    );
 
 
                 if (!response.ok) {
 
                     console.warn(
-                        'Unable to load sub image:',
+                        'Unable to load supplier sub image:',
                         subUrl
                     );
 
                     continue;
+
                 }
 
 
@@ -19176,19 +19747,13 @@ console.log(
                     await response.blob();
 
 
-                /*
-                |--------------------------------------------------------------------------
-                | GET FILE NAME
-                |--------------------------------------------------------------------------
-                */
-
                 let fileName =
                     String(
                         subImagePath
                     )
-                        .split('/')
-                        .pop()
-                        .split('?')[0];
+                    .split('/')
+                    .pop()
+                    .split('?')[0];
 
 
                 if (!fileName) {
@@ -19197,14 +19762,9 @@ console.log(
                         'supplier-sub-image-' +
                         Date.now() +
                         '.jpg';
+
                 }
 
-
-                /*
-                |--------------------------------------------------------------------------
-                | CREATE FILE
-                |--------------------------------------------------------------------------
-                */
 
                 const file =
                     new File(
@@ -19214,30 +19774,28 @@ console.log(
                             type:
                                 blob.type ||
                                 'image/jpeg',
+
                             lastModified:
                                 Date.now()
                         }
                     );
 
 
-                /*
-                |--------------------------------------------------------------------------
-                | ADD TO EXISTING SUB IMAGE ARRAY
-                |--------------------------------------------------------------------------
-                */
-
                 selectedSubImages.push(
                     file
                 );
 
+
             } catch (error) {
 
                 console.warn(
-                    'Sub image loading failed:',
+                    'Supplier sub image loading failed:',
                     subUrl,
                     error
                 );
+
             }
+
         }
 
 
@@ -19247,42 +19805,47 @@ console.log(
         |--------------------------------------------------------------------------
         */
 
-        renderSubImagesPreview();
+        if (
+            typeof renderSubImagesPreview ===
+            'function'
+        ) {
 
+            renderSubImagesPreview();
 
-        /*
-        |--------------------------------------------------------------------------
-        | CLOSE SUPPLIER PRODUCT MODAL
-        |--------------------------------------------------------------------------
-        */
-
-        const modalElement =
-            document.getElementById(
-                'supplierProductModal'
-            );
-
-
-        if (modalElement) {
-
-            const modal =
-                bootstrap.Modal.getInstance(
-                    modalElement
-                );
-
-
-            if (modal) {
-                modal.hide();
-            }
         }
 
 
         /*
         |--------------------------------------------------------------------------
-        | CLOSE LOADING
+        | CLOSE SUPPLIER MODAL
         |--------------------------------------------------------------------------
         */
 
-        Swal.close();
+        const supplierModalElement =
+            document.getElementById(
+                'supplierProductModal'
+            );
+
+
+        if (
+            supplierModalElement &&
+            typeof bootstrap !== 'undefined' &&
+            bootstrap.Modal
+        ) {
+
+            const supplierModal =
+                bootstrap.Modal.getInstance(
+                    supplierModalElement
+                );
+
+
+            if (supplierModal) {
+
+                supplierModal.hide();
+
+            }
+
+        }
 
 
         /*
@@ -19292,17 +19855,33 @@ console.log(
         */
 
         Swal.fire({
-            icon: 'success',
-            title: 'Product Selected',
+
+            icon:
+                'success',
+
+            title:
+                'Product Selected',
+
             text:
-                'Supplier product images have been attached.',
-            timer: 1500,
-            showConfirmButton: false
+                'Supplier product details and images have been loaded.',
+
+            timer:
+                1500,
+
+            showConfirmButton:
+                false
+
         });
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | DEBUG
+        |--------------------------------------------------------------------------
+        */
+
         console.log(
-            'Supplier product successfully attached:',
+            'Supplier product loaded successfully:',
             product
         );
 
@@ -19310,25 +19889,125 @@ console.log(
     } catch (error) {
 
         console.error(
-            'Supplier product selection error:',
+            'SELECT SUPPLIER PRODUCT ERROR:',
             error
         );
 
 
-        Swal.close();
-
-
         Swal.fire({
-            icon: 'error',
-            title: 'Image Loading Error',
+
+            icon:
+                'error',
+
+            title:
+                'Unable to Load Product',
+
             text:
                 error.message ||
-                'Unable to load supplier product images.'
+                'Something went wrong while loading supplier product.'
+
         });
+
     }
+
 }
 
+function showSupplierProductInfo(product)
+{
+    const container =
+        document.getElementById(
+            'supplierProductInfo'
+        );
 
+    if (!container) {
+        console.warn(
+            'supplierProductInfo element not found'
+        );
+        return;
+    }
+
+    const rows = [
+        ['Product ID', product.sno],
+        ['Product Name', product.name],
+        ['Supplier', product.supplier_name || product.suppliername],
+        ['Item Name', product.item_name],
+        ['Item Type', product.item_type],
+        ['Designer', product.designer],
+        ['Gender', product.gender],
+        ['Composition', product.composition],
+        ['Colour', product.colour],
+        ['Size', product.size || product.sizes],
+        ['Embellishment', product.embellishment],
+        [
+            'Manufacturing Process',
+            product.manufacturing_process
+        ],
+        ['Craftsman', product.craftsman],
+        ['Craftsman Code', product.craftsman_code],
+        [
+            'Manufacture',
+            product.manufacture ||
+            product.manufecture
+        ],
+        ['Client / Collection', product.client],
+        ['SKU', product.sku],
+        [
+            'Client Reference',
+            product.clientreference ||
+            product.client_reference
+        ]
+    ];
+
+    let html = `
+        <div style="
+            font-size:15px;
+            font-weight:700;
+            margin-bottom:12px;
+            color:#212529;
+        ">
+            Supplier Product Information
+        </div>
+
+        <table class="table table-sm table-bordered mb-0">
+            <tbody>
+    `;
+
+    rows.forEach(function(row) {
+
+        let value = row[1];
+
+        if (
+            value === null ||
+            value === undefined ||
+            value === ''
+        ) {
+            value = '-';
+        }
+
+        html += `
+            <tr>
+                <td style="
+                    width:40%;
+                    font-weight:600;
+                    background:#f8f9fa;
+                ">
+                    ${escapeHtml(row[0])}
+                </td>
+
+                <td>
+                    ${escapeHtml(String(value))}
+                </td>
+            </tr>
+        `;
+    });
+
+    html += `
+            </tbody>
+        </table>
+    `;
+
+    container.innerHTML = html;
+}
 
 </script>
 @endsection
