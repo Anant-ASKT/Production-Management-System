@@ -577,3 +577,25 @@ Route::get(
         [AllGarmentsController::class, 'projects']
     )->name('all-garments.projects');
 
+    Route::get(
+    '/admin/make-ai-description',
+    [AllGarmentsController::class, 'makeAiDescription']
+)->name('ai-description.index');
+
+Route::get(
+    '/admin/make-ai-description/data',
+    [AllGarmentsController::class, 'aiDescriptionData']
+)->name('ai-description.data');
+
+Route::get(
+    '/admin/make-ai-description/approved-images',
+    [AllGarmentsController::class, 'aiApprovedImages']
+)->name('ai-description.approved-images');
+
+Route::post(
+    '/all-garments/ai-description/save',
+    [AllGarmentsController::class, 'saveAiDescription']
+)->name(
+    'all-garments.ai-description.save'
+);
+
