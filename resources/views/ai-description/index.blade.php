@@ -2829,7 +2829,7 @@ async function loadApprovedImages(
                             image.image_type ||
                             ''
                         ).toLowerCase() ===
-                        'subimage'
+                        'sub'
                     );
 
                 }
