@@ -2504,6 +2504,9 @@ private function generateProductSku(
                     'barcode' =>
                         $barcode,
 
+                    'qrcode' =>
+                        $barcode,
+
                     'sku' =>
                         $generatedSku,
 

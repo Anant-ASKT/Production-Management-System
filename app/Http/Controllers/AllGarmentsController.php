@@ -1024,117 +1024,147 @@ public function aiDescriptionData(Request $request)
     |--------------------------------------------------------------------------
     */
 
-   $query->select([
-
-    /*
-    |--------------------------------------------------------------------------
-    | SPECIFICATION
-    |--------------------------------------------------------------------------
-    */
-
-    'dsm.sno',
-
-    'dsm.id',
+    $query->select([
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | MAIN IMAGE
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | SPECIFICATION
+        |--------------------------------------------------------------------------
+        */
 
-    'dsm.img_path',
+        'dsm.sno',
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | APPROVED AI IMAGE
-    |--------------------------------------------------------------------------
-    */
-
-    'aei.sno as approved_image_id',
-
-    'aei.enhanced_image_path as ai_approved_image',
+        'dsm.id',
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | PRODUCT NAME
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | MAIN IMAGE
+        |--------------------------------------------------------------------------
+        */
 
-    'dsm.item_name',
-
-    'itemname.itemname as product_name',
+        'dsm.img_path',
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | PRODUCT TYPE
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | APPROVED AI IMAGE
+        |--------------------------------------------------------------------------
+        */
 
-    'dsm.item_type',
+        'aei.sno as approved_image_id',
 
-    'itemtype.itemtype as product_type',
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | GENDER
-    |--------------------------------------------------------------------------
-    */
-
-    'gender.name as gender_name',
+        'aei.enhanced_image_path as ai_approved_image',
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | COMPOSITION
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | PRODUCT NAME
+        |--------------------------------------------------------------------------
+        */
 
-    'composition.composition_details as composition_name',
+        'dsm.item_name',
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | COLOUR
-    |--------------------------------------------------------------------------
-    */
-
-    'colour.colourname as colour_name',
+        'itemname.itemname as product_name',
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | SIZE
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | PRODUCT TYPE
+        |--------------------------------------------------------------------------
+        */
 
-    'size.size as size_name',
+        'dsm.item_type',
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | SKU
-    |--------------------------------------------------------------------------
-    */
-
-    'dsm.sku',
-
-    'dsm.sku_supplier',
+        'itemtype.itemtype as product_type',
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | BARCODE
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | GENDER
+        |--------------------------------------------------------------------------
+        */
 
-    'dsm.barcode'
+        'gender.name as gender_name',
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | COMPOSITION
+        |--------------------------------------------------------------------------
+        */
+
+        'composition.composition_details as composition_name',
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | COLOUR
+        |--------------------------------------------------------------------------
+        */
+
+        'colour.colourname as colour_name',
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SIZE
+        |--------------------------------------------------------------------------
+        */
+
+        'size.size as size_name',
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SKU
+        |--------------------------------------------------------------------------
+        */
+
+        'dsm.sku',
+
+        'dsm.sku_supplier',
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | BARCODE
+        |--------------------------------------------------------------------------
+        */
+
+        'dsm.barcode',
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | AI DESCRIPTION STATUS
+        |--------------------------------------------------------------------------
+        |
+        | Check whether an AI description already exists
+        | for this product.
+        |
+        | IMPORTANT:
+        | We use EXISTS instead of a JOIN so that one product
+        | will always return only one row even if multiple
+        | AI description records exist.
+        |
+        */
+
+        DB::raw("
+            CASE
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM AI_product_description as aipd
+                    WHERE aipd.product_id = dsm.sno
+                )
+                THEN 1
+                ELSE 0
+            END AS has_ai_description
+        ")
 
     ]);
+
 
     /*
     |--------------------------------------------------------------------------
@@ -1193,4 +1223,630 @@ public function aiDescriptionData(Request $request)
 
     ]);
 }
+/*
+|--------------------------------------------------------------------------
+| GET APPROVED AI IMAGES FOR SPECIFICATION
+|--------------------------------------------------------------------------
+*/
+
+public function aiApprovedImages(Request $request)
+{
+    $user = Auth::user();
+
+    if (!$user) {
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Unauthenticated.'
+        ], 401);
+
+    }
+
+
+    $specificationId =
+        $request->input('specification_id');
+
+
+    if (!$specificationId) {
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Specification ID is required.'
+        ], 422);
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | MAIN PRODUCT IMAGE
+    |--------------------------------------------------------------------------
+    */
+
+    $product = DB::table(
+        'auto_designer_specification_master'
+    )
+    ->where(
+        'sno',
+        $specificationId
+    )
+    ->first([
+        'sno',
+        'img_path'
+    ]);
+
+
+    if (!$product) {
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Product not found.'
+        ], 404);
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ALL APPROVED AI IMAGES
+    |--------------------------------------------------------------------------
+    */
+
+    $approvedImages =
+        DB::table(
+            'approved_enhanced_images'
+        )
+        ->where(
+            'specification_id',
+            $specificationId
+        )
+        ->where(
+            'status',
+            'approved'
+        )
+        ->orderBy(
+            'sno',
+            'asc'
+        )
+        ->get([
+            'sno',
+            'enhanced_image_path',
+            'image_type',
+            'original_image_path'
+        ]);
+
+
+    return response()->json([
+
+        'success' => true,
+
+        'data' => [
+
+            'specification_id' =>
+                $product->sno,
+
+            'main_image' =>
+                $product->img_path,
+
+            'approved_images' =>
+                $approvedImages
+
+        ]
+
+    ]);
+}
+
+public function aiDescriptionApprovedImages(Request $request)
+{
+    $user = Auth::user();
+
+    if (!$user) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Unauthenticated.'
+        ], 401);
+    }
+
+
+    $specificationId = (int) $request->input(
+        'specification_id'
+    );
+
+
+    if (!$specificationId) {
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Specification ID is required.'
+        ], 422);
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PRODUCT
+    |--------------------------------------------------------------------------
+    */
+
+    $product = DB::table(
+        'auto_designer_specification_master as dsm'
+    )
+
+        ->leftJoin(
+            'auto_itemtype_master as itemtype',
+            'itemtype.id',
+            '=',
+            'dsm.item_type'
+        )
+
+        ->leftJoin(
+            'auto_itemname_master as itemname',
+            'itemname.id',
+            '=',
+            'dsm.item_name'
+        )
+
+        ->leftJoin(
+            'auto_gender_master as gender',
+            'gender.id',
+            '=',
+            'dsm.gender'
+        )
+
+        ->leftJoin(
+            'auto_composition_master_stock as composition',
+            'composition.id',
+            '=',
+            'dsm.composition'
+        )
+
+        ->leftJoin(
+            'auto_colour_master as colour',
+            'colour.id',
+            '=',
+            'dsm.colour'
+        )
+
+        ->leftJoin(
+            'auto_size_master as size',
+            'size.id',
+            '=',
+            'dsm.sizes'
+        )
+
+        ->where(
+            'dsm.sno',
+            $specificationId
+        )
+
+        ->select([
+
+            'dsm.sno',
+
+            'dsm.id',
+
+            /*
+            |--------------------------------------------------------------------------
+            | MAIN IMAGE
+            |--------------------------------------------------------------------------
+            */
+
+            'dsm.img_path as main_image',
+
+            /*
+            |--------------------------------------------------------------------------
+            | PRODUCT
+            |--------------------------------------------------------------------------
+            */
+
+            'dsm.item_name',
+
+            'itemname.itemname as product_name',
+
+            'dsm.item_type',
+
+            'itemtype.itemtype as product_type',
+
+            /*
+            |--------------------------------------------------------------------------
+            | DETAILS
+            |--------------------------------------------------------------------------
+            */
+
+            'gender.name as gender_name',
+
+            'composition.composition_details as composition_name',
+
+            'colour.colourname as colour_name',
+
+            'size.size as size_name',
+
+            /*
+            |--------------------------------------------------------------------------
+            | SKU
+            |--------------------------------------------------------------------------
+            */
+
+            'dsm.sku',
+
+            'dsm.sku_supplier',
+
+            'dsm.barcode'
+
+        ])
+
+        ->first();
+
+
+    if (!$product) {
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Product not found.'
+        ], 404);
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | APPROVED AI IMAGES
+    |--------------------------------------------------------------------------
+    |
+    | specification_id = auto_designer_specification_master.sno
+    |
+    */
+
+    $approvedImages = DB::table(
+        'approved_enhanced_images'
+    )
+
+        ->where(
+            'specification_id',
+            $specificationId
+        )
+
+        ->where(
+            'status',
+            'approved'
+        )
+
+        ->orderByRaw("
+            CASE
+                WHEN image_type = 'main' THEN 0
+                WHEN image_type = 'subimage' THEN 1
+                ELSE 2
+            END
+        ")
+
+        ->orderBy(
+            'sno',
+            'asc'
+        )
+
+        ->select([
+
+            'sno',
+
+            'specification_id',
+
+            'ai_photo_enhancer_id',
+
+            'original_image_path',
+
+            'enhanced_image_path',
+
+            'image_type',
+
+            'status',
+
+            'created_at'
+
+        ])
+
+        ->get();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | RESPONSE
+    |--------------------------------------------------------------------------
+    */
+
+    return response()->json([
+
+        'success' => true,
+
+        'data' => [
+
+            /*
+            |--------------------------------------------------------------------------
+            | PRODUCT
+            |--------------------------------------------------------------------------
+            */
+
+            'sno' =>
+                $product->sno,
+
+            'id' =>
+                $product->id,
+
+            'product_name' =>
+                $product->product_name,
+
+            'product_type' =>
+                $product->product_type,
+
+            'sku' =>
+                $product->sku,
+
+            'sku_supplier' =>
+                $product->sku_supplier,
+
+            'barcode' =>
+                $product->barcode,
+
+            'gender_name' =>
+                $product->gender_name,
+
+            'composition_name' =>
+                $product->composition_name,
+
+            'colour_name' =>
+                $product->colour_name,
+
+            'size_name' =>
+                $product->size_name,
+
+            /*
+            |--------------------------------------------------------------------------
+            | ORIGINAL MAIN IMAGE
+            |--------------------------------------------------------------------------
+            */
+
+            'main_image' =>
+                $product->main_image,
+
+            /*
+            |--------------------------------------------------------------------------
+            | ALL APPROVED IMAGES
+            |--------------------------------------------------------------------------
+            */
+
+            'approved_images' =>
+                $approvedImages
+
+        ]
+
+    ]);
+}
+
+/*
+|--------------------------------------------------------------------------
+| SAVE AI PRODUCT DESCRIPTION
+|--------------------------------------------------------------------------
+*/
+
+public function saveAiDescription(Request $request)
+{
+    $user = Auth::user();
+
+    if (!$user) {
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Unauthenticated.'
+        ], 401);
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | VALIDATE
+    |--------------------------------------------------------------------------
+    */
+
+    $validated = $request->validate([
+
+        'product_id' =>
+            'required|integer',
+
+        'AI_product_name' =>
+            'nullable|string',
+
+        'AI_product_description' =>
+            'nullable|string',
+
+        'AI_Metatitle' =>
+            'nullable|string',
+
+        'AI_Metakeywards' =>
+            'nullable|string',
+
+        'AI_Metadescription' =>
+            'nullable|string',
+
+        'AI_Producttag' =>
+            'nullable|string',
+
+        'AI_Imagealttext' =>
+            'nullable|string',
+
+        'company_id' =>
+            'nullable|integer',
+
+        'subcompany_id' =>
+            'nullable|integer',
+
+        'projectid' =>
+            'nullable|integer',
+
+    ]);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PRODUCT ID
+    |--------------------------------------------------------------------------
+    |
+    | auto_designer_specification_master.sno
+    |
+    */
+
+    $productId =
+        $validated['product_id'];
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CHECK EXISTING DESCRIPTION
+    |--------------------------------------------------------------------------
+    */
+
+    $existing =
+        DB::table(
+            'AI_product_description'
+        )
+        ->where(
+            'product_id',
+            $productId
+        )
+        ->first();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | DATA
+    |--------------------------------------------------------------------------
+    |
+    | IMPORTANT:
+    | tedit is NOT used.
+    | created_at / updated_at are NOT used.
+    |
+    */
+
+    $data = [
+
+        'product_id' =>
+            $productId,
+
+        'AI_product_name' =>
+            $validated['AI_product_name'] ??
+            null,
+
+        'AI_product_description' =>
+            $validated['AI_product_description'] ??
+            null,
+
+        'AI_Metatitle' =>
+            $validated['AI_Metatitle'] ??
+            null,
+
+        'AI_Metakeywards' =>
+            $validated['AI_Metakeywards'] ??
+            null,
+
+        'AI_Metadescription' =>
+            $validated['AI_Metadescription'] ??
+            null,
+
+        'AI_Producttag' =>
+            $validated['AI_Producttag'] ??
+            null,
+
+        'AI_Imagealttext' =>
+            $validated['AI_Imagealttext'] ??
+            null,
+
+        'company_id' =>
+            $validated['company_id'] ??
+            null,
+
+        'subcompany_id' =>
+            $validated['subcompany_id'] ??
+            null,
+
+        'projectid' =>
+            $validated['projectid'] ??
+            null
+
+    ];
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | UPDATE
+    |--------------------------------------------------------------------------
+    */
+
+    if ($existing) {
+
+        DB::table(
+            'AI_product_description'
+        )
+        ->where(
+            'sno',
+            $existing->sno
+        )
+        ->update(
+            $data
+        );
+
+
+        return response()->json([
+
+            'success' =>
+                true,
+
+            'action' =>
+                'updated',
+
+            'product_id' =>
+                $productId,
+
+            'message' =>
+                'AI description updated successfully.'
+
+        ]);
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | INSERT
+    |--------------------------------------------------------------------------
+    */
+
+    $newId =
+        DB::table(
+            'AI_product_description'
+        )
+        ->insertGetId(
+            $data
+        );
+
+
+    return response()->json([
+
+        'success' =>
+            true,
+
+        'action' =>
+            'saved',
+
+        'description_id' =>
+            $newId,
+
+        'product_id' =>
+            $productId,
+
+        'message' =>
+            'AI description saved successfully.'
+
+    ]);
+}
+
 }

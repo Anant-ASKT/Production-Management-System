@@ -587,3 +587,15 @@ Route::get(
     [AllGarmentsController::class, 'aiDescriptionData']
 )->name('ai-description.data');
 
+Route::get(
+    '/admin/make-ai-description/approved-images',
+    [AllGarmentsController::class, 'aiApprovedImages']
+)->name('ai-description.approved-images');
+
+Route::post(
+    '/all-garments/ai-description/save',
+    [AllGarmentsController::class, 'saveAiDescription']
+)->name(
+    'all-garments.ai-description.save'
+);
+
