@@ -321,7 +321,7 @@ class AdminAiPhotoEnhancingController extends Controller
 
         ->leftJoin(
             'auto_designer_master as designer',
-            'designer.sno',
+            'designer.id',
             '=',
             'dsm.designer_name'
         )
@@ -334,7 +334,7 @@ class AdminAiPhotoEnhancingController extends Controller
 
         ->leftJoin(
             'auto_itemtype_master as itemtype',
-            'itemtype.sno',
+            'itemtype.id',
             '=',
             'dsm.item_type'
         )
@@ -347,7 +347,7 @@ class AdminAiPhotoEnhancingController extends Controller
 
         ->leftJoin(
             'auto_gender_master as gender',
-            'gender.sno',
+            'gender.id',
             '=',
             'dsm.gender'
         )
@@ -360,7 +360,7 @@ class AdminAiPhotoEnhancingController extends Controller
 
         ->leftJoin(
             'auto_itemname_master as itemname',
-            'itemname.sno',
+            'itemname.id',
             '=',
             'dsm.item_name'
         )
@@ -373,7 +373,7 @@ class AdminAiPhotoEnhancingController extends Controller
 
         ->leftJoin(
             'auto_composition_master_stock as composition',
-            'composition.sno',
+            'composition.id',
             '=',
             'dsm.composition'
         )
@@ -386,7 +386,7 @@ class AdminAiPhotoEnhancingController extends Controller
 
         ->leftJoin(
             'auto_colour_master as colour',
-            'colour.sno',
+            'colour.id',
             '=',
             'dsm.colour'
         )
@@ -399,42 +399,42 @@ class AdminAiPhotoEnhancingController extends Controller
 
         ->leftJoin(
             'auto_size_master as size',
-            'size.sno',
+            'size.id',
             '=',
             'dsm.sizes'
         )
 
         ->leftJoin(
                 'auto_embellishment_master as embellishment',
-                'embellishment.sno',
+                'embellishment.id',
                 '=',
                 'dsm.embellishment'
             )
 
             ->leftJoin(
                 'auto_manufacturing_process_master as manufacturing',
-                'manufacturing.sno',
+                'manufacturing.id',
                 '=',
                 'dsm.manufacturing_process'
             )
 
             ->leftJoin(
                 'auto_craftsman_master as craftsman',
-                'craftsman.sno',
+                'craftsman.id',
                 '=',
                 'dsm.craftsman'
             )
 
             ->leftJoin(
                 'auto_manufacture_master as manufacture',
-                'manufacture.sno',
+                'manufacture.id',
                 '=',
                 'dsm.manufecture'
             )
 
             ->leftJoin(
                 'auto_client_master as client',
-                'client.sno',
+                'client.id',
                 '=',
                 'dsm.client'
             )
