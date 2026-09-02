@@ -11,6 +11,7 @@ use App\Models\CompanyMaster;
 use App\Models\CompanySubMaster;
 use App\Models\ProjectMaster;
 use Illuminate\Validation\Rule;
+use Mockery\Matcher\AndAnyOtherArgs;
 
 class DesignSpecificationController extends Controller
 {
@@ -362,7 +363,11 @@ public function supplierProducts(Request $request)
         ->where(
             'sp.status',
             'active'
-        );
+        )
+        ->where(function ($q) {
+            $q->whereNull('sp.product_sku')
+            ->orWhere('sp.product_sku', '');
+        });
 
 
         /*
@@ -2148,6 +2153,9 @@ private function generateProductSku(
                     Rule::unique('auto_designer_specification_master', 'sku'),
                 ],
                 'clientreference' => 'nullable|string',
+                'price' => 'nullable|string',
+                'minprice' => 'nullable|string',
+                'saleprice' => 'nullable|string',
 
                 'AI_product_name' => 'nullable|string',
                 'AI_product_description' => 'nullable|string',
@@ -2427,7 +2435,9 @@ private function generateProductSku(
 
             $imgPath = null;
 
-
+            $price = $validated['price'] ?? 0;
+            $minprice = $validated['minprice'] ?? 0;
+            $saleprice = $validated['saleprice'] ?? 0;
             /*
             |--------------------------------------------------------------------------
             | Save Database Record
@@ -2490,8 +2500,16 @@ private function generateProductSku(
                     'projectid' =>
                         $projectId,
 
-                    
+                    'supplier_person_id' =>
+                        $request->input('login_supplier_id') ?: null,
 
+                    'supplier_product_id' =>
+                        $request->input('supplier_product_id') ?: null,
+
+                    'supplier_id' =>
+                        $request->input('login_supplier_id') ?: null,
+
+                    
                     'loginid' =>
                         $user->username,
 
@@ -2509,6 +2527,15 @@ private function generateProductSku(
 
                     'sku' =>
                         $generatedSku,
+
+                    'price' =>
+                        $validated['price'] ?? null,
+
+                    'min_price' =>
+                        $validated['minprice'] ?? null,
+
+                    'sale_price' =>
+                        $validated['saleprice'] ?? null,
 
                     /*
                     |--------------------------------------------------------------------------
@@ -2901,6 +2928,111 @@ private function generateProductSku(
 
             'projectid' => $projectId,
         ]);
+        }
+
+
+        $supplierProductId =
+     $request->input('supplier_product_id');
+
+        if (
+            $supplierProductId !== null &&
+            $supplierProductId !== ''
+        ) {
+            DB::table('supplier_products')
+                ->where('sno', $supplierProductId)
+                ->update([
+                    'product_sku' => $generatedSku,
+                ]);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Supplier Vendor Stock
+        |--------------------------------------------------------------------------
+        |
+        | If supplier stock is provided:
+        |   stock = 10  -> create 10 rows
+        |
+        | If supplier stock is empty:
+        |   create 1 row
+        |
+        */
+
+        $supplierStock =
+            $request->input('login_supplier_stock');
+
+        if (
+            $supplierStock === null ||
+            $supplierStock === '' ||
+            !is_numeric($supplierStock) ||
+            (int) $supplierStock <= 0
+        ) {
+            $supplierStock = 1;
+        } else {
+            $supplierStock = (int) $supplierStock;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Generate next vendor_stock.id
+        |--------------------------------------------------------------------------
+        */
+
+        $nextVendorStockId =
+            ((int) DB::table('vendor_stock')->max('id')) + 1;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Insert one row per physical stock item
+        |--------------------------------------------------------------------------
+        */
+
+        $saleprice=$validated['saleprice'] ?? 0;
+
+        for (
+            $stockIndex = 0;
+            $stockIndex < $supplierStock;
+            $stockIndex++
+        ) {
+
+            DB::table('vendor_stock')->insert([
+
+                'id' =>
+                    $nextVendorStockId++,
+
+                'companyid' =>
+                    $companyId,
+
+                'subcompanyid' =>
+                    $subCompanyId,
+
+                'projectid' =>
+                    $projectId,
+
+                'vendor_id' =>
+                    $projectId,
+
+                'item_id' =>
+                    $insertId,
+
+                'quantity_received' =>
+                    1,
+
+                'send_qty' =>
+                    0,
+
+                'barcode' =>
+                    $barcode,
+
+                'g_id' =>
+                    $insertId,
+
+                'sale_price' =>
+                    $saleprice,
+
+            ]);
         }
 
 
@@ -3612,351 +3744,502 @@ private function generateProductSku(
     }
 
     private function masterConfig(string $master): array
-    {
-        $config = [
+{
+    $config = [
 
-            'item_name' => [
-                'title' => 'Item Name',
-                'table' => 'auto_itemname_master',
-                'name_column' => 'itemname',
-                'select_id' => 'item_name',
-                'has_code' => false,
-            ],
+        'item_name' => [
+            'title' => 'Item Name',
+            'table' => 'auto_itemname_master',
+            'name_column' => 'itemname',
+            'select_id' => 'item_name',
+            'has_code' => true,
+        ],
 
-            'item_type' => [
-                'title' => 'Item Type',
-                'table' => 'auto_itemtype_master',
-                'name_column' => 'itemtype',
-                'select_id' => 'item_type',
-                'has_code' => false,
-            ],
+        'item_type' => [
+            'title' => 'Item Type',
+            'table' => 'auto_itemtype_master',
+            'name_column' => 'itemtype',
+            'select_id' => 'item_type',
+            'has_code' => true,
+        ],
 
-            'designer' => [
-                'title' => 'Designer',
-                'table' => 'auto_designer_master',
-                'name_column' => 'designername',
-                'select_id' => 'designer_name',
-                'has_code' => false,
-            ],
+        'designer' => [
+            'title' => 'Designer',
+            'table' => 'auto_designer_master',
+            'name_column' => 'designername',
+            'select_id' => 'designer_name',
+            'has_code' => true,
+        ],
 
-            'gender' => [
-                'title' => 'Gender',
-                'table' => 'auto_gender_master',
-                'name_column' => 'name',
-                'select_id' => 'gender_type',
-                'has_code' => false,
-            ],
+        'gender' => [
+            'title' => 'Gender',
+            'table' => 'auto_gender_master',
+            'name_column' => 'name',
+            'select_id' => 'gender_type',
+            'has_code' => true,
+        ],
 
-            'composition' => [
-                'title' => 'Composition',
-                'table' => 'auto_composition_master_stock',
-                'name_column' => 'composition_details',
-                'select_id' => 'composition',
-                'has_code' => false,
-            ],
+        'composition' => [
+            'title' => 'Composition',
+            'table' => 'auto_composition_master_stock',
+            'name_column' => 'composition_details',
+            'select_id' => 'composition',
+            'has_code' => true,
+        ],
 
-            'colour' => [
-                'title' => 'Colour',
-                'table' => 'auto_colour_master',
-                'name_column' => 'colourname',
-                'select_id' => 'colour',
-                'has_code' => false,
-            ],
+        'colour' => [
+            'title' => 'Colour',
+            'table' => 'auto_colour_master',
+            'name_column' => 'colourname',
+            'select_id' => 'colour',
+            'has_code' => true,
+        ],
 
-            'size' => [
-                'title' => 'Size',
-                'table' => 'auto_size_master',
-                'name_column' => 'size',
-                'select_id' => 'sizes',
-                'has_code' => false,
-            ],
+        'size' => [
+            'title' => 'Size',
+            'table' => 'auto_size_master',
+            'name_column' => 'size',
+            'select_id' => 'sizes',
+            'has_code' => true,
+        ],
 
-            'embellishment' => [
-                'title' => 'Embellishment',
-                'table' => 'auto_embellishment_master',
-                'name_column' => 'embellishmentname',
-                'select_id' => 'embellishment',
-                'has_code' => false,
-            ],
+        'embellishment' => [
+            'title' => 'Embellishment',
+            'table' => 'auto_embellishment_master',
+            'name_column' => 'embellishmentname',
+            'select_id' => 'embellishment',
+            'has_code' => true,
+        ],
 
-            'manufacturing_process' => [
-                'title' => 'Manufacturing Process',
-                'table' => 'auto_manufacturing_process_master',
-                'name_column' => 'manufacturing_process',
-                'select_id' => 'manufacturing_process',
-                'has_code' => false,
-            ],
+        'manufacturing_process' => [
+            'title' => 'Manufacturing Process',
+            'table' => 'auto_manufacturing_process_master',
+            'name_column' => 'manufacturing_process',
+            'select_id' => 'manufacturing_process',
+            'has_code' => true,
+        ],
 
-            'craftsman' => [
-                'title' => 'Craftsman',
-                'table' => 'auto_craftsman_master',
-                'name_column' => 'name',
-                'select_id' => 'mcraftsman',
-                'has_code' => true,
-            ],
+        'craftsman' => [
+            'title' => 'Craftsman',
+            'table' => 'auto_craftsman_master',
+            'name_column' => 'name',
+            'select_id' => 'mcraftsman',
+            'has_code' => true,
+        ],
 
-            'manufacture' => [
-                'title' => 'Manufacture',
-                'table' => 'auto_manufacture_master',
-                'name_column' => 'name',
-                'select_id' => 'cmbmanufacture',
-                'has_code' => false,
-            ],
+        'manufacture' => [
+            'title' => 'Manufacture',
+            'table' => 'auto_manufacture_master',
+            'name_column' => 'name',
+            'select_id' => 'cmbmanufacture',
+            'has_code' => true,
+        ],
 
-            'client' => [
-                'title' => 'Collection',
-                'table' => 'auto_client_master',
-                'name_column' => 'name',
-                'select_id' => 'cmbclient',
-                'has_code' => false,
-            ],
+        'client' => [
+            'title' => 'Collection',
+            'table' => 'auto_client_master',
+            'name_column' => 'name',
+            'select_id' => 'cmbclient',
+            'has_code' => true,
+        ],
 
-        ];
+    ];
 
-        if (!isset($config[$master])) {
-            abort(404, 'Invalid master type.');
-        }
-
-        return $config[$master];
+    if (!isset($config[$master])) {
+        abort(404, 'Invalid master type.');
     }
 
-   public function masterList(string $master)
-    {
-        $user = Auth::user();
+    return $config[$master];
+}
 
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthenticated.'
-            ], 401);
+private function generateMasterCode(
+    string $name,
+    string $table,
+    int $companyId,
+    int $subCompanyId,
+    int $projectId,
+    ?int $ignoreId = null
+): string {
+    $name = trim($name);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Create base 3-character code from master name
+    |--------------------------------------------------------------------------
+    */
+
+    $cleanName = strtoupper(
+        preg_replace(
+            '/[^A-Z0-9 ]/',
+            '',
+            $name
+        )
+    );
+
+    $words = preg_split(
+        '/\s+/',
+        trim($cleanName)
+    );
+
+    $code = '';
+
+    /*
+    | For multiple words:
+    | Full Sleeve -> FSL
+    | Ready Made  -> RMA
+    */
+    foreach ($words as $word) {
+
+        if ($word === '') {
+            continue;
         }
 
+        $code .= substr($word, 0, 1);
 
-        $config = $this->masterConfig($master);
+        if (strlen($code) >= 3) {
+            break;
+        }
+    }
 
-        $companyId = (int) $user->company_id;
-        $subCompanyId = (int) $user->sub_company_id;
-        $projectId = (int) $user->project_id;
+    /*
+    |--------------------------------------------------------------------------
+    | Fill remaining characters from name
+    |--------------------------------------------------------------------------
+    */
 
-        $rows = DB::table($config['table'])
+    $lettersOnly = preg_replace(
+        '/[^A-Z0-9]/',
+        '',
+        $cleanName
+    );
+
+    for (
+        $i = 0;
+        $i < strlen($lettersOnly) &&
+        strlen($code) < 3;
+        $i++
+    ) {
+        $character = $lettersOnly[$i];
+
+        if (strpos($code, $character) === false) {
+            $code .= $character;
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Always exactly 3 characters
+    |--------------------------------------------------------------------------
+    */
+
+    $code = substr(
+        str_pad(
+            $code,
+            3,
+            'X'
+        ),
+        0,
+        3
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Make code unique
+    |--------------------------------------------------------------------------
+    */
+
+    $baseCode = $code;
+    $counter = 1;
+
+    while (true) {
+
+        $query = DB::table($table)
             ->where('companyid', $companyId)
             ->where('subcompanyid', $subCompanyId)
             ->where('projectid', $projectId)
-            ->orderBy($config['name_column'])
-            ->get([
-                'id',
-                $config['name_column'],
-                ...($config['has_code'] ? ['code'] : [])
-            ]);
+            ->where('code', $code);
 
-        return response()->json([
-            'success' => true,
-            'master' => $master,
-            'title' => $config['title'],
-            'select_id' => $config['select_id'],
-            'has_code' => $config['has_code'],
-            'data' => $rows
-        ]);
+        /*
+        | During UPDATE, ignore the current record.
+        */
+        if ($ignoreId !== null) {
+            $query->where(
+                'id',
+                '!=',
+                $ignoreId
+            );
+        }
+
+        if (!$query->exists()) {
+            break;
+        }
+
+        /*
+        | Keep exactly 3 characters.
+        |
+        | Example:
+        | COT
+        | CO1
+        | CO2
+        */
+        $suffix = (string) $counter;
+
+        $code =
+            substr(
+                $baseCode,
+                0,
+                3 - strlen($suffix)
+            ) . $suffix;
+
+        $counter++;
     }
+
+    return strtoupper($code);
+}
+
+  public function masterList(string $master)
+{
+    $user = Auth::user();
+
+    if (!$user) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Unauthenticated.'
+        ], 401);
+    }
+
+    $config = $this->masterConfig($master);
+
+    $companyId = (int) $user->company_id;
+    $subCompanyId = (int) $user->sub_company_id;
+    $projectId = (int) $user->project_id;
+
+    $rows = DB::table($config['table'])
+        ->where('companyid', $companyId)
+        ->where('subcompanyid', $subCompanyId)
+        ->where('projectid', $projectId)
+        ->orderBy($config['name_column'])
+        ->get([
+            'id',
+            $config['name_column'],
+            'code'
+        ]);
+
+    return response()->json([
+        'success' => true,
+        'master' => $master,
+        'title' => $config['title'],
+        'select_id' => $config['select_id'],
+        'has_code' => true,
+        'data' => $rows
+    ]);
+}
 
     public function masterStore(Request $request, string $master)
-    {
-        $user = Auth::user();
+{
+    $user = Auth::user();
 
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthenticated.'
-            ], 401);
-        }
-
-        $config = $this->masterConfig($master);
-
-        $companyId = (int) $user->company_id;
-        $subCompanyId = (int) $user->sub_company_id;
-        $projectId = (int) $user->project_id;
-
-        $request->validate([
-            'name' => 'required|string|max:500',
-            'code' => 'nullable|string|max:100',
-        ]);
-
-        $name = trim($request->name);
-        $code = trim((string) $request->code);
-
-        /*
-        |--------------------------------------------------------------------------
-        | Duplicate check
-        |--------------------------------------------------------------------------
-        */
-
-        $duplicate = DB::table($config['table'])
-            ->where('companyid', $companyId)
-            ->where('subcompanyid', $subCompanyId)
-            ->where('projectid', $projectId)
-            ->whereRaw(
-                'LOWER(`' . $config['name_column'] . '`) = ?',
-                [strtolower($name)]
-            )
-            ->exists();
-
-        if ($duplicate) {
-            return response()->json([
-                'success' => false,
-                'message' => $config['title'] . ' already exists.'
-            ], 422);
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Insert
-        |--------------------------------------------------------------------------
-        */
-
-        $insertData = [
-            $config['name_column'] => $name,
-            'companyid' => $companyId,
-            'subcompanyid' => $subCompanyId,
-            'projectid' => $projectId,
-        ];
-
-        if ($config['has_code']) {
-            $insertData['code'] = $code !== '' ? $code : null;
-        }
-
-        $newId = DB::table($config['table'])
-            ->insertGetId($insertData);
-
-        /*
-        |--------------------------------------------------------------------------
-        | Some of your old master tables use both sno and id.
-        | Keep id synchronized when the column exists.
-        |--------------------------------------------------------------------------
-        */
-
-        try {
-            DB::table($config['table'])
-                ->where('sno', $newId)
-                ->update([
-                    'id' => $newId
-                ]);
-        } catch (\Throwable $e) {
-            // Ignore if this particular master table has no id column.
-        }
-
+    if (!$user) {
         return response()->json([
-            'success' => true,
-            'message' => $config['title'] . ' added successfully.',
-            'id' => $newId,
-            'name' => $name,
-            'code' => $config['has_code'] ? $code : null,
-            'select_id' => $config['select_id']
-        ]);
+            'success' => false,
+            'message' => 'Unauthenticated.'
+        ], 401);
     }
+
+    $config = $this->masterConfig($master);
+
+    $companyId = (int) $user->company_id;
+    $subCompanyId = (int) $user->sub_company_id;
+    $projectId = (int) $user->project_id;
+
+    $request->validate([
+        'name' => 'required|string|max:500',
+    ]);
+
+    $name = trim($request->name);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Duplicate name check
+    |--------------------------------------------------------------------------
+    */
+
+    $duplicate = DB::table($config['table'])
+        ->where('companyid', $companyId)
+        ->where('subcompanyid', $subCompanyId)
+        ->where('projectid', $projectId)
+        ->whereRaw(
+            'LOWER(`' . $config['name_column'] . '`) = ?',
+            [strtolower($name)]
+        )
+        ->exists();
+
+    if ($duplicate) {
+        return response()->json([
+            'success' => false,
+            'message' => $config['title'] . ' already exists.'
+        ], 422);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Generate 3-character code
+    |--------------------------------------------------------------------------
+    */
+
+    $code = $this->generateMasterCode(
+        $name,
+        $config['table'],
+        $companyId,
+        $subCompanyId,
+        $projectId
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Insert
+    |--------------------------------------------------------------------------
+    */
+
+    $insertData = [
+        $config['name_column'] => $name,
+        'companyid' => $companyId,
+        'subcompanyid' => $subCompanyId,
+        'projectid' => $projectId,
+        'code' => $code,
+    ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | Insert and get ID
+    |--------------------------------------------------------------------------
+    */
+
+    $newId = DB::table($config['table'])
+        ->insertGetId($insertData);
+
+    return response()->json([
+        'success' => true,
+        'message' => $config['title'] . ' added successfully.',
+        'id' => $newId,
+        'name' => $name,
+        'code' => $code,
+        'select_id' => $config['select_id']
+    ]);
+}
 
     public function masterUpdate(
-        Request $request,
-        string $master,
-        int $id
-    ) {
-        $user = Auth::user();
+    Request $request,
+    string $master,
+    int $id
+) {
+    $user = Auth::user();
 
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthenticated.'
-            ], 401);
-        }
-
-        $config = $this->masterConfig($master);
-
-        $companyId = (int) $user->company_id;
-        $subCompanyId = (int) $user->sub_company_id;
-        $projectId = (int) $user->project_id;
-
-        $request->validate([
-            'name' => 'required|string|max:500',
-            'code' => 'nullable|string|max:100',
-        ]);
-
-        $name = trim($request->name);
-        $code = trim((string) $request->code);
-
-        /*
-        |--------------------------------------------------------------------------
-        | Find selected master
-        |--------------------------------------------------------------------------
-        */
-
-        $masterRow = DB::table($config['table'])
-            ->where('sno', $id)
-            ->where('companyid', $companyId)
-            ->where('subcompanyid', $subCompanyId)
-            ->where('projectid', $projectId)
-            ->first();
-
-        if (!$masterRow) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Selected master record not found.'
-            ], 404);
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Duplicate check
-        |--------------------------------------------------------------------------
-        */
-
-        $duplicate = DB::table($config['table'])
-            ->where('companyid', $companyId)
-            ->where('subcompanyid', $subCompanyId)
-            ->where('projectid', $projectId)
-            ->where('sno', '!=', $id)
-            ->whereRaw(
-                'LOWER(`' . $config['name_column'] . '`) = ?',
-                [strtolower($name)]
-            )
-            ->exists();
-
-        if ($duplicate) {
-            return response()->json([
-                'success' => false,
-                'message' => $config['title'] . ' already exists.'
-            ], 422);
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Update
-        |--------------------------------------------------------------------------
-        */
-
-        $updateData = [
-            $config['name_column'] => $name,
-        ];
-
-        if ($config['has_code']) {
-            $updateData['code'] =
-                $code !== '' ? $code : null;
-        }
-
-        DB::table($config['table'])
-            ->where('sno', $id)
-            ->where('companyid', $companyId)
-            ->where('subcompanyid', $subCompanyId)
-            ->where('projectid', $projectId)
-            ->update($updateData);
-
+    if (!$user) {
         return response()->json([
-            'success' => true,
-            'message' => $config['title'] . ' updated successfully.',
-            'id' => $id,
-            'name' => $name,
-            'code' => $config['has_code'] ? $code : null,
-            'select_id' => $config['select_id']
-        ]);
+            'success' => false,
+            'message' => 'Unauthenticated.'
+        ], 401);
     }
+
+    $config = $this->masterConfig($master);
+
+    $companyId = (int) $user->company_id;
+    $subCompanyId = (int) $user->sub_company_id;
+    $projectId = (int) $user->project_id;
+
+    $request->validate([
+        'name' => 'required|string|max:500',
+    ]);
+
+    $name = trim($request->name);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Find selected master using ID
+    |--------------------------------------------------------------------------
+    */
+
+    $masterRow = DB::table($config['table'])
+        ->where('id', $id)
+        ->where('companyid', $companyId)
+        ->where('subcompanyid', $subCompanyId)
+        ->where('projectid', $projectId)
+        ->first();
+
+    if (!$masterRow) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Selected master record not found.'
+        ], 404);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Duplicate name check
+    |--------------------------------------------------------------------------
+    */
+
+    $duplicate = DB::table($config['table'])
+        ->where('companyid', $companyId)
+        ->where('subcompanyid', $subCompanyId)
+        ->where('projectid', $projectId)
+        ->where('id', '!=', $id)
+        ->whereRaw(
+            'LOWER(`' . $config['name_column'] . '`) = ?',
+            [strtolower($name)]
+        )
+        ->exists();
+
+    if ($duplicate) {
+        return response()->json([
+            'success' => false,
+            'message' => $config['title'] . ' already exists.'
+        ], 422);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Generate new 3-character code
+    |--------------------------------------------------------------------------
+    */
+
+    $code = $this->generateMasterCode(
+        $name,
+        $config['table'],
+        $companyId,
+        $subCompanyId,
+        $projectId,
+        $id
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Update using ID only
+    |--------------------------------------------------------------------------
+    */
+
+    $updateData = [
+        $config['name_column'] => $name,
+        'code' => $code,
+    ];
+
+    DB::table($config['table'])
+        ->where('id', $id)
+        ->where('companyid', $companyId)
+        ->where('subcompanyid', $subCompanyId)
+        ->where('projectid', $projectId)
+        ->update($updateData);
+
+    return response()->json([
+        'success' => true,
+        'message' => $config['title'] . ' updated successfully.',
+        'id' => $id,
+        'name' => $name,
+        'code' => $code,
+        'select_id' => $config['select_id']
+    ]);
+}
 
     public function uploadedImages(Request $request)
 {
