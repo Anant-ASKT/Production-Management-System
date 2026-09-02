@@ -76,15 +76,22 @@
     // Helper: convert a stored path to a usable URL
     function resolveImageUrl($path) {
         if (!$path) return null;
-        $path = trim($path);
+        $path = trim($path, " \t\n\r\0\x0B\"'\\");
+        $path = str_replace('\\', '/', $path);
         if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://') || str_starts_with($path, 'data:')) return $path;
         if (str_contains($path, 'ItemsDesigner_Masterwithbarcode/')) {
             $pos = strpos($path, 'ItemsDesigner_Masterwithbarcode/');
             return '/' . substr($path, $pos);
         }
+        if (str_starts_with($path, 'raw_products/')) {
+            return '/' . $path;
+        }
+        if (str_starts_with($path, 'enhanced_images/')) {
+            return '/' . $path;
+        }
         if (str_starts_with($path, '/')) return $path;
         if (str_starts_with($path, 'storage/')) return '/' . $path;
-        return '/storage/' . $path;
+        return '/' . $path;
     }
 
     function parseImages($raw) {
@@ -94,7 +101,7 @@
             try {
                 $arr = json_decode($raw, true);
                 if (is_array($arr)) {
-                    return array_filter(array_map(fn($p) => resolveImageUrl($p), $arr));
+                    return array_values(array_filter(array_map(fn($p) => resolveImageUrl($p), $arr)));
                 }
             } catch (\Exception $e) {}
         }
@@ -104,7 +111,7 @@
 
     $mainImages = parseImages($product->img_path);
     $subImages  = parseImages($product->subimg_path);
-    $allImages  = array_merge($mainImages, $subImages);
+    $allImages  = array_values(array_unique(array_merge($mainImages, $subImages)));
 @endphp
 
 <div class="card border-0 shadow-sm rounded-4">

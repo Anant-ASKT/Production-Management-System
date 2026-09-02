@@ -14,9 +14,9 @@ class AssignedProductController extends Controller
         $assignedProducts = \DB::table('ai_photo_enhancer_assignments as apa')
             ->join('auto_designer_specification_master as spec', 'apa.specification_id', '=', 'spec.sno')
             ->leftJoin('suppliers', 'spec.supplier_id', '=', 'suppliers.sno')
-            ->leftJoin('auto_itemname_master as itemname', 'itemname.sno', '=', 'spec.item_name')
-            ->leftJoin('auto_colour_master as colour', 'colour.sno', '=', 'spec.colour')
-            ->leftJoin('auto_gender_master as gender', 'gender.sno', '=', 'spec.gender')
+            ->leftJoin('auto_itemname_master as itemname', 'itemname.id', '=', 'spec.item_name')
+            ->leftJoin('auto_colour_master as colour', 'colour.id', '=', 'spec.colour')
+            ->leftJoin('auto_gender_master as gender', 'gender.id', '=', 'spec.gender')
             ->where('apa.ai_photo_enhancer_id', $user->sno)
             ->select(
                 'apa.id as assignment_id',
@@ -41,18 +41,18 @@ class AssignedProductController extends Controller
         $product = \DB::table('ai_photo_enhancer_assignments as apa')
             ->join('auto_designer_specification_master as spec', 'apa.specification_id', '=', 'spec.sno')
             ->leftJoin('suppliers', 'spec.supplier_id', '=', 'suppliers.sno')
-            ->leftJoin('auto_itemname_master as itemname', 'itemname.sno', '=', 'spec.item_name')
-            ->leftJoin('auto_colour_master as colour', 'colour.sno', '=', 'spec.colour')
-            ->leftJoin('auto_gender_master as gender', 'gender.sno', '=', 'spec.gender')
-            ->leftJoin('auto_itemtype_master as itemtype', 'itemtype.sno', '=', 'spec.item_type')
-            ->leftJoin('auto_designer_master as designer', 'designer.sno', '=', 'spec.designer_name')
-            ->leftJoin('auto_composition_master_stock as composition', 'composition.sno', '=', 'spec.composition')
-            ->leftJoin('auto_size_master as size', 'size.sno', '=', 'spec.sizes')
-            ->leftJoin('auto_embellishment_master as embellishment', 'embellishment.sno', '=', 'spec.embellishment')
-            ->leftJoin('auto_manufacturing_process_master as manufacturing', 'manufacturing.sno', '=', 'spec.manufacturing_process')
-            ->leftJoin('auto_craftsman_master as craftsman', 'craftsman.sno', '=', 'spec.craftsman')
-            ->leftJoin('auto_manufacture_master as manufacture', 'manufacture.sno', '=', 'spec.manufecture')
-            ->leftJoin('auto_client_master as client', 'client.sno', '=', 'spec.client')
+            ->leftJoin('auto_itemname_master as itemname', 'itemname.id', '=', 'spec.item_name')
+            ->leftJoin('auto_colour_master as colour', 'colour.id', '=', 'spec.colour')
+            ->leftJoin('auto_gender_master as gender', 'gender.id', '=', 'spec.gender')
+            ->leftJoin('auto_itemtype_master as itemtype', 'itemtype.id', '=', 'spec.item_type')
+            ->leftJoin('auto_designer_master as designer', 'designer.id', '=', 'spec.designer_name')
+            ->leftJoin('auto_composition_master_stock as composition', 'composition.id', '=', 'spec.composition')
+            ->leftJoin('auto_size_master as size', 'size.id', '=', 'spec.sizes')
+            ->leftJoin('auto_embellishment_master as embellishment', 'embellishment.id', '=', 'spec.embellishment')
+            ->leftJoin('auto_manufacturing_process_master as manufacturing', 'manufacturing.id', '=', 'spec.manufacturing_process')
+            ->leftJoin('auto_craftsman_master as craftsman', 'craftsman.id', '=', 'spec.craftsman')
+            ->leftJoin('auto_manufacture_master as manufacture', 'manufacture.id', '=', 'spec.manufecture')
+            ->leftJoin('auto_client_master as client', 'client.id', '=', 'spec.client')
             ->where('apa.id', $id)
             ->where('apa.ai_photo_enhancer_id', $user->sno)
             ->select(
@@ -64,6 +64,7 @@ class AssignedProductController extends Controller
                 'spec.sku',
                 'spec.img_path',
                 'spec.subimg_path',
+                'spec.supplier_id',
                 'spec.clientreference',
                 'spec.edatetime',
                 'itemname.itemname as item_name_text',
@@ -85,6 +86,75 @@ class AssignedProductController extends Controller
         if (!$product) {
             abort(404);
         }
+
+        // Resolve sub-images with strict hierarchy to avoid duplicate raw vs moved files:
+        $subImagesList = [];
+
+        // 1. Current specification subimg_path
+        if (!empty($product->subimg_path)) {
+            $decoded = json_decode($product->subimg_path, true);
+            if (is_array($decoded)) {
+                $subImagesList = array_merge($subImagesList, $decoded);
+            } else {
+                $subImagesList[] = $product->subimg_path;
+            }
+        }
+
+        // 2. If empty, check sibling records with same barcode
+        if (empty($subImagesList) && !empty($product->barcode)) {
+            $siblingSubImgs = \DB::table('auto_designer_specification_master')
+                ->where('barcode', $product->barcode)
+                ->whereNotNull('subimg_path')
+                ->where('subimg_path', '!=', '')
+                ->where('subimg_path', '!=', '[]')
+                ->pluck('subimg_path');
+
+            foreach ($siblingSubImgs as $subJson) {
+                $decoded = json_decode($subJson, true);
+                if (is_array($decoded)) {
+                    $subImagesList = array_merge($subImagesList, $decoded);
+                } else {
+                    $subImagesList[] = $subJson;
+                }
+            }
+        }
+
+        // 3. If empty, check SubImgs folder on disk for this barcode
+        if (empty($subImagesList) && !empty($product->barcode)) {
+            $subImgDir = public_path('ItemsDesigner_Masterwithbarcode/' . $product->barcode . '/SubImgs');
+            if (is_dir($subImgDir)) {
+                $files = array_diff(scandir($subImgDir), ['.', '..']);
+                foreach ($files as $file) {
+                    $subImagesList[] = 'ItemsDesigner_Masterwithbarcode/' . $product->barcode . '/SubImgs/' . $file;
+                }
+            }
+        }
+
+        // 4. Only if still empty, fall back to supplier_products sub_images
+        if (empty($subImagesList) && !empty($product->supplier_id)) {
+            $supplierSubImages = \DB::table('supplier_products')
+                ->where('supplier_id', $product->supplier_id)
+                ->whereNotNull('sub_images')
+                ->where('sub_images', '!=', '')
+                ->where('sub_images', '!=', '[]')
+                ->pluck('sub_images');
+
+            foreach ($supplierSubImages as $sJson) {
+                $decoded = json_decode($sJson, true);
+                if (is_array($decoded)) {
+                    $subImagesList = array_merge($subImagesList, $decoded);
+                } elseif (is_string($sJson)) {
+                    $subImagesList[] = $sJson;
+                }
+            }
+        }
+
+        $subImagesList = array_values(array_unique(array_filter($subImagesList)));
+        $product->subimg_path = !empty($subImagesList) ? json_encode($subImagesList, JSON_UNESCAPED_SLASHES) : null;
+
+        \DB::table('auto_designer_specification_master')
+            ->where('sno', $product->spec_id)
+            ->update(['subimg_path' => $product->subimg_path]);
 
         $submissions = \DB::table('enhanced_product_submissions')
             ->where('specification_id', $product->spec_id)

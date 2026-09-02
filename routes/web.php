@@ -9,6 +9,7 @@ use App\Http\Controllers\Inventory\FabricYarnBuyingController;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use App\Http\Controllers\AllGarmentsController;
+use App\Http\Controllers\AdminPublishProductsController;
 
 
 Route::get('/', function () {
@@ -522,9 +523,11 @@ Route::get(
 
 
 use App\Http\Controllers\AdminSupplierController;
+use App\Http\Controllers\AdminCategoryController;
 
 Route::middleware('auth')->group(function () {
     Route::resource('admin/suppliers', AdminSupplierController::class)->names('admin.suppliers')->except(['show', 'destroy']);
+    Route::resource('admin/categories', AdminCategoryController::class)->names('admin.categories');
 });
 
 
@@ -598,4 +601,56 @@ Route::post(
 )->name(
     'all-garments.ai-description.save'
 );
+
+/*
+|--------------------------------------------------------------------------
+| PUBLISH PRODUCTS ROUTES
+|--------------------------------------------------------------------------
+*/
+Route::get(
+    '/admin/publish-products',
+    [AdminPublishProductsController::class, 'index']
+)->name('admin.publish-products.index');
+
+Route::get(
+    '/admin/publish-products/data',
+    [AdminPublishProductsController::class, 'data']
+)->name('admin.publish-products.data');
+
+Route::get(
+    '/admin/publish-products/{id}/detail',
+    [AdminPublishProductsController::class, 'detail']
+)->name('admin.publish-products.detail');
+
+Route::get(
+    '/admin/publish-products/categories-by-supplier/{supplierId}',
+    [AdminPublishProductsController::class, 'getCategoriesBySupplier']
+)->name('admin.publish-products.categories-by-supplier');
+
+Route::get(
+    '/admin/publish-products/{id}',
+    [AdminPublishProductsController::class, 'show']
+)->name('admin.publish-products.show');
+
+Route::post(
+    '/admin/publish-products/{id}/publish',
+    [AdminPublishProductsController::class, 'publish']
+)->name('admin.publish-products.publish');
+
+/*
+|--------------------------------------------------------------------------
+| PUBLISHED PRODUCTS (STORE HISTORY) ROUTES
+|--------------------------------------------------------------------------
+*/
+use App\Http\Controllers\AdminPublishedProductsController;
+
+Route::get(
+    '/admin/published-products',
+    [AdminPublishedProductsController::class, 'index']
+)->name('admin.published-products.index');
+
+Route::get(
+    '/admin/published-products/data',
+    [AdminPublishedProductsController::class, 'data']
+)->name('admin.published-products.data');
 

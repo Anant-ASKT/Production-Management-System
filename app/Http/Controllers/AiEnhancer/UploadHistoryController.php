@@ -14,8 +14,8 @@ class UploadHistoryController extends Controller
         $history = \DB::table('enhanced_product_submissions as eps')
             ->join('auto_designer_specification_master as spec', 'eps.specification_id', '=', 'spec.sno')
             ->leftJoin('suppliers', 'spec.supplier_id', '=', 'suppliers.sno')
-            ->leftJoin('auto_itemname_master as itemname', 'itemname.sno', '=', 'spec.item_name')
-            ->leftJoin('auto_colour_master as colour', 'colour.sno', '=', 'spec.colour')
+            ->leftJoin('auto_itemname_master as itemname', 'itemname.id', '=', 'spec.item_name')
+            ->leftJoin('auto_colour_master as colour', 'colour.id', '=', 'spec.colour')
             ->where('eps.ai_photo_enhancer_id', $user->sno)
             ->select(
                 'eps.*',
@@ -37,9 +37,9 @@ class UploadHistoryController extends Controller
         $submission = \DB::table('enhanced_product_submissions as eps')
             ->join('auto_designer_specification_master as spec', 'eps.specification_id', '=', 'spec.sno')
             ->leftJoin('suppliers', 'spec.supplier_id', '=', 'suppliers.sno')
-            ->leftJoin('auto_itemname_master as itemname', 'itemname.sno', '=', 'spec.item_name')
-            ->leftJoin('auto_colour_master as colour', 'colour.sno', '=', 'spec.colour')
-            ->leftJoin('auto_gender_master as gender', 'gender.sno', '=', 'spec.gender')
+            ->leftJoin('auto_itemname_master as itemname', 'itemname.id', '=', 'spec.item_name')
+            ->leftJoin('auto_colour_master as colour', 'colour.id', '=', 'spec.colour')
+            ->leftJoin('auto_gender_master as gender', 'gender.id', '=', 'spec.gender')
             ->where('eps.sno', $id)
             ->where('eps.ai_photo_enhancer_id', $user->sno)
             ->select(
