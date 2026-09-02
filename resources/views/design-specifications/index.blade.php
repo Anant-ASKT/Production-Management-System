@@ -90,7 +90,7 @@
 <div class="context-card mb-4">
 
     {{-- Company --}}
-    <div class="context-item">
+    <div class="context-item d-none">
 
         <div class="context-icon">
             <i class="bi bi-building"></i>
@@ -112,7 +112,7 @@
 
 
     {{-- Sub Company --}}
-    <div class="context-item">
+    <div class="context-item d-none">
 
         <div class="context-icon">
             <i class="bi bi-diagram-3"></i>
@@ -134,7 +134,7 @@
 
 
     {{-- Project --}}
-    <div class="context-item">
+    <div class="context-item d-none">
 
         <div class="context-icon">
             <i class="bi bi-folder"></i>
@@ -956,6 +956,63 @@
                         </small>
                     </div>
 
+                    <div class="form-field">
+                        <label for="price" class="form-label">
+                            Product Price
+                            <span class="text-muted">(Optional)</span>
+                        </label>
+
+                        <input
+                            type="number"
+                            id="price"
+                            name="price"
+                            class="form-control"
+                            min-value='0'
+                            placeholder="Enter Price if available"
+                            autocomplete="off"
+                        >
+
+                        
+                    </div>
+
+                    <div class="form-field">
+                        <label for="saleprice" class="form-label">
+                            Sale Price
+                            <span class="text-muted">(Optional)</span>
+                        </label>
+
+                        <input
+                            type="number"
+                            id="saleprice"
+                            name="saleprice"
+                            class="form-control"
+                            min-value='0'
+                            placeholder="Enter Sale Price if available"
+                            autocomplete="off"
+                        >
+
+                        
+                    </div>
+
+                    <div class="form-field">
+                        <label for="minprice" class="form-label">
+                            Sale Price
+                            <span class="text-muted">(Optional)</span>
+                        </label>
+
+                        <input
+                            type="number"
+                            id="minprice"
+                            name="minprice"
+                            class="form-control"
+                            min-value='0'
+                            placeholder="Enter Min Price if available"
+                            autocomplete="off"
+                        >
+
+                        
+                    </div>
+
 
 
                     {{-- Client Reference --}}
@@ -981,7 +1038,7 @@
                     {{-- =========================================================
      AI GENERATED PRODUCT CONTENT
 ========================================================= --}}
-<div class="ai-content-card mt-4">
+<div class="ai-content-card mt-4 d-none">
 
     <div class="ai-content-header">
 
@@ -1148,7 +1205,7 @@
             ================================================== --}}
             <div class="form-actions mt-4">
 
-                <button id="generateBtn">⚡ Generate Content</button>
+                <button id="generateBtn" class="d-none">⚡ Generate Content</button>
 
                 <button
                     type="button"
@@ -2509,6 +2566,10 @@
                                 -
                             </strong>
                         </div>
+                        <div class="col-md-6">
+                            <div class="small text-muted">Supplier Stock Qty</div>
+                            <div id="confirmSupplierStock" class="fw-semibold">-</div>
+                        </div>
 
                     </div>
 
@@ -2732,7 +2793,8 @@
                         type="text"
                         id="masterCodeInput"
                         class="form-control"
-                        placeholder="Enter code"
+                        placeholder="Code will be generated automatically"
+                        readonly
                     >
 
                 </div>
@@ -7224,7 +7286,7 @@ body {
     let selectedBarcodeSpecifications = [];
 
     let existingSubImages = [];
-
+    let selectedSupplierProduct = null;
     /*
     |--------------------------------------------------------------------------
     | GET COLLECTION VALUE
@@ -8150,6 +8212,21 @@ body {
                         'sku'
                     )?.value.trim() || '';
 
+                 const saleprice =
+                    document.getElementById(
+                        'saleprice'
+                    )?.value.trim() || '';
+
+                const price =
+                    document.getElementById(
+                        'price'
+                    )?.value.trim() || '';
+
+                const minprice =
+                    document.getElementById(
+                        'minprice'
+                    )?.value.trim() || '';
+
 
                 const clientReference =
                     document.getElementById(
@@ -8354,6 +8431,46 @@ body {
                     '{{ csrf_token() }}'
                 );
 
+                /*
+                |--------------------------------------------------------------------------
+                | SUPPLIER RAW PRODUCT DATA
+                |--------------------------------------------------------------------------
+                | These fields are optional.
+                | If supplier raw product was selected, send the available values.
+                |--------------------------------------------------------------------------
+                */
+
+                if (selectedSupplierProduct) {
+
+                    const supplierProductId =
+                        selectedSupplierProduct.product_id || '';
+
+                    const supplierPersonId =
+                        selectedSupplierProduct.login_supplier_id || '';
+
+                    const supplierStock =
+                        selectedSupplierProduct.stock !== null &&
+                        selectedSupplierProduct.stock !== undefined &&
+                        selectedSupplierProduct.stock !== ''
+                            ? selectedSupplierProduct.stock
+                            : '';
+
+                    formData.append(
+                        'supplier_product_id',
+                        supplierProductId
+                    );
+
+                    formData.append(
+                        'login_supplier_id',
+                        supplierPersonId
+                    );
+
+                    formData.append(
+                        'login_supplier_stock',
+                        supplierStock
+                    );
+                }
+
 
                 /*
                 |--------------------------------------------------------------------------
@@ -8496,6 +8613,21 @@ body {
                 formData.append(
                     'sku',
                     sku
+                );
+
+                formData.append(
+                    'saleprice',
+                    saleprice
+                );
+
+                formData.append(
+                    'price',
+                    price
+                );
+
+                formData.append(
+                    'minprice',
+                    minprice
                 );
 
 
@@ -9310,6 +9442,14 @@ body {
                 'txt_clientreference'
             )?.value.trim() || '-';
 
+        const supplierStock =
+            selectedSupplierProduct &&
+            selectedSupplierProduct.stock !== null &&
+            selectedSupplierProduct.stock !== undefined &&
+            selectedSupplierProduct.stock !== ''
+                ? selectedSupplierProduct.stock
+                : '-';
+
 
         /*
         |--------------------------------------------------------------------------
@@ -9438,6 +9578,16 @@ body {
             'confirmClientReference'
         ).textContent =
             clientReference;
+
+        const confirmSupplierStock =
+            document.getElementById(
+                'confirmSupplierStock'
+            );
+
+        if (confirmSupplierStock) {
+            confirmSupplierStock.textContent =
+                supplierStock;
+        }
 
 
         /*
@@ -12009,6 +12159,21 @@ document.addEventListener(
 
             }
 
+            // Show New Specification after selecting uploaded image
+            const newSection =
+                document.getElementById('newSpecificationSection');
+
+            const allSection =
+                document.getElementById('allSpecificationsSection');
+
+            if (newSection) {
+                newSection.style.display = '';
+            }
+
+            if (allSection) {
+                allSection.style.display = 'none';
+            }
+
 
             /*
             |--------------------------------------------------------------------------
@@ -12085,6 +12250,15 @@ document.addEventListener(
         const product =
             $(button).data('product');
 
+        const productId =
+        button.getAttribute('data-product-id') || '';
+
+        const loginSupplierId =
+            button.getAttribute('data-product-loginsupplerid') || '';
+
+        console.log('Selected Product ID:', productId);
+        console.log('Selected Login Supplier ID:', loginSupplierId);
+
 
         /*
         |--------------------------------------------------------------------------
@@ -12102,6 +12276,21 @@ document.addEventListener(
 
             return;
         }
+
+        // Show New Specification after selecting supplier product
+const newSection =
+    document.getElementById('newSpecificationSection');
+
+const allSection =
+    document.getElementById('allSpecificationsSection');
+
+if (newSection) {
+    newSection.style.display = '';
+}
+
+if (allSection) {
+    allSection.style.display = 'none';
+}
 
 
         /*
@@ -12123,7 +12312,9 @@ document.addEventListener(
         */
 
         selectSupplierProduct(
-            product
+            product,
+            productId,
+            loginSupplierId
         );
 
     }
@@ -16488,17 +16679,13 @@ function getMasterModal() {
         |--------------------------------------------------------------------------
         */
 
-        if (
-            currentMaster === 'craftsman' &&
-            row.code
-        ) {
+        if (row.code) {
 
             html += `
-                    <small class="text-muted ms-2">
-                        (${escapeHtml(row.code)})
-                    </small>
+                <small class="text-muted ms-2">
+                    (${escapeHtml(row.code)})
+                </small>
             `;
-
         }
 
 
@@ -16564,9 +16751,9 @@ function getMasterModal() {
         */
 
         selectedIdInput.value =
-            String(
-                row.sno || ''
-            );
+        String(
+            row.id || ''
+        );
 
 
         /*
@@ -16780,18 +16967,11 @@ if (btnClearMasterSearch) {
 
 
             selectedIdInput.value =
-                row.sno;
+                row.id;
 
 
-            if (
-                currentMaster ===
-                'craftsman'
-            ) {
-
-                codeInput.value =
-                    row.code || '';
-
-            }
+            codeInput.value =
+             row.code || '';
 
 
             btnUpdate.disabled = false;
@@ -17102,12 +17282,7 @@ if (btnClearMasterSearch) {
                                 body: JSON.stringify({
 
                                     name:
-                                        name,
-
-                                    code:
-                                        currentMaster === 'craftsman'
-                                            ? codeInput.value.trim()
-                                            : ''
+                                        name
 
                                 })
                             }
@@ -17262,12 +17437,7 @@ if (btnClearMasterSearch) {
                                 body: JSON.stringify({
 
                                     name:
-                                        name,
-
-                                    code:
-                                        currentMaster === 'craftsman'
-                                            ? codeInput.value.trim()
-                                            : ''
+                                        name
 
                                 })
                             }
@@ -18893,6 +19063,7 @@ function appendSupplierProductRow(
                     type="button"
                     class="btn btn-sm btn-primary btn-select-supplier-product"
                     data-product-id="${product.sno}"
+                    data-product-loginsupplerid="${product.supplier_id || product.supplier_id || ''}"
                 >
 
                     <i class="bi bi-check2-circle me-1"></i>
@@ -18934,7 +19105,8 @@ function appendSupplierProductRow(
 
 
 
-async function selectSupplierProduct(product)
+async function selectSupplierProduct(product,productId = '',
+    loginSupplierId = '')
 {
     /*
     |--------------------------------------------------------------------------
@@ -18953,7 +19125,15 @@ async function selectSupplierProduct(product)
         return;
     }
 
-    showSupplierProductInfo(product);
+
+        showSupplierProductInfo(product,productId,
+    loginSupplierId);
+
+        selectedSupplierProduct = {
+            ...product,
+            product_id: productId,
+            login_supplier_id: loginSupplierId
+        };
 
 
     console.log(
@@ -19930,6 +20110,7 @@ function showSupplierProductInfo(product)
         ['Product ID', product.sno],
         ['Product Name', product.name],
         ['Supplier', product.supplier_name || product.suppliername],
+        ['Stock', product.stock],
         ['Item Name', product.item_name],
         ['Item Type', product.item_type],
         ['Designer', product.designer],
