@@ -527,6 +527,9 @@ use App\Http\Controllers\AdminCategoryController;
 
 Route::middleware('auth')->group(function () {
     Route::resource('admin/suppliers', AdminSupplierController::class)->names('admin.suppliers')->except(['show', 'destroy']);
+    Route::post('admin/suppliers/{supplier}/users', [AdminSupplierController::class, 'addUser'])->name('admin.suppliers.users.store');
+    Route::put('admin/suppliers/{supplier}/users/{user}', [AdminSupplierController::class, 'updateUser'])->name('admin.suppliers.users.update');
+    Route::delete('admin/suppliers/{supplier}/users/{user}', [AdminSupplierController::class, 'deleteUser'])->name('admin.suppliers.users.destroy');
     Route::resource('admin/categories', AdminCategoryController::class)->names('admin.categories');
 });
 
@@ -653,4 +656,13 @@ Route::get(
     '/admin/published-products/data',
     [AdminPublishedProductsController::class, 'data']
 )->name('admin.published-products.data');
+
+/*
+|--------------------------------------------------------------------------
+| WOOCOMMERCE ORDER WEBHOOK
+|--------------------------------------------------------------------------
+*/
+Route::post('/order_webhook_payloads', [App\Http\Controllers\OrderWebhookController::class, 'handle'])->name('order.webhook.payloads');
+Route::post('/webhook/orders', [App\Http\Controllers\OrderWebhookController::class, 'handle']);
+
 

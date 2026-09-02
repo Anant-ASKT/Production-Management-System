@@ -13,7 +13,7 @@ class SupplierProduct extends Model
 
     protected $fillable = [
         'countryid', 'companyid', 'subcompanyid', 'projectid', 'subprojectid',
-        'supplier_id', 'name', 'description', 'status', 'stock', 'price', 'sale_price',
+        'supplier_id', 'supplier_user_id', 'name', 'description', 'status', 'stock', 'price', 'sale_price',
         'main_image', 'sub_images',
         'design_names', 'compositions', 'mfg_processes', 'craftsmen', 'designers', 'variations',
         'item_type', 'designer', 'gender', 'composition', 'colour', 'size', 'embellishment',
@@ -23,5 +23,10 @@ class SupplierProduct extends Model
     public function supplier()
     {
         return $this->belongsTo(Supplier::class, 'supplier_id', 'sno');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(SupplierUser::class, 'supplier_user_id', 'sno');
     }
 }

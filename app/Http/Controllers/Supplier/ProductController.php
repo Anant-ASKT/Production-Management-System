@@ -10,7 +10,9 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $query = SupplierProduct::where('supplier_id', auth()->guard('supplier')->id());
+        $user = auth()->guard('supplier')->user();
+        $query = SupplierProduct::where('supplier_id', $user->supplier_id)
+            ->where('supplier_user_id', $user->sno);
 
         $selectedDate = $request->has('date') ? $request->input('date') : now()->toDateString();
         if (!empty($selectedDate)) {
@@ -43,18 +45,18 @@ class ProductController extends Controller
             'sub_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
-        $supplier = auth()->guard('supplier')->user();
+        $user = auth()->guard('supplier')->user();
+        $supplierId = $user->supplier_id;
 
         $data = $request->except(['main_image', 'sub_images', '_token']);
         $data['stock'] = (isset($data['stock']) && $data['stock'] !== '' && is_numeric($data['stock'])) ? (int) $data['stock'] : 1;
-        $data['supplier_id'] = $supplier->sno;
-        $data['countryid'] = $supplier->countryid;
-        $data['companyid'] = $supplier->companyid;
-        $data['subcompanyid'] = $supplier->subcompanyid;
-        $data['projectid'] = $supplier->projectid;
-        $data['subprojectid'] = $supplier->subprojectid;
-
-        $supplierId = $supplier->sno;
+        $data['supplier_id'] = $supplierId;
+        $data['supplier_user_id'] = $user->sno;
+        $data['countryid'] = $user->countryid;
+        $data['companyid'] = $user->companyid;
+        $data['subcompanyid'] = $user->subcompanyid;
+        $data['projectid'] = $user->projectid;
+        $data['subprojectid'] = $user->subprojectid;
 
         if ($request->hasFile('main_image')) {
             $file = $request->file('main_image');
@@ -82,14 +84,21 @@ class ProductController extends Controller
 
     public function edit($id)
     {
-        $product = SupplierProduct::where('supplier_id', auth()->guard('supplier')->id())->findOrFail($id);
+        $user = auth()->guard('supplier')->user();
+        $product = SupplierProduct::where('supplier_id', $user->supplier_id)
+            ->where('supplier_user_id', $user->sno)
+            ->findOrFail($id);
+            
         return view('supplier.products.edit', compact('product'));
     }
 
     public function update(Request $request, $id)
     {
-        $supplierId = auth()->guard('supplier')->id();
-        $product = SupplierProduct::where('supplier_id', $supplierId)->findOrFail($id);
+        $user = auth()->guard('supplier')->user();
+        $supplierId = $user->supplier_id;
+        $product = SupplierProduct::where('supplier_id', $supplierId)
+            ->where('supplier_user_id', $user->sno)
+            ->findOrFail($id);
 
         $request->validate([
             'name' => 'required|string|max:255',
@@ -106,8 +115,6 @@ class ProductController extends Controller
             $path = "raw_products/{$supplierId}/main_image";
             $file->move(public_path($path), $filename);
             $data['main_image'] = $path . '/' . $filename;
-            
-            // Note: you could optionally delete the old image here if needed
         }
 
         if ($request->hasFile('sub_images')) {
@@ -128,8 +135,10 @@ class ProductController extends Controller
 
     public function deleteImage(Request $request, $id)
     {
-        $supplierId = auth()->guard('supplier')->id();
-        $product = SupplierProduct::where('supplier_id', $supplierId)->findOrFail($id);
+        $user = auth()->guard('supplier')->user();
+        $product = SupplierProduct::where('supplier_id', $user->supplier_id)
+            ->where('supplier_user_id', $user->sno)
+            ->findOrFail($id);
 
         $type = $request->input('type'); // 'main' or 'sub'
         $imagePath = $request->input('image_path');
@@ -159,8 +168,10 @@ class ProductController extends Controller
 
     public function destroy($id)
     {
-        $supplierId = auth()->guard('supplier')->id();
-        $product = SupplierProduct::where('supplier_id', $supplierId)->findOrFail($id);
+        $user = auth()->guard('supplier')->user();
+        $product = SupplierProduct::where('supplier_id', $user->supplier_id)
+            ->where('supplier_user_id', $user->sno)
+            ->findOrFail($id);
 
         if ($product->main_image && file_exists(public_path($product->main_image))) {
             @unlink(public_path($product->main_image));
