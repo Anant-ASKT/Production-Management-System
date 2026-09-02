@@ -12,6 +12,11 @@ class ProductController extends Controller
     {
         $query = SupplierProduct::where('supplier_id', auth()->guard('supplier')->id());
 
+        $selectedDate = $request->has('date') ? $request->input('date') : now()->toDateString();
+        if (!empty($selectedDate)) {
+            $query->whereDate('created_at', $selectedDate);
+        }
+
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
@@ -22,7 +27,7 @@ class ProductController extends Controller
         }
 
         $products = $query->latest('sno')->paginate(10)->withQueryString();
-        return view('supplier.products.index', compact('products'));
+        return view('supplier.products.index', compact('products', 'selectedDate'));
     }
 
     public function create()
@@ -41,6 +46,7 @@ class ProductController extends Controller
         $supplier = auth()->guard('supplier')->user();
 
         $data = $request->except(['main_image', 'sub_images', '_token']);
+        $data['stock'] = (isset($data['stock']) && $data['stock'] !== '' && is_numeric($data['stock'])) ? (int) $data['stock'] : 1;
         $data['supplier_id'] = $supplier->sno;
         $data['countryid'] = $supplier->countryid;
         $data['companyid'] = $supplier->companyid;
@@ -92,6 +98,7 @@ class ProductController extends Controller
         ]);
 
         $data = $request->except(['main_image', 'sub_images', '_token', '_method']);
+        $data['stock'] = (isset($data['stock']) && $data['stock'] !== '' && is_numeric($data['stock'])) ? (int) $data['stock'] : 1;
 
         if ($request->hasFile('main_image')) {
             $file = $request->file('main_image');
@@ -148,5 +155,30 @@ class ProductController extends Controller
         }
 
         return response()->json(['success' => false, 'message' => 'Image not found'], 404);
+    }
+
+    public function destroy($id)
+    {
+        $supplierId = auth()->guard('supplier')->id();
+        $product = SupplierProduct::where('supplier_id', $supplierId)->findOrFail($id);
+
+        if ($product->main_image && file_exists(public_path($product->main_image))) {
+            @unlink(public_path($product->main_image));
+        }
+
+        if ($product->sub_images) {
+            $subImages = json_decode($product->sub_images, true) ?? [];
+            if (is_array($subImages)) {
+                foreach ($subImages as $image) {
+                    if ($image && file_exists(public_path($image))) {
+                        @unlink(public_path($image));
+                    }
+                }
+            }
+        }
+
+        $product->delete();
+
+        return redirect()->route('supplier.products.index')->with('success', 'Product deleted successfully.');
     }
 }
