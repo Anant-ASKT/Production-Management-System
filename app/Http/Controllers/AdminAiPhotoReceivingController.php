@@ -16,9 +16,9 @@ class AdminAiPhotoReceivingController extends Controller
             ->join('auto_designer_specification_master as spec', 'eps.specification_id', '=', 'spec.sno')
             ->join('ai_photo_enhancers as ae', 'eps.ai_photo_enhancer_id', '=', 'ae.sno')
             ->leftJoin('suppliers as sup', 'spec.supplier_id', '=', 'sup.sno')
-            ->leftJoin('auto_itemname_master as itemname', 'itemname.sno', '=', 'spec.item_name')
-            ->leftJoin('auto_colour_master as colour', 'colour.sno', '=', 'spec.colour')
-            ->leftJoin('auto_gender_master as gender', 'gender.sno', '=', 'spec.gender');
+            ->leftJoin('auto_itemname_master as itemname', 'itemname.id', '=', 'spec.item_name')
+            ->leftJoin('auto_colour_master as colour', 'colour.id', '=', 'spec.colour')
+            ->leftJoin('auto_gender_master as gender', 'gender.id', '=', 'spec.gender');
 
         if ($status !== 'all') {
             if ($status === 'approved') {
@@ -58,9 +58,9 @@ class AdminAiPhotoReceivingController extends Controller
             ->join('auto_designer_specification_master as spec', 'eps.specification_id', '=', 'spec.sno')
             ->join('ai_photo_enhancers as ae', 'eps.ai_photo_enhancer_id', '=', 'ae.sno')
             ->leftJoin('suppliers as sup', 'spec.supplier_id', '=', 'sup.sno')
-            ->leftJoin('auto_itemname_master as itemname', 'itemname.sno', '=', 'spec.item_name')
-            ->leftJoin('auto_colour_master as colour', 'colour.sno', '=', 'spec.colour')
-            ->leftJoin('auto_gender_master as gender', 'gender.sno', '=', 'spec.gender')
+            ->leftJoin('auto_itemname_master as itemname', 'itemname.id', '=', 'spec.item_name')
+            ->leftJoin('auto_colour_master as colour', 'colour.id', '=', 'spec.colour')
+            ->leftJoin('auto_gender_master as gender', 'gender.id', '=', 'spec.gender')
             ->where('eps.sno', $id)
             ->select(
                 'eps.*',

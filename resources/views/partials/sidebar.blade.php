@@ -166,6 +166,32 @@
                 </a>
             </li>
 
+            <li>
+                <a
+                    href="{{ route('admin.publish-products.index') }}"
+                    class="{{ request()->routeIs('admin.publish-products.*') ? 'active' : '' }}"
+                >
+                    <i class="bi bi-send-check"></i>
+
+                    <span>
+                        Publish Products
+                    </span>
+                </a>
+            </li>
+
+            <li>
+                <a
+                    href="{{ route('admin.published-products.index') }}"
+                    class="{{ request()->routeIs('admin.published-products.*') ? 'active' : '' }}"
+                >
+                    <i class="bi bi-bag-check"></i>
+
+                    <span>
+                        Published Products
+                    </span>
+                </a>
+            </li>
+
 
             <li>
                 <a href="{{ route('inventory.ready-to-sell-stock') }}">
@@ -276,6 +302,15 @@
                         <i class="bi bi-truck"></i>
                         <span>
                             Suppliers
+                        </span>
+                    </a>
+                </li>
+
+                <li>
+                    <a href="{{ route('admin.categories.index') }}" class="{{ request()->routeIs('admin.categories.*') ? 'active' : '' }}">
+                        <i class="bi bi-tags"></i>
+                        <span>
+                            Categories
                         </span>
                     </a>
                 </li>
