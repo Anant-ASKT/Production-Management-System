@@ -27,10 +27,10 @@
         </div>
         <div class="sidebar-user-info">
             <div class="sidebar-user-name">
-                {{ $user->name ?? 'Supplier' }}
+                {{ $user->name ?? 'User' }}
             </div>
             <div class="sidebar-user-role">
-                Supplier
+                {{ $user->supplier->name ?? 'Supplier' }}
             </div>
         </div>
     </div>

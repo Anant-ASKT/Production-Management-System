@@ -1036,6 +1036,7 @@
             <table class="table table-bordered table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
+                        <th style="width: 60px;">Sr No</th>
                         <th>Supplier</th>
                         <th>Product Name</th>
                         <th>SKU</th>
@@ -1046,7 +1047,7 @@
                 </thead>
                 <tbody id="specificationEmpty" style="display:none;">
                     <tr>
-                        <td colspan="6" class="text-center py-5">
+                        <td colspan="7" class="text-center py-5">
                             <div class="empty-icon">
                                 <i class="bi bi-inbox fs-2"></i>
                             </div>
@@ -12146,6 +12147,7 @@ document.addEventListener(
                     const supplierName = specification.supplier_name || '-';
 
                     tr.innerHTML = `
+                        <td class="fw-bold text-muted text-center">${index}</td>
                         <td>${escapeHtml(supplierName)}</td>
                         <td>${escapeHtml(itemName)}</td>
                         <td>${escapeHtml(sku)}</td>

@@ -68,7 +68,7 @@
                 
                 <div class="col-md-2 mb-3">
                     <label class="form-label fw-bold">Stock</label>
-                    <input type="number" name="stock" class="form-control" value="{{ old('stock', 0) }}">
+                    <input type="number" name="stock" class="form-control" value="{{ old('stock', 1) }}" min="0">
                 </div>
                 
                 <div class="col-md-12 mb-3">

@@ -130,31 +130,8 @@ class AssignedProductController extends Controller
             }
         }
 
-        // 4. Only if still empty, fall back to supplier_products sub_images
-        if (empty($subImagesList) && !empty($product->supplier_id)) {
-            $supplierSubImages = \DB::table('supplier_products')
-                ->where('supplier_id', $product->supplier_id)
-                ->whereNotNull('sub_images')
-                ->where('sub_images', '!=', '')
-                ->where('sub_images', '!=', '[]')
-                ->pluck('sub_images');
-
-            foreach ($supplierSubImages as $sJson) {
-                $decoded = json_decode($sJson, true);
-                if (is_array($decoded)) {
-                    $subImagesList = array_merge($subImagesList, $decoded);
-                } elseif (is_string($sJson)) {
-                    $subImagesList[] = $sJson;
-                }
-            }
-        }
-
         $subImagesList = array_values(array_unique(array_filter($subImagesList)));
         $product->subimg_path = !empty($subImagesList) ? json_encode($subImagesList, JSON_UNESCAPED_SLASHES) : null;
-
-        \DB::table('auto_designer_specification_master')
-            ->where('sno', $product->spec_id)
-            ->update(['subimg_path' => $product->subimg_path]);
 
         $submissions = \DB::table('enhanced_product_submissions')
             ->where('specification_id', $product->spec_id)

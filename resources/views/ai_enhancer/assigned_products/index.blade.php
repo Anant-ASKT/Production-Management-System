@@ -38,7 +38,7 @@
                                     <td>{{ $product->supplier_name ?: '--' }}</td>
                                     <td>{{ $product->color ?: '--' }}</td>
                                     <td>{{ $product->age_group ?: '--' }}</td>
-                                    <td class="text-muted small">{{ \Carbon\Carbon::parse($product->assigned_date)->format('M d, Y h:i A') }}</td>
+                                    <td class="text-muted small">{{ \Carbon\Carbon::parse($product->assigned_date)->format('d-m-Y') }}</td>
                                     <td>
                                         <a href="{{ route('ai-enhancer.assigned-products.show', $product->assignment_id) }}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
                                             <i class="bi bi-eye"></i> View
