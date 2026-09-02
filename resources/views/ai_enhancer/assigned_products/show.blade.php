@@ -50,7 +50,7 @@
                     'Client Reference'      => $product->clientreference,
                     'Barcode'               => $product->barcode,
                     'SKU'                   => $product->sku,
-                    'Assigned Date'         => $product->assigned_date ? \Carbon\Carbon::parse($product->assigned_date)->format('M d, Y  h:i A') : null,
+                    'Assigned Date'         => $product->assigned_date ? \Carbon\Carbon::parse($product->assigned_date)->format('d-m-Y') : null,
                 ];
             @endphp
 

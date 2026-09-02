@@ -87,58 +87,26 @@
             <div class="topbar-user-info">
 
                 <div class="topbar-user-name">
-
-                    {{ $user->name ?? 'Supplier' }}
-
+                    {{ $user->name ?? 'User' }}
                 </div>
-
                 <div class="topbar-user-role">
-
-                    Supplier
-
+                    {{ $user->supplier->name ?? 'Supplier' }}
                 </div>
-
             </div>
 
-
-            <i
-                class="bi bi-chevron-down ms-1"
-                style="font-size:11px;">
-            </i>
-
+            <i class="bi bi-chevron-down ms-1" style="font-size:11px;"></i>
         </button>
 
-
-        <ul
-            class="dropdown-menu dropdown-menu-end shadow-sm border-0"
-            style="min-width:210px;border-radius:12px;">
-
-
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0" style="min-width:210px;border-radius:12px;">
             <li>
-
-                <div
-                    class="px-3 py-2">
-
-                    <div
-                        style="
-                            font-size:13px;
-                            font-weight:700;
-                        ">
-
+                <div class="px-3 py-2">
+                    <div style="font-size:13px; font-weight:700;">
                         {{ $user->name }}
-
                     </div>
-
-                    <div
-                        class="text-muted"
-                        style="font-size:11px;">
-
-                        {{ $user->username }}
-
+                    <div class="text-muted" style="font-size:11px;">
+                        {{ $user->email }}
                     </div>
-
                 </div>
-
             </li>
 
 

@@ -17,4 +17,12 @@ class Supplier extends Authenticatable
         'password',
         'remember_token',
     ];
+
+    /**
+     * Get the users belonging to this supplier.
+     */
+    public function users()
+    {
+        return $this->hasMany(SupplierUser::class, 'supplier_id', 'sno');
+    }
 }

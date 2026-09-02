@@ -76,7 +76,7 @@ return [
         ],
         'suppliers' => [
             'driver' => 'eloquent',
-            'model' => App\Models\Supplier::class,
+            'model' => App\Models\SupplierUser::class,
         ],
         'ai_photo_enhancers' => [
             'driver' => 'eloquent',

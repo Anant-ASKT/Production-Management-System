@@ -21,7 +21,10 @@ class LoginController extends Controller
             'password' => 'required|string',
         ]);
 
-        if (Auth::guard('supplier')->attempt($request->only('email', 'password'), $request->boolean('remember'))) {
+        $credentials = $request->only('email', 'password');
+        $credentials['status'] = 'active';
+
+        if (Auth::guard('supplier')->attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
             return redirect()->intended(route('supplier.dashboard'));
         }
