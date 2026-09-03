@@ -418,17 +418,17 @@
                                     Select Item Name
                                 </option>
 
-                                @foreach($itemTypes as $itemType)
-                                    <option
-                                        value="{{ $itemType->id }}"
-                                        data-code="{{ $itemType->code }}"
-                                    >
-                                        {{ $itemType->itemtype }}
-                                        @if($itemType->code)
-                                            ({{ $itemType->code }})
-                                        @endif
-                                    </option>
-                                @endforeach
+                                @foreach($itemNames as $itemName)
+                                <option
+                                    value="{{ $itemName->id }}"
+                                    data-code="{{ $itemName->code }}"
+                                >
+                                    {{ $itemName->itemname }}
+                                    @if($itemName->code)
+                                        ({{ $itemName->code }})
+                                    @endif
+                                </option>
+                            @endforeach
 
                             </select>
 
@@ -467,12 +467,16 @@
                                     Select Item Type
                                 </option>
 
-                                @foreach($itemTypes as $itemType)
-
-                                    <option value="{{ $itemType->id }}">
+                                 @foreach($itemTypes as $itemType)
+                                    <option
+                                        value="{{ $itemType->id }}"
+                                        data-code="{{ $itemType->code }}"
+                                    >
                                         {{ $itemType->itemtype }}
+                                        @if($itemType->code)
+                                            ({{ $itemType->code }})
+                                        @endif
                                     </option>
-
                                 @endforeach
 
                             </select>
@@ -3263,6 +3267,9 @@
 
                                 <th>
                                     Size
+                                </th>
+                                <th>
+                                    Createdat
                                 </th>
 
                                 <th>
@@ -8481,8 +8488,16 @@ body {
                     const supplierProductId =
                         selectedSupplierProduct.product_id || '';
 
-                    const supplierPersonId =
-                        selectedSupplierProduct.login_supplier_id || '';
+                    const supplierId =
+                        selectedSupplierProduct.supplier_id || '';
+
+                    const supplierUserId =
+                        selectedSupplierProduct.supplier_user_id || '';
+
+                    const supplierNickname =
+                        selectedSupplierProduct.supplier_nickname || '';
+                    const createdAtDate =
+                        selectedSupplierProduct.login_createatdate || '';
 
                     const supplierStock =
                         selectedSupplierProduct.stock !== null &&
@@ -8492,13 +8507,37 @@ body {
                             : '';
 
                     formData.append(
+                        'login_createatdate',
+                        createdAtDate
+                    );
+
+                    formData.append(
                         'supplier_product_id',
                         supplierProductId
                     );
 
                     formData.append(
+                        'supplier_id',
+                        supplierId
+                    );
+
+                    formData.append(
+                        'supplier_user_id',
+                        supplierUserId
+                    );
+
+                    formData.append(
+                        'supplier_nickname',
+                        supplierNickname
+                    );
+
+                    /*
+                    * Keep existing field for compatibility.
+                    * This now contains supplier_user_id.
+                    */
+                    formData.append(
                         'login_supplier_id',
-                        supplierPersonId
+                        supplierUserId
                     );
 
                     formData.append(
@@ -8573,6 +8612,58 @@ body {
                 | DESIGN SPECIFICATION DATA
                 |--------------------------------------------------------------------------
                 */
+
+                const itemNameCode =
+                    getMasterCode('item_name');
+
+                const itemTypeCode =
+                    getMasterCode('item_type');
+
+                const designerCode =
+                    getMasterCode('designer_name');
+
+                const genderCode =
+                    getMasterCode('gender_type');
+
+                const compositionCode =
+                    getMasterCode('composition');
+
+                const colourCode =
+                    getMasterCode('colour');
+
+                const sizeCode =
+                    getMasterCode('sizes');
+
+                const embellishmentCode =
+                    getMasterCode('embellishment');
+
+                const manufacturingProcessCode =
+                    getMasterCode('manufacturing_process');
+
+                const craftsmanCode =
+                    getMasterCode('mcraftsman');
+
+                const manufactureCode =
+                    getMasterCode('cmbmanufacture');
+
+                const clientCode =
+                    getMasterCode('cmbclient');
+
+
+                formData.append('item_name_code', itemNameCode);
+                formData.append('item_type_code', itemTypeCode);
+                formData.append('designer_code', designerCode);
+                formData.append('gender_code', genderCode);
+                formData.append('composition_code', compositionCode);
+                formData.append('colour_code', colourCode);
+                formData.append('size_code', sizeCode);
+                formData.append('embellishment_code', embellishmentCode);
+                formData.append('manufacturing_process_code', manufacturingProcessCode);
+                formData.append('craftsman_code', craftsmanCode);
+                formData.append('manufacture_code', manufactureCode);
+                formData.append('client_code', clientCode);
+                
+
 
                 formData.append(
                     'item_name',
@@ -9074,6 +9165,8 @@ body {
                 | CLEAR FORM
                 |--------------------------------------------------------------------------
                 */
+
+                clearSupplierProductInfo();
 
                 const inputElements =
                     document.querySelectorAll(
@@ -12291,6 +12384,10 @@ document.addEventListener(
 
         const loginSupplierId =
             button.getAttribute('data-product-loginsupplerid') || '';
+        const supplierUserId =
+            button.getAttribute('data-product-loginsuppleruserid') || '';
+         const createdatdate =
+            button.getAttribute('data-product-createdatdate') || '';
 
         console.log('Selected Product ID:', productId);
         console.log('Selected Login Supplier ID:', loginSupplierId);
@@ -12350,7 +12447,9 @@ if (allSection) {
         selectSupplierProduct(
             product,
             productId,
-            loginSupplierId
+            loginSupplierId,
+            supplierUserId,
+            createdatdate
         );
 
     }
@@ -18076,98 +18175,71 @@ if (btnClearMasterSearch) {
         |--------------------------------------------------------------------------
         */
 
-        function setValueInMainForm(
-            id,
-            name,
-            code
-        ) {
+       function setValueInMainForm(
+    id,
+    name,
+    code
+) {
+    const select =
+        document.getElementById(
+            currentSelectId
+        );
 
-            const select =
-                document.getElementById(
-                    currentSelectId
-                );
+    if (!select) {
+        return;
+    }
 
+    let option =
+        Array.from(
+            select.options
+        ).find(function (item) {
+            return String(
+                item.value
+            ) === String(id);
+        });
 
-            if (!select) {
-                return;
-            }
+    const displayText =
+        code
+            ? `${name} (${code})`
+            : name;
 
+    if (!option) {
 
-            let option =
-                Array.from(
-                    select.options
-                ).find(function (item) {
+        option =
+            new Option(
+                displayText,
+                id,
+                true,
+                true
+            );
 
-                    return String(
-                        item.value
-                    ) === String(id);
+        option.dataset.code =
+            code || '';
 
-                });
+        select.add(option);
 
+    } else {
 
-            if (!option) {
+        option.textContent =
+            displayText;
 
-                option =
-                    new Option(
-                        name,
-                        id,
-                        true,
-                        true
-                    );
+        option.dataset.code =
+            code || '';
 
+    }
 
-                if (
-                    currentMaster ===
-                    'craftsman' &&
-                    code
-                ) {
+    select.value =
+        String(id);
 
-                    option.dataset.code =
-                        code;
-
-                }
-
-
-                select.add(option);
-
-            } else {
-
-                option.textContent =
-                    currentMaster === 'craftsman' &&
-                    code
-                        ? `${name} (${code})`
-                        : name;
-
-            }
-
-
-            select.value =
-                String(id);
-
-
-            if (
-                typeof jQuery !==
-                'undefined' &&
-                jQuery.fn.select2
-            ) {
-
-                $(select)
-                    .trigger('change');
-
-            } else {
-
-                select.dispatchEvent(
-                    new Event(
-                        'change',
-                        {
-                            bubbles: true
-                        }
-                    )
-                );
-
-            }
-
-        }
+    if (
+        typeof jQuery !==
+        'undefined' &&
+        jQuery.fn.select2
+    ) {
+        jQuery(select)
+            .trigger('change');
+    }
+}
 
 
         /*
@@ -19005,6 +19077,8 @@ function appendSupplierProductRow(
 
     const size =
         product.size || '-';
+    const createdat =
+        product.created_at || '-';
 
 
     let imageHtml =
@@ -19085,6 +19159,10 @@ function appendSupplierProductRow(
                 ${escapeHtml(size)}
             </td>
 
+            <td>
+                ${escapeHtml(createdat)}
+            </td>
+
 
             <td class="text-center">
 
@@ -19099,7 +19177,11 @@ function appendSupplierProductRow(
                     type="button"
                     class="btn btn-sm btn-primary btn-select-supplier-product"
                     data-product-id="${product.sno}"
-                    data-product-loginsupplerid="${product.supplier_id || product.supplier_id || ''}"
+                    data-product-loginsupplerid="${product.supplier_id || ''}"
+                    data-product-loginsuppleruserid="${product.supplier_user_id || ''}"
+                    data-product-createdatdate="${createdat || ''}"
+
+                    
                 >
 
                     <i class="bi bi-check2-circle me-1"></i>
@@ -19142,7 +19224,7 @@ function appendSupplierProductRow(
 
 
 async function selectSupplierProduct(product,productId = '',
-    loginSupplierId = '')
+    loginSupplierId = '',supplierUserId = '',createdatdate='')
 {
     /*
     |--------------------------------------------------------------------------
@@ -19163,12 +19245,15 @@ async function selectSupplierProduct(product,productId = '',
 
 
         showSupplierProductInfo(product,productId,
-    loginSupplierId);
+    loginSupplierId,createdatdate);
 
         selectedSupplierProduct = {
             ...product,
             product_id: productId,
-            login_supplier_id: loginSupplierId
+            supplier_id: loginSupplierId,
+            supplier_user_id: supplierUserId,
+            login_supplier_id: supplierUserId,
+            login_createatdate: createdatdate,
         };
 
 
@@ -20142,31 +20227,86 @@ function showSupplierProductInfo(product)
         return;
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | PRODUCT INFORMATION
+    |--------------------------------------------------------------------------
+    */
+
     const rows = [
         ['Product ID', product.sno],
         ['Product Name', product.name],
-        ['Supplier', product.supplier_name || product.suppliername],
+
+        ['Supplier ID', product.supplier_id],
+        [
+            'Supplier',
+            product.supplier_name ||
+            product.suppliername
+        ],
+        [
+            'Supplier Nickname',
+            product.supplier_nickname
+        ],
+
+        [
+            'Supplier User ID',
+            product.supplier_user_id
+        ],
+        [
+            'Supplier User Name',
+            product.supplier_user_name
+        ],
+        [
+            'Supplier User Email',
+            product.supplier_user_email
+        ],
+        [
+            'Supplier User Phone',
+            product.supplier_user_phone
+        ],
+        [
+            'Supplier User Status',
+            product.supplier_user_status
+        ],
+
         ['Stock', product.stock],
+
         ['Item Name', product.item_name],
         ['Item Type', product.item_type],
         ['Designer', product.designer],
         ['Gender', product.gender],
         ['Composition', product.composition],
         ['Colour', product.colour],
-        ['Size', product.size || product.sizes],
-        ['Embellishment', product.embellishment],
+        [
+            'Size',
+            product.size ||
+            product.sizes
+        ],
+        [
+            'Embellishment',
+            product.embellishment
+        ],
         [
             'Manufacturing Process',
             product.manufacturing_process
         ],
-        ['Craftsman', product.craftsman],
-        ['Craftsman Code', product.craftsman_code],
+        [
+            'Craftsman',
+            product.craftsman
+        ],
+        [
+            'Craftsman Code',
+            product.craftsman_code
+        ],
         [
             'Manufacture',
             product.manufacture ||
             product.manufecture
         ],
-        ['Client / Collection', product.client],
+        [
+            'Client / Collection',
+            product.client
+        ],
         ['SKU', product.sku],
         [
             'Client Reference',
@@ -20175,7 +20315,14 @@ function showSupplierProductInfo(product)
         ]
     ];
 
-    let html = `
+
+    /*
+    |--------------------------------------------------------------------------
+    | BUILD 3 COLUMN INFORMATION SECTION
+    |--------------------------------------------------------------------------
+    */
+
+    let infoHtml = `
         <div style="
             font-size:15px;
             font-weight:700;
@@ -20185,9 +20332,17 @@ function showSupplierProductInfo(product)
             Supplier Product Information
         </div>
 
-        <table class="table table-sm table-bordered mb-0">
-            <tbody>
+        <div
+            style="
+                display:grid;
+                grid-template-columns:
+                    repeat(3, minmax(0, 1fr));
+                gap:8px 12px;
+                width:100%;
+            "
+        >
     `;
+
 
     rows.forEach(function(row) {
 
@@ -20201,30 +20356,89 @@ function showSupplierProductInfo(product)
             value = '-';
         }
 
-        html += `
-            <tr>
-                <td style="
-                    width:40%;
-                    font-weight:600;
-                    background:#f8f9fa;
-                ">
+        infoHtml += `
+            <div
+                style="
+                    border:1px solid #dee2e6;
+                    border-radius:6px;
+                    overflow:hidden;
+                    background:#fff;
+                    min-width:0;
+                "
+            >
+                <div
+                    style="
+                        font-size:11px;
+                        font-weight:600;
+                        color:#6c757d;
+                        background:#f8f9fa;
+                        padding:4px 8px;
+                        border-bottom:
+                            1px solid #dee2e6;
+                    "
+                >
                     ${escapeHtml(row[0])}
-                </td>
+                </div>
 
-                <td>
+                <div
+                    style="
+                        font-size:13px;
+                        font-weight:500;
+                        color:#212529;
+                        padding:6px 8px;
+                        word-break:break-word;
+                        min-height:32px;
+                    "
+                >
                     ${escapeHtml(String(value))}
-                </td>
-            </tr>
+                </div>
+            </div>
         `;
     });
 
-    html += `
-            </tbody>
-        </table>
+
+    infoHtml += `
+        </div>
     `;
 
-    container.innerHTML = html;
+
+    /*
+    |--------------------------------------------------------------------------
+    | SHOW INFORMATION
+    |--------------------------------------------------------------------------
+    */
+
+    container.innerHTML = infoHtml;
+
+    container.style.display = 'block';
+}
+function getMasterCode(selectId) {
+    const select = document.getElementById(selectId);
+
+    if (!select) {
+        return '';
+    }
+
+    const option = select.options[select.selectedIndex];
+
+    return option
+        ? option.getAttribute('data-code') || ''
+        : '';
 }
 
+function clearSupplierProductInfo()
+{
+    const container =
+        document.getElementById(
+            'supplierProductInfo'
+        );
+
+    if (container) {
+        container.innerHTML = '';
+        container.style.display = 'none';
+    }
+
+    selectedSupplierProduct = null;
+}
 </script>
 @endsection
