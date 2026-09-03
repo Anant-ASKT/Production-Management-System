@@ -14,12 +14,11 @@ class OrderWebhookController extends Controller
     public function handle(Request $request)
     {
         try {
-            $payload = $request->all();
+            $rawContent = $request->getContent();
+            $payload = !empty($rawContent) ? json_decode($rawContent, true) : null;
 
-            // If empty (e.g. raw JSON body), decode raw body content
-            if (empty($payload)) {
-                $rawContent = $request->getContent();
-                $payload = json_decode($rawContent, true) ?? [];
+            if (empty($payload) || !is_array($payload)) {
+                $payload = $request->all();
             }
 
             // Extract basic identifiers if available
