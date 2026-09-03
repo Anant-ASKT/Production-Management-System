@@ -318,6 +318,12 @@ public function supplierProducts(Request $request)
             '=',
             'sp.supplier_id'
         )
+        ->leftJoin(
+            'supplier_users as su',
+            'su.sno',
+            '=',
+            'sp.supplier_user_id'
+        )
 
         /*
         |--------------------------------------------------------------------------
@@ -333,8 +339,14 @@ public function supplierProducts(Request $request)
             'sp.projectid',
 
             'sp.supplier_id',
+            'sp.supplier_user_id',
 
             's.name as supplier_name',
+            's.nickname as supplier_nickname',
+            'su.name as supplier_user_name',
+            'su.email as supplier_user_email',
+            'su.phone as supplier_user_phone',
+            'su.status as supplier_user_status',
 
             'sp.name',
             'sp.description',
@@ -2111,7 +2123,7 @@ private function generateProductSku(
     /**
      * Save new Design Specification.
      */
-    public function store(Request $request)
+   public function store(Request $request)
     {
             $user = Auth::user();
 
@@ -2135,7 +2147,6 @@ private function generateProductSku(
             $subCompanyId = (int) $user->sub_company_id;
             $projectId    = (int) $user->project_id;
 
-
             /*
             |--------------------------------------------------------------------------
             | Validation
@@ -2151,10 +2162,29 @@ private function generateProductSku(
                 'colour' => 'required',
                 'sizes' => 'required',
 
+                'item_name_code' => 'nullable|string|max:100',
+                'item_type_code' => 'nullable|string|max:100',
+                'designer_code' => 'nullable|string|max:100',
+                'gender_code' => 'nullable|string|max:100',
+                'composition_code' => 'nullable|string|max:100',
+                'colour_code' => 'nullable|string|max:100',
+                'size_code' => 'nullable|string|max:100',
+                'embellishment_code' => 'nullable|string|max:100',
+                'manufacturing_process_code' => 'nullable|string|max:100',
+                'craftsman_code' => 'nullable|string|max:100',
+                'manufacture_code' => 'nullable|string|max:100',
+                'client_code' => 'nullable|string|max:100',
+
+                'supplier_id' => 'nullable|integer',
+                'supplier_user_id' => 'nullable|integer',
+                'supplier_nickname' => 'nullable|string|max:10',
+                'supplier_product_id' => 'nullable|integer',
+
+
                 'embellishment' => 'nullable',
                 'manufacturing_process' => 'nullable',
                 'craftsman' => 'nullable',
-                'craftsman_code' => 'nullable|string|max:45',
+                
                 'manufecture' => 'nullable',
                 'client' => 'nullable',
 
@@ -2390,20 +2420,56 @@ private function generateProductSku(
 
             /*
             |--------------------------------------------------------------------------
+            | Supplier ID and Supplier Nickname for SKU
+            |--------------------------------------------------------------------------
+            */
+
+            $supplierId =
+                $validated['supplier_id'] ?? null;
+
+            $supplierNickname = '';
+
+            if (empty($supplierId)) {
+
+                $supplierId = $projectId;
+
+                $projectMaster = DB::table('tbl_project_master')
+                    ->where('projectid', $projectId)
+                    ->first(['projectname']);
+
+                if (
+                    $projectMaster &&
+                    !empty($projectMaster->projectname)
+                ) {
+                    $projectName =
+                        preg_replace(
+                            '/[^A-Za-z0-9]/',
+                            '',
+                            $projectMaster->projectname
+                        );
+
+                    $supplierNickname =
+                        strtoupper(substr($projectName, 0, 3));
+                }
+            } else {
+                $supplierNickname =
+                    $validated['supplier_nickname'] ?? '';
+            }
+
+            /*
+            |--------------------------------------------------------------------------
             | Generate Automatic SKU
             |--------------------------------------------------------------------------
             */
 
-            $generatedSku = $this->generateProductSku(
-                $companyId,
-                $nextId,
-                (int) $validated['item_name'],
-                (int) $validated['item_type'],
-                (int) $validated['gender'],
-                (int) $validated['sizes'],
-                (int) $validated['colour'],
-                (int) $validated['composition']
-            );
+            $itemTypeCode =
+                $validated['item_type_code'] ?? '';
+
+            $generatedSku =
+                $itemTypeCode . '-' .
+                $supplierNickname . '-' .
+                $nextId;
+            
 
 
             /*
@@ -2450,6 +2516,8 @@ private function generateProductSku(
             $price = $validated['price'] ?? 0;
             $minprice = $validated['minprice'] ?? 0;
             $saleprice = $validated['saleprice'] ?? 0;
+
+            
             /*
             |--------------------------------------------------------------------------
             | Save Database Record
@@ -2512,14 +2580,22 @@ private function generateProductSku(
                     'projectid' =>
                         $projectId,
 
+                    // 'supplier_person_id' =>
+                    //     $request->input('login_supplier_id') ?: null,
+
+                    // 'supplier_product_id' =>
+                    //     $request->input('supplier_product_id') ?: null,
+
+                    // 'supplier_id' =>
+                    //     $request->input('login_supplier_id') ?: null,
                     'supplier_person_id' =>
-                        $request->input('login_supplier_id') ?: null,
+                        $request->input('supplier_user_id') ?: null,
 
                     'supplier_product_id' =>
                         $request->input('supplier_product_id') ?: null,
 
                     'supplier_id' =>
-                        $request->input('login_supplier_id') ?: null,
+                        $supplierId,
 
                     
                     'loginid' =>
@@ -2984,6 +3060,13 @@ private function generateProductSku(
             $supplierStock = (int) $supplierStock;
         }
 
+        $createatDate =
+            $request->input('login_createatdate');
+
+        if (empty($createatDate)) {
+            $createatDate = now();
+        }
+
 
         /*
         |--------------------------------------------------------------------------
@@ -3024,7 +3107,7 @@ private function generateProductSku(
                     $projectId,
 
                 'vendor_id' =>
-                    $projectId,
+                    $supplierId,
 
                 'item_id' =>
                     $insertId,
@@ -3043,6 +3126,8 @@ private function generateProductSku(
 
                 'sale_price' =>
                     $saleprice,
+                'createat_date' =>
+                    $createatDate,
 
             ]);
         }
@@ -3069,7 +3154,6 @@ private function generateProductSku(
 
         ]);
     }
-
     /**
  * Update existing Design Specification.
  *
@@ -3153,6 +3237,24 @@ private function generateProductSku(
             'clientreference' => 'nullable|string|max:500',
 
             'sku' => 'nullable|string|max:255',
+
+            'item_name_code' => 'nullable|string|max:100',
+            'item_type_code' => 'nullable|string|max:100',
+            'designer_code' => 'nullable|string|max:100',
+            'gender_code' => 'nullable|string|max:100',
+            'composition_code' => 'nullable|string|max:100',
+            'colour_code' => 'nullable|string|max:100',
+            'size_code' => 'nullable|string|max:100',
+            'embellishment_code' => 'nullable|string|max:100',
+            'manufacturing_process_code' => 'nullable|string|max:100',
+
+            'manufacture_code' => 'nullable|string|max:100',
+            'client_code' => 'nullable|string|max:100',
+
+            'supplier_id' => 'nullable|integer',
+            'supplier_user_id' => 'nullable|integer',
+            'supplier_nickname' => 'nullable|string|max:10',
+            'supplier_product_id' => 'nullable|integer',
 
             'design_images' => 'nullable|array',
             'design_images.*' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
@@ -3358,7 +3460,7 @@ private function generateProductSku(
             |--------------------------------------------------------------------------
             */
 
-            $generatedSku = $this->generateProductSku(
+            $newgeneratedSku = $this->generateProductSku(
                 $companyId,
                 $nextId,
                 (int) $validated['item_name'],
@@ -3368,6 +3470,18 @@ private function generateProductSku(
                 (int) $validated['colour'],
                 (int) $validated['composition']
             );
+
+            $itemTypeCode =
+                $validated['item_type_code'] ?? '';
+
+            $supplierNickname =
+                $validated['supplier_nickname'] ?? '';
+
+            $generatedSku =
+                $itemTypeCode . '-' .
+                $supplierNickname . '-' .
+                $nextId;
+            
 
 
             /*
