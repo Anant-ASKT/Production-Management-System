@@ -40,6 +40,11 @@ class WooCommerceService
                 'dsm.barcode',
                 'dsm.oc_product_id',
                 'dsm.supplier_id as origin_supplier_id',
+                'dsm.supplier_product_id',
+                'dsm.item_type',
+                'dsm.price',
+                'dsm.sale_price',
+                'dsm.min_price',
                 'origin_supplier.name as origin_supplier_name',
                 'aipd.AI_product_name',
                 'aipd.AI_product_description',
@@ -219,20 +224,48 @@ class WooCommerceService
             $metaData[] = ['key' => 'rank_math_focus_keyword', 'value' => $cleanKeywords];
         }
 
-        // 11. Fetch price and stock from supplier_products
-        $sp = DB::table('supplier_products')
-            ->where('supplier_id', $targetSupplierId)
-            ->first();
+        // 11. Fetch price and stock
+        $sp = null;
+        if (!empty($product->supplier_product_id)) {
+            $sp = DB::table('supplier_products')->where('sno', $product->supplier_product_id)->first();
+        }
+        if (!$sp && !empty($targetSupplierId)) {
+            $sp = DB::table('supplier_products')
+                ->where('supplier_id', $targetSupplierId)
+                ->where(function($q) use ($product) {
+                    if (!empty($product->item_type)) {
+                        $q->where('item_type', $product->item_type);
+                    }
+                })
+                ->first();
 
-        if (!$sp && $product->origin_supplier_id) {
+            if (!$sp) {
+                $sp = DB::table('supplier_products')->where('supplier_id', $targetSupplierId)->first();
+            }
+        }
+        if (!$sp && !empty($product->origin_supplier_id)) {
             $sp = DB::table('supplier_products')
                 ->where('supplier_id', $product->origin_supplier_id)
+                ->where(function($q) use ($product) {
+                    if (!empty($product->item_type)) {
+                        $q->where('item_type', $product->item_type);
+                    }
+                })
                 ->first();
+
+            if (!$sp) {
+                $sp = DB::table('supplier_products')->where('supplier_id', $product->origin_supplier_id)->first();
+            }
         }
 
-        $regularPrice = !empty($sp->price) ? (string) $sp->price : '5999';
-        $salePrice = !empty($sp->sale_price) ? (string) $sp->sale_price : '';
+        $regularPrice = !empty($product->price) ? (string) $product->price : (!empty($sp->price) ? (string) $sp->price : '5999');
+        $salePrice = !empty($product->sale_price) ? (string) $product->sale_price : (!empty($sp->sale_price) ? (string) $sp->sale_price : '');
+        $minPrice = !empty($product->min_price) ? (string) $product->min_price : (!empty($sp->min_price) ? (string) $sp->min_price : '');
         $stockQty = !empty($sp->stock) ? (int) $sp->stock : 50;
+
+        if (!empty($minPrice)) {
+            $metaData[] = ['key' => '_min_price', 'value' => (string) $minPrice];
+        }
 
         // 12. Check if already published to this target supplier
         $publishedRecord = DB::table('published_products')
