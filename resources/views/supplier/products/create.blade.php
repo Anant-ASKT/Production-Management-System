@@ -51,7 +51,7 @@
                     <h5 class="text-primary border-bottom pb-2">Basic Details</h5>
                 </div>
                 
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label fw-bold">Product Name *</label>
                     <input type="text" name="name" class="form-control" value="{{ old('name') }}" required>
                 </div>
@@ -64,6 +64,11 @@
                 <div class="col-md-2 mb-3">
                     <label class="form-label fw-bold">Sale Price</label>
                     <input type="number" step="0.01" name="sale_price" class="form-control" value="{{ old('sale_price') }}">
+                </div>
+
+                <div class="col-md-2 mb-3">
+                    <label class="form-label fw-bold">Minimum Price</label>
+                    <input type="number" step="0.01" name="min_price" class="form-control" value="{{ old('min_price') }}">
                 </div>
                 
                 <div class="col-md-2 mb-3">

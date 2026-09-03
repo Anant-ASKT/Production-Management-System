@@ -366,6 +366,7 @@ public function supplierProducts(Request $request)
             'sp.stock',
             'sp.price',
             'sp.sale_price',
+            'sp.min_price',
 
             'sp.created_at',
             'sp.updated_at'
