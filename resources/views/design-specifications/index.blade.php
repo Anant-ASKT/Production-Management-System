@@ -418,12 +418,16 @@
                                     Select Item Name
                                 </option>
 
-                                @foreach($itemNames as $itemName)
-
-                                    <option value="{{ $itemName->id }}">
-                                        {{ $itemName->itemname }}
+                                @foreach($itemTypes as $itemType)
+                                    <option
+                                        value="{{ $itemType->id }}"
+                                        data-code="{{ $itemType->code }}"
+                                    >
+                                        {{ $itemType->itemtype }}
+                                        @if($itemType->code)
+                                            ({{ $itemType->code }})
+                                        @endif
                                     </option>
-
                                 @endforeach
 
                             </select>
@@ -506,11 +510,15 @@
                                 </option>
 
                                 @foreach($designers as $designer)
-
-                                    <option value="{{ $designer->id }}">
+                                    <option
+                                        value="{{ $designer->id }}"
+                                        data-code="{{ $designer->code }}"
+                                    >
                                         {{ $designer->designername }}
+                                        @if($designer->code)
+                                            ({{ $designer->code }})
+                                        @endif
                                     </option>
-
                                 @endforeach
 
                             </select>
@@ -550,11 +558,15 @@
                                 </option>
 
                                 @foreach($genders as $gender)
-
-                                    <option value="{{ $gender->id }}">
+                                    <option
+                                        value="{{ $gender->id }}"
+                                        data-code="{{ $gender->code }}"
+                                    >
                                         {{ $gender->name }}
+                                        @if($gender->code)
+                                            ({{ $gender->code }})
+                                        @endif
                                     </option>
-
                                 @endforeach
 
                             </select>
@@ -596,11 +608,15 @@
                                 </option>
 
                                 @foreach($compositions as $composition)
-
-                                    <option value="{{ $composition->id }}">
+                                    <option
+                                        value="{{ $composition->id }}"
+                                        data-code="{{ $composition->code }}"
+                                    >
                                         {{ $composition->composition_details }}
+                                        @if($composition->code)
+                                            ({{ $composition->code }})
+                                        @endif
                                     </option>
-
                                 @endforeach
 
                             </select>
@@ -640,11 +656,15 @@
                                 </option>
 
                                 @foreach($colours as $colour)
-
-                                    <option value="{{ $colour->id }}">
+                                    <option
+                                        value="{{ $colour->id }}"
+                                        data-code="{{ $colour->code }}"
+                                    >
                                         {{ $colour->colourname }}
+                                        @if($colour->code)
+                                            ({{ $colour->code }})
+                                        @endif
                                     </option>
-
                                 @endforeach
 
                             </select>
@@ -684,11 +704,15 @@
                                 </option>
 
                                 @foreach($sizes as $size)
-
-                                    <option value="{{ $size->id }}">
+                                    <option
+                                        value="{{ $size->id }}"
+                                        data-code="{{ $size->code }}"
+                                    >
                                         {{ $size->size }}
+                                        @if($size->code)
+                                            ({{ $size->code }})
+                                        @endif
                                     </option>
-
                                 @endforeach
 
                             </select>
@@ -727,11 +751,15 @@
                                 </option>
 
                                 @foreach($embellishments as $embellishment)
-
-                                    <option value="{{ $embellishment->id }}">
+                                    <option
+                                        value="{{ $embellishment->id }}"
+                                        data-code="{{ $embellishment->code }}"
+                                    >
                                         {{ $embellishment->embellishmentname }}
+                                        @if($embellishment->code)
+                                            ({{ $embellishment->code }})
+                                        @endif
                                     </option>
-
                                 @endforeach
 
                             </select>
@@ -869,11 +897,15 @@
                                 </option>
 
                                 @foreach($manufactures as $manufacture)
-
-                                    <option value="{{ $manufacture->id }}">
+                                    <option
+                                        value="{{ $manufacture->id }}"
+                                        data-code="{{ $manufacture->code }}"
+                                    >
                                         {{ $manufacture->name }}
+                                        @if($manufacture->code)
+                                            ({{ $manufacture->code }})
+                                        @endif
                                     </option>
-
                                 @endforeach
 
                             </select>
@@ -914,11 +946,15 @@
                                 </option>
 
                                 @foreach($clients as $client)
-
-                                    <option value="{{ $client->id }}">
+                                    <option
+                                        value="{{ $client->id }}"
+                                        data-code="{{ $client->code }}"
+                                    >
                                         {{ $client->name }}
+                                        @if($client->code)
+                                            ({{ $client->code }})
+                                        @endif
                                     </option>
-
                                 @endforeach
 
                             </select>

@@ -84,7 +84,8 @@ class DesignSpecificationController extends Controller
             ->get([
                 'sno',
                 'id',
-                'designername'
+                'designername',
+                'code'
             ]);
 
 
@@ -96,7 +97,8 @@ class DesignSpecificationController extends Controller
             ->get([
                 'sno',
                 'id',
-                'itemtype'
+                'itemtype',
+                'code'
             ]);
 
 
@@ -108,7 +110,8 @@ class DesignSpecificationController extends Controller
             ->get([
                 'sno',
                 'id',
-                'name'
+                'name',
+                'code'
             ]);
 
 
@@ -120,7 +123,8 @@ class DesignSpecificationController extends Controller
             ->get([
                 'sno',
                 'id',
-                'itemname'
+                'itemname',
+                'code'
             ]);
 
 
@@ -132,7 +136,8 @@ class DesignSpecificationController extends Controller
             ->get([
                 'sno',
                 'id',
-                'composition_details'
+                'composition_details',
+                'code'
             ]);
 
 
@@ -144,7 +149,8 @@ class DesignSpecificationController extends Controller
             ->get([
                 'sno',
                 'id',
-                'colourname'
+                'colourname',
+                'code'
             ]);
 
 
@@ -156,7 +162,8 @@ class DesignSpecificationController extends Controller
             ->get([
                 'sno',
                 'id',
-                'size'
+                'size',
+                'code'
             ]);
 
 
@@ -168,7 +175,8 @@ class DesignSpecificationController extends Controller
             ->get([
                 'sno',
                 'id',
-                'embellishmentname'
+                'embellishmentname',
+                'code'
             ]);
 
 
@@ -182,7 +190,8 @@ class DesignSpecificationController extends Controller
             ->get([
                 'sno',
                 'id',
-                'manufacturing_process'
+                'manufacturing_process',
+                'code'
             ]);
 
 
@@ -207,7 +216,8 @@ class DesignSpecificationController extends Controller
             ->get([
                 'sno',
                 'id',
-                'name'
+                'name',
+                'code'
             ]);
 
 
@@ -219,7 +229,8 @@ class DesignSpecificationController extends Controller
             ->get([
                 'sno',
                 'id',
-                'name'
+                'name',
+                'code'
             ]);
 
 
