@@ -22,6 +22,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'webhook/*',
             'webhooks/*',
             'order_webhook_payloads',
+            'order_webhook_payloads/*',
+            'orders/webhook',
+            'order-webhook',
         ]);
 
     })
