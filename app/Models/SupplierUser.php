@@ -18,6 +18,7 @@ class SupplierUser extends Authenticatable
         'email',
         'password',
         'phone',
+        'role',
         'status',
         'countryid',
         'companyid',

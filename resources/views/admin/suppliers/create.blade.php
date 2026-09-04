@@ -66,19 +66,27 @@
                 <p class="text-muted small">This will create the initial login account for this supplier. Additional users can be added later in the edit page.</p>
 
                 <div class="row">
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         <label class="form-label fw-bold">User Full Name</label>
                         <input type="text" name="user_name" class="form-control" value="{{ old('user_name') }}" placeholder="Leave blank to use company name">
                     </div>
 
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         <label class="form-label fw-bold">Login Email *</label>
                         <input type="email" name="email" class="form-control" value="{{ old('email') }}" placeholder="user@company.com" required>
                     </div>
 
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         <label class="form-label fw-bold">Login Password *</label>
                         <input type="password" name="password" class="form-control" placeholder="Min. 6 characters" required>
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label fw-bold">Role *</label>
+                        <select name="role" class="form-select" required>
+                            <option value="Owner" {{ old('role', 'Owner') === 'Owner' ? 'selected' : '' }}>Owner</option>
+                            <option value="Employee" {{ old('role') === 'Employee' ? 'selected' : '' }}>Employee</option>
+                        </select>
                     </div>
                 </div>
 

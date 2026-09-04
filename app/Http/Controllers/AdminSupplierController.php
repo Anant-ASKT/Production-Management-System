@@ -29,6 +29,7 @@ class AdminSupplierController extends Controller
             'user_name' => 'nullable|string|max:255',
             'email' => 'required|email|unique:supplier_users,email',
             'password' => 'required|string|min:6',
+            'role' => 'nullable|in:Employee,Owner',
             'phone' => 'nullable|string|max:20',
             'address' => 'nullable|string',
             'store_url' => 'nullable|url',
@@ -68,6 +69,7 @@ class AdminSupplierController extends Controller
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
                 'phone' => $request->phone,
+                'role' => $request->role ?? 'Owner',
                 'status' => 'active',
                 'countryid' => $user->country_id ?? null,
                 'companyid' => $user->company_id ?? null,
@@ -135,6 +137,7 @@ class AdminSupplierController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:supplier_users,email',
             'password' => 'required|string|min:6',
+            'role' => 'required|in:Employee,Owner',
             'phone' => 'nullable|string|max:20',
         ]);
 
@@ -146,6 +149,7 @@ class AdminSupplierController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'phone' => $request->phone,
+            'role' => $request->role,
             'status' => 'active',
             'countryid' => $user->country_id ?? null,
             'companyid' => $user->company_id ?? null,
@@ -167,6 +171,7 @@ class AdminSupplierController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:supplier_users,email,' . $userId . ',sno',
+            'role' => 'required|in:Employee,Owner',
             'phone' => 'nullable|string|max:20',
             'status' => 'required|in:active,inactive',
             'password' => 'nullable|string|min:6',
@@ -175,6 +180,7 @@ class AdminSupplierController extends Controller
         $data = [
             'name' => $request->name,
             'email' => $request->email,
+            'role' => $request->role,
             'phone' => $request->phone,
             'status' => $request->status,
         ];

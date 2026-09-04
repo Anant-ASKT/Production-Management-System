@@ -111,7 +111,7 @@
                     </h3>
 
                     {{-- Price Line --}}
-                    <div class="d-flex align-items-center gap-2 mb-3">
+                    <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
                         @if(!empty($product->sale_price))
                             <span class="fw-bold fs-4 text-dark">&#8377;{{ number_format($product->sale_price, 2) }}</span>
                             @if(!empty($product->regular_price) && $product->regular_price > $product->sale_price)
@@ -120,9 +120,15 @@
                         @elseif(!empty($product->regular_price))
                             <span class="fw-bold fs-4 text-dark">&#8377;{{ number_format($product->regular_price, 2) }}</span>
                         @else
-                            <span class="fw-bold fs-4 text-dark">&#8377;4,999.00</span>
+                            <span class="fw-bold fs-4 text-dark">&#8377;0.00</span>
                         @endif
-                        <span class="text-muted small">+ Free Shipping</span>
+
+                        @if(!empty($product->min_price))
+                            <span class="badge bg-warning-subtle text-dark border border-warning px-2.5 py-1.5 rounded-pill small fw-semibold">
+                                <i class="bi bi-tag-fill text-warning me-1"></i> Min Price: &#8377;{{ number_format($product->min_price, 2) }}
+                            </span>
+                        @endif
+                        <span class="text-muted small ms-1">+ Free Shipping</span>
                     </div>
 
                     {{-- Short Description --}}
@@ -274,6 +280,12 @@
                                 <tr>
                                     <th class="bg-light text-secondary text-uppercase fw-semibold">Sale Price</th>
                                     <td class="fw-bold text-danger">&#8377;{{ number_format($product->sale_price, 2) }}</td>
+                                </tr>
+                                @endif
+                                @if(!empty($product->min_price))
+                                <tr>
+                                    <th class="bg-light text-secondary text-uppercase fw-semibold">Minimum Price</th>
+                                    <td class="fw-semibold text-dark">&#8377;{{ number_format($product->min_price, 2) }}</td>
                                 </tr>
                                 @endif
                             </tbody>

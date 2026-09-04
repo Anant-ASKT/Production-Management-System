@@ -117,6 +117,7 @@
                                 <tr>
                                     <th>Name</th>
                                     <th>Email (Login ID)</th>
+                                    <th>Role</th>
                                     <th>Phone</th>
                                     <th>Status</th>
                                     <th style="width: 130px;">Actions</th>
@@ -130,6 +131,13 @@
                                         </td>
                                         <td>
                                             <span class="text-dark">{{ $user->email }}</span>
+                                        </td>
+                                        <td>
+                                            @if(($user->role ?? 'Owner') === 'Owner')
+                                                <span class="badge bg-primary"><i class="bi bi-shield-lock-fill me-1"></i>Owner</span>
+                                            @else
+                                                <span class="badge bg-info text-dark"><i class="bi bi-person-badge me-1"></i>Employee</span>
+                                            @endif
                                         </td>
                                         <td>{{ $user->phone ?: '-' }}</td>
                                         <td>
@@ -188,6 +196,14 @@
                                                         </div>
 
                                                         <div class="mb-3">
+                                                            <label class="form-label fw-bold">Role *</label>
+                                                            <select name="role" class="form-select" required>
+                                                                <option value="Employee" {{ ($user->role ?? '') === 'Employee' ? 'selected' : '' }}>Employee</option>
+                                                                <option value="Owner" {{ ($user->role ?? 'Owner') === 'Owner' ? 'selected' : '' }}>Owner</option>
+                                                            </select>
+                                                        </div>
+
+                                                        <div class="mb-3">
                                                             <label class="form-label fw-bold">Phone</label>
                                                             <input type="text" name="phone" class="form-control" value="{{ old('phone', $user->phone) }}">
                                                         </div>
@@ -217,7 +233,7 @@
                                     </div>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="text-center py-4 text-muted">No users found for this supplier. Click "Add User" to create one.</td>
+                                        <td colspan="6" class="text-center py-4 text-muted">No users found for this supplier. Click "Add User" to create one.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -252,6 +268,14 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold">Email (Login ID) *</label>
                         <input type="email" name="email" class="form-control" placeholder="user@company.com" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Role *</label>
+                        <select name="role" class="form-select" required>
+                            <option value="Employee" selected>Employee</option>
+                            <option value="Owner">Owner</option>
+                        </select>
                     </div>
 
                     <div class="mb-3">
