@@ -26,8 +26,11 @@
             {{ $initials ?: 'S' }}
         </div>
         <div class="sidebar-user-info">
-            <div class="sidebar-user-name">
-                {{ $user->name ?? 'User' }}
+            <div class="sidebar-user-name d-flex align-items-center justify-content-between gap-1">
+                <span>{{ $user->name ?? 'User' }}</span>
+                <span class="badge {{ strcasecmp($user->role ?? 'Owner', 'Owner') === 0 ? 'bg-primary' : 'bg-secondary' }}" style="font-size: 10px; font-weight: 600; padding: 2px 6px;">
+                    {{ $user->role ?? 'Owner' }}
+                </span>
             </div>
             <div class="sidebar-user-role">
                 {{ $user->supplier->name ?? 'Supplier' }}
@@ -60,6 +63,21 @@
             </li>
         </ul>
     </div>
+
+    {{-- ORDERS (Owner Only) --}}
+    @if(strcasecmp($user->role ?? 'Owner', 'Owner') === 0)
+    <div class="sidebar-section">
+        <div class="sidebar-section-title">Orders</div>
+        <ul class="sidebar-menu">
+            <li>
+                <a href="{{ route('supplier.orders.index') }}" class="{{ request()->routeIs('supplier.orders.*') ? 'active' : '' }}">
+                    <i class="bi bi-bag-check"></i>
+                    <span>Website Orders</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+    @endif
 
     {{-- SYSTEM --}}
     <div class="sidebar-section">

@@ -192,6 +192,19 @@
                 </a>
             </li>
 
+            <li>
+                <a
+                    href="{{ route('admin.website-orders.index') }}"
+                    class="{{ request()->routeIs('admin.website-orders.*') ? 'active' : '' }}"
+                >
+                    <i class="bi bi-cart-check"></i>
+
+                    <span>
+                        Website Orders
+                    </span>
+                </a>
+            </li>
+
 
             <li>
                 <a href="{{ route('inventory.ready-to-sell-stock') }}">

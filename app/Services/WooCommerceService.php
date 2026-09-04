@@ -283,7 +283,7 @@ class WooCommerceService
             'name' => $cleanTitle,
             'type' => 'simple',
             'status' => 'publish',
-            'sku' => $product->sku ? ($product->sku . ($targetSupplierId != $product->origin_supplier_id ? ('-S' . $targetSupplierId) : '')) : ('SPEC-' . $product->spec_id),
+            'sku' => $product->sku ?: ('SPEC-' . $product->spec_id),
             'regular_price' => $regularPrice,
             'description' => $fullDescHtml,
             'short_description' => $shortDescHtml,

@@ -550,6 +550,12 @@ Route::prefix('supplier')->name('supplier.')->group(function () {
         
         Route::delete('products/{product}/image', [\App\Http\Controllers\Supplier\ProductController::class, 'deleteImage'])->name('products.delete-image');
         Route::resource('products', \App\Http\Controllers\Supplier\ProductController::class)->except(['show']);
+
+        // Supplier Website Orders Routes
+        Route::get('orders', [\App\Http\Controllers\Supplier\OrderController::class, 'index'])->name('orders.index');
+        Route::get('orders/data', [\App\Http\Controllers\Supplier\OrderController::class, 'data'])->name('orders.data');
+        Route::get('orders/{id}', [\App\Http\Controllers\Supplier\OrderController::class, 'show'])->name('orders.show');
+        Route::post('orders/{id}/update-status', [\App\Http\Controllers\Supplier\OrderController::class, 'updateStatusAndShipping'])->name('orders.update-status');
     });
 });
 
@@ -656,6 +662,30 @@ Route::get(
     '/admin/published-products/data',
     [AdminPublishedProductsController::class, 'data']
 )->name('admin.published-products.data');
+
+/*
+|--------------------------------------------------------------------------
+| WEBSITE ORDERS (WOOCOMMERCE WEBHOOK DATA) ROUTES
+|--------------------------------------------------------------------------
+*/
+use App\Http\Controllers\AdminWebsiteOrderController;
+
+Route::middleware('auth')->group(function () {
+    Route::get(
+        '/admin/website-orders',
+        [AdminWebsiteOrderController::class, 'index']
+    )->name('admin.website-orders.index');
+
+    Route::get(
+        '/admin/website-orders/data',
+        [AdminWebsiteOrderController::class, 'data']
+    )->name('admin.website-orders.data');
+
+    Route::get(
+        '/admin/website-orders/{id}',
+        [AdminWebsiteOrderController::class, 'show']
+    )->name('admin.website-orders.show');
+});
 
 /*
 |--------------------------------------------------------------------------
