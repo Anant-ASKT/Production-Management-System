@@ -686,6 +686,51 @@
 
                     </div>
 
+                    {{-- Yarn Name --}}
+                        <div class="form-group">
+
+                            <label class="form-label">
+                                Yarn Name
+                            </label>
+
+                            <div class="input-with-add">
+
+                                <select
+                                    class="form-select select2-master"
+                                    id="yarn"
+                                    name="yarn">
+
+                                    <option value="">
+                                        Select Yarn Name
+                                    </option>
+
+                                    @foreach($yarns as $yarn)
+                                        <option
+                                            value="{{ $yarn->id }}"
+                                            data-code="{{ $yarn->code }}"
+                                        >
+                                            {{ $yarn->yarnname }}
+                                            @if($yarn->code)
+                                                ({{ $yarn->code }})
+                                            @endif
+                                        </option>
+                                    @endforeach
+
+                                </select>
+
+                                {{-- <button
+                                    type="button"
+                                    class="btn-add-master"
+                                    title="Add Yarn Name">
+
+                                    <i class="bi bi-plus-lg"></i>
+
+                                </button> --}}
+
+                            </div>
+
+                        </div>
+
 
 
                     {{-- Size --}}
@@ -1644,6 +1689,11 @@
                         </div>
 
                         <div class="view-info-box">
+                            <span>Yarn Name</span>
+                            <strong id="viewYarn">-</strong>
+                        </div>
+
+                        <div class="view-info-box">
                             <span>Colour</span>
                             <strong id="viewColour">-</strong>
                         </div>
@@ -2558,6 +2608,11 @@
                         </div>
 
                         <div class="confirm-field">
+                            <span>Yarn Name</span>
+                            <strong id="confirmYarn">-</strong>
+                        </div>
+
+                        <div class="confirm-field">
                             <span>Colour</span>
                             <strong id="confirmColour">-</strong>
                         </div>
@@ -2848,6 +2903,8 @@
         class="form-control"
         placeholder="Code will be generated automatically"
         autocomplete="off"
+        minlength="3"
+        maxlength="4"
     >
 </div>
 
@@ -7332,6 +7389,39 @@ body {
 
 }
 
+/* =========================================================
+   DISABLED SELECT2 FIELD
+   ========================================================= */
+
+.input-with-add
+.select2-container--disabled
+.select2-selection--single {
+    background-color: #e9ecef !important;
+    border-color: #ced4da !important;
+    color: #6c757d !important;
+    cursor: not-allowed !important;
+    opacity: 1 !important;
+}
+
+.input-with-add
+.select2-container--disabled
+.select2-selection__rendered {
+    color: #6c757d !important;
+    cursor: not-allowed !important;
+}
+
+.input-with-add
+.select2-container--disabled
+.select2-selection__arrow {
+    opacity: 0.5;
+}
+
+.input-with-add
+.select2-container--disabled
+.select2-selection--single:focus {
+    border-color: #ced4da !important;
+    box-shadow: none !important;
+}
 
 </style>
 <script>
@@ -7776,6 +7866,10 @@ body {
                     document.getElementById(
                         'composition'
                     )?.value || '';
+                const yarn =
+                    document.getElementById(
+                        'yarn'
+                    )?.value || '';
 
                 const colour =
                     document.getElementById(
@@ -7832,8 +7926,25 @@ body {
                 |--------------------------------------------------------------------------
                 */
 
+                // if (!itemName) {
+                //     showSpecificationAlertAndFocus('Please select Item Name.', 'item_name');
+                //     return;
+                // }
                 if (!itemName) {
-                    showSpecificationAlertAndFocus('Please select Item Name.', 'item_name');
+                    showSpecificationAlertAndFocus(
+                        'Please select Item Name.',
+                        'item_name'
+                    );
+                    return;
+                }
+
+                const itemNameCode = getMasterCode('item_name');
+
+                if (!itemNameCode || !itemNameCode.trim()) {
+                    showSpecificationAlertAndFocus(
+                        'Selected Item Name does not have a Code. Please update the Item Name master and add a Code.',
+                        'item_name'
+                    );
                     return;
                 }
 
@@ -8217,6 +8328,10 @@ body {
                 const composition =
                     document.getElementById(
                         'composition'
+                    )?.value || '';
+                const yarn =
+                    document.getElementById(
+                        'yarn'
                     )?.value || '';
 
 
@@ -8704,6 +8819,11 @@ body {
                 formData.append(
                     'composition',
                     composition
+                );
+
+                formData.append(
+                    'yarn',
+                    yarn
                 );
 
 
@@ -9466,6 +9586,10 @@ body {
         const composition =
             getSelectText('composition');
 
+        const yarn =
+             getSelectText('yarn');
+
+
         const colour =
             getSelectText('colour');
 
@@ -9669,6 +9793,11 @@ body {
             'confirmComposition'
         ).textContent =
             composition;
+
+        document.getElementById(
+            'confirmYarn'
+        ).textContent =
+            yarn;
 
         document.getElementById(
             'confirmColour'
@@ -12579,7 +12708,10 @@ if (allSection) {
 
                     btnClear.addEventListener(
                         'click',
-                        resetForm
+                        function () {
+                            resetForm();
+                            location.reload();
+                        }
                     );
 
                 }
@@ -12861,7 +12993,9 @@ if (allSection) {
         */
 
         function resetForm() {
+            unlockBarcodeFields();
 
+            clearSupplierProductInfo();
             /*
             |--------------------------------------------------------------------------
             | CLEAR SELECTS
@@ -12963,18 +13097,39 @@ if (allSection) {
             |--------------------------------------------------------------------------
             */
 
+                        /*
+            |--------------------------------------------------------------------------
+            | CLEAR MAIN IMAGES
+            |--------------------------------------------------------------------------
+            */
+
             selectedFiles = [];
 
+            /*
+            | Remove existing database images from edit mode
+            */
+            existingImages = [];
 
+            /*
+            | Clear file input
+            */
             if (imageInput) {
-
-                imageInput.value =
-                    '';
-
+                imageInput.value = '';
             }
 
+            /*
+            | Clear main image preview
+            */
+            if (selectedImagePreview) {
+                selectedImagePreview.innerHTML = '';
+            }
 
-            renderSelectedImages();
+            /*
+            | Hide main image section
+            */
+            if (selectedImagesSection) {
+                selectedImagesSection.style.display = 'none';
+            }
 
 
             /*
@@ -13108,6 +13263,61 @@ if (allSection) {
             showNewSpecification();
 
         }
+
+                    /*
+            |--------------------------------------------------------------------------
+            | UNLOCK BARCODE FIELDS
+            |--------------------------------------------------------------------------
+            */
+
+            function unlockBarcodeFields() {
+
+                [
+                    'item_name',
+                    'item_type',
+                    'designer_name',
+                    'gender_type',
+                    'composition',
+                    'colour',
+                    'yarn',
+                    'sizes',
+                    'embellishment',
+                    'manufacturing_process',
+                    'mcraftsman',
+                    'cmbmanufacture',
+                    'cmbclient'
+                ].forEach(function (fieldId) {
+
+                    const field =
+                        document.getElementById(fieldId);
+
+                    if (!field) {
+                        return;
+                    }
+
+                    /*
+                    | Enable original select
+                    */
+                    field.disabled = false;
+
+                    /*
+                    | Enable Select2
+                    */
+                    if (
+                        typeof jQuery !== 'undefined' &&
+                        jQuery.fn.select2 &&
+                        jQuery(field).hasClass(
+                            'select2-hidden-accessible'
+                        )
+                    ) {
+                        jQuery(field)
+                            .prop('disabled', false)
+                            .trigger('change');
+                    }
+
+                });
+
+            }
 
 
 
@@ -14092,6 +14302,9 @@ if (allSection) {
                             'composition_text',
                             value('composition')
                         );
+
+                    document.getElementById('viewYarn').textContent =
+                        value('yarn_text', '-');
 
 
                     document.getElementById(
@@ -15716,6 +15929,11 @@ if (
                 specification.composition
             );
 
+            setSelectValue(
+                'yarn',
+                specification.yarn
+            );
+
 
             setSelectValue(
                 'colour',
@@ -15758,6 +15976,38 @@ if (
                 specification.client
             );
 
+                [
+                    'item_name',
+                    'item_type',
+                    'designer_name',
+                    'colour',
+                    'sizes',
+                    'cmbclient'
+                ].forEach(function (fieldId) {
+
+                    const field =
+                        document.getElementById(fieldId);
+
+                    if (!field) {
+                        return;
+                    }
+
+                    field.disabled = true;
+
+                    if (
+                        typeof jQuery !== 'undefined' &&
+                        jQuery(field).hasClass(
+                            'select2-hidden-accessible'
+                        )
+                    ) {
+                        jQuery(field)
+                            .prop('disabled', true)
+                            .trigger('change');
+                    }
+
+                });
+
+                
 
             /*
             |--------------------------------------------------------------------------
@@ -16202,6 +16452,53 @@ if (
 
         container.innerHTML = '';
 
+                /*
+        |--------------------------------------------------------------------------
+        | EXISTING SUB IMAGES
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            Array.isArray(existingSubImages) &&
+            existingSubImages.length > 0
+        ) {
+            existingSubImages.forEach(function (item) {
+
+                let imagePath = '';
+
+                if (typeof item === 'string') {
+                    imagePath = item;
+                } else if (item && typeof item === 'object') {
+                    imagePath =
+                        item.path ||
+                        item.url ||
+                        item.src ||
+                        item.image ||
+                        item.subimg_path ||
+                        '';
+                }
+
+                if (!imagePath) {
+                    return;
+                }
+
+                const div =
+                    document.createElement('div');
+
+                div.className =
+                    'confirm-image-item';
+
+                const img =
+                    document.createElement('img');
+
+                img.src = imagePath;
+                img.alt = 'Existing Design Sub Image';
+
+                div.appendChild(img);
+                container.appendChild(div);
+            });
+        }
+
     /*
     |--------------------------------------------------------------------------
     | NEW SUB IMAGES SELECTED BY USER
@@ -16550,6 +16847,12 @@ function getMasterModal() {
             document.getElementById(
                 'masterCodeInput'
             );
+
+        codeInput.addEventListener('input', function () {
+            this.value = this.value
+                .replace(/\s/g, '')
+                .substring(0, 4);
+        });
 
 
         const codeWrapper =
@@ -17095,6 +17398,8 @@ if (btnClearMasterSearch) {
 
                 composition:
                     'composition_details',
+                yarn:
+                    'yarnname',
 
                 colour:
                     'colourname',
@@ -17132,73 +17437,73 @@ if (btnClearMasterSearch) {
         */
 
         function selectMasterRow(
-    row,
-    rowElement
-) {
-    document
-        .querySelectorAll(
-            '.master-list-row'
-        )
-        .forEach(function (row) {
+            row,
+            rowElement
+        ) {
+            document
+                .querySelectorAll(
+                    '.master-list-row'
+                )
+                .forEach(function (row) {
 
-            row.classList.remove(
+                    row.classList.remove(
+                        'table-primary'
+                    );
+
+                });
+
+
+            rowElement.classList.add(
                 'table-primary'
             );
 
-        });
+
+            const nameColumn =
+                getNameColumn(
+                    currentMaster
+                );
 
 
-    rowElement.classList.add(
-        'table-primary'
-    );
+            nameInput.value =
+                row[nameColumn] || '';
 
 
-    const nameColumn =
-        getNameColumn(
-            currentMaster
-        );
+            selectedIdInput.value =
+                row.id;
 
 
-    nameInput.value =
-        row[nameColumn] || '';
+            const existingCode =
+                String(
+                    row.code || ''
+                ).trim();
 
 
-    selectedIdInput.value =
-        row.id;
+            if (existingCode) {
+
+                // Old master already has code
+                codeInput.value =
+                    existingCode;
+
+                codeInput.readOnly =
+                    true;
+
+            } else {
+
+                // Old master has no code
+                // Generate new code
+                codeInput.value =
+                    generateMasterCode(
+                        currentMaster
+                    );
+
+                // Allow user to change it
+                codeInput.readOnly =
+                    false;
+            }
 
 
-    const existingCode =
-        String(
-            row.code || ''
-        ).trim();
-
-
-    if (existingCode) {
-
-        // Old master already has code
-        codeInput.value =
-            existingCode;
-
-        codeInput.readOnly =
-            true;
-
-    } else {
-
-        // Old master has no code
-        // Generate new code
-        codeInput.value =
-            generateMasterCode(
-                currentMaster
-            );
-
-        // Allow user to change it
-        codeInput.readOnly =
-            false;
-    }
-
-
-    btnUpdate.disabled = false;
-}
+            btnUpdate.disabled = false;
+        }
 
 
         /*
@@ -17247,6 +17552,8 @@ if (btnClearMasterSearch) {
 
                     'Add Composition':
                         'composition',
+                    'Add Yarn Name': 
+                    'yarn',
 
                     'Add Colour':
                         'colour',
@@ -17362,6 +17669,8 @@ if (btnClearMasterSearch) {
                 composition:
                     'composition',
 
+                 yarn: 'yarn',
+
                 colour:
                     'colour',
 
@@ -17415,6 +17724,8 @@ if (btnClearMasterSearch) {
 
                 composition:
                     'Composition Master',
+                yarn:
+                    'Yarn Master',
 
                 colour:
                     'Colour Master',
@@ -18371,7 +18682,7 @@ if (btnClearMasterSearch) {
 
     
 
-    function renderConfirmationBarcode(barcode) {
+function renderConfirmationBarcode(barcode) {
 
     const svg =
         document.getElementById(

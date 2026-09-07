@@ -109,6 +109,19 @@
         <ul class="sidebar-menu">
 
             <li class="nav-item">
+                <a href="{{ route('make-all-masters.index') }}"
+                class="nav-link {{ request()->routeIs('make-all-masters.*') ? 'active' : '' }}">
+
+                    <i class="bi bi-database-gear nav-icon"></i>
+
+                    <span>
+                        Make All Masters
+                    </span>
+
+                </a>
+            </li>
+
+            <li class="nav-item">
                 <a href="{{ route('design-specifications.index') }}"
                 class="nav-link {{ request()->routeIs('design-specifications.*') ? 'active' : '' }}">
 
@@ -116,6 +129,19 @@
 
                     <span>
                         Design Specification Master
+                    </span>
+
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{{ route('product-specification-masters.index') }}"
+                class="nav-link {{ request()->routeIs('product-specification-masters.*') ? 'active' : '' }}">
+
+                    <i class="bi bi-box-seam nav-icon"></i>
+
+                    <span>
+                        Show All Product Specification Master
                     </span>
 
                 </a>
