@@ -715,6 +715,11 @@ Route::middleware('auth')->group(function () {
         '/admin/website-orders/{id}',
         [AdminWebsiteOrderController::class, 'show']
     )->name('admin.website-orders.show');
+
+    Route::post(
+        '/admin/website-orders/{id}/send-email',
+        [AdminWebsiteOrderController::class, 'sendSupplierEmail']
+    )->name('admin.website-orders.send-email');
 });
 
 /*

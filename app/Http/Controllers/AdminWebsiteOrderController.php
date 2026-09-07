@@ -233,17 +233,20 @@ class AdminWebsiteOrderController extends Controller
     }
 
     /**
-     * Get single Order Detail modal data with full product & supplier mapping.
+     * Get single Order Detail page / data with full product & supplier mapping.
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $user = Auth::user();
 
         if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthenticated.'
-            ], 401);
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthenticated.'
+                ], 401);
+            }
+            return redirect()->route('login');
         }
 
         $record = OrderWebhookPayload::findOrFail($id);
@@ -298,42 +301,179 @@ class AdminWebsiteOrderController extends Controller
             ]);
         }
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'record_id' => $record->id,
-                'order_id' => $record->order_id ?: ($payload['number'] ?? ('#' . $record->id)),
-                'order_number' => $payload['number'] ?? $record->order_id ?? ('#' . $record->id),
-                'order_key' => $record->order_key ?: ($payload['order_key'] ?? '—'),
-                'status' => strtolower($record->status ?: ($payload['status'] ?? 'pending')),
-                'created_at' => $record->created_at ? $record->created_at->format('d M Y, h:i A') : '—',
-                'date_created' => !empty($payload['date_created']) ? date('d M Y, h:i A', strtotime($payload['date_created'])) : '—',
-                'date_paid' => !empty($payload['date_paid']) ? date('d M Y, h:i A', strtotime($payload['date_paid'])) : '—',
-                'date_completed' => !empty($payload['date_completed']) ? date('d M Y, h:i A', strtotime($payload['date_completed'])) : '—',
-                'currency_symbol' => $payload['currency_symbol'] ?? '₹',
-                'currency' => $payload['currency'] ?? 'INR',
-                'total' => isset($payload['total']) ? (float) $payload['total'] : 0,
-                'discount_total' => isset($payload['discount_total']) ? (float) $payload['discount_total'] : 0,
-                'shipping_total' => isset($payload['shipping_total']) ? (float) $payload['shipping_total'] : 0,
-                'total_tax' => isset($payload['total_tax']) ? (float) $payload['total_tax'] : 0,
-                'payment_method' => $payload['payment_method_title'] ?? ($payload['payment_method'] ?? 'N/A'),
-                'transaction_id' => $payload['transaction_id'] ?? '—',
-                'customer_ip_address' => $payload['customer_ip_address'] ?? '—',
-                'customer_note' => $payload['customer_note'] ?? '',
-                'billing' => $payload['billing'] ?? [],
-                'shipping' => $payload['shipping'] ?? [],
-                'line_items' => $enrichedLineItems,
-                'shipping_lines' => $payload['shipping_lines'] ?? [],
-                'tax_lines' => $payload['tax_lines'] ?? [],
-                'fee_lines' => $payload['fee_lines'] ?? [],
-                'coupon_lines' => $payload['coupon_lines'] ?? [],
-                'selling_supplier_name' => $storeInfo['name'],
-                'selling_supplier_url' => $storeInfo['store_url'],
-                'source_store' => $storeInfo['domain'],
-                'headers' => $headers,
-                'raw_payload' => $payload,
-            ]
+        $orderData = [
+            'record_id' => $record->id,
+            'order_id' => $record->order_id ?: ($payload['number'] ?? ('#' . $record->id)),
+            'order_number' => $payload['number'] ?? $record->order_id ?? ('#' . $record->id),
+            'order_key' => $record->order_key ?: ($payload['order_key'] ?? '—'),
+            'status' => strtolower($record->status ?: ($payload['status'] ?? 'pending')),
+            'created_at' => $record->created_at ? $record->created_at->format('d M Y, h:i A') : '—',
+            'date_created' => !empty($payload['date_created']) ? date('d M Y, h:i A', strtotime($payload['date_created'])) : '—',
+            'date_paid' => !empty($payload['date_paid']) ? date('d M Y, h:i A', strtotime($payload['date_paid'])) : '—',
+            'date_completed' => !empty($payload['date_completed']) ? date('d M Y, h:i A', strtotime($payload['date_completed'])) : '—',
+            'currency_symbol' => $payload['currency_symbol'] ?? '₹',
+            'currency' => $payload['currency'] ?? 'INR',
+            'total' => isset($payload['total']) ? (float) $payload['total'] : 0,
+            'subtotal' => isset($payload['subtotal']) ? (float) $payload['subtotal'] : (isset($payload['total']) ? (float) $payload['total'] : 0),
+            'discount_total' => isset($payload['discount_total']) ? (float) $payload['discount_total'] : 0,
+            'shipping_total' => isset($payload['shipping_total']) ? (float) $payload['shipping_total'] : 0,
+            'total_tax' => isset($payload['total_tax']) ? (float) $payload['total_tax'] : 0,
+            'payment_method' => $payload['payment_method_title'] ?? ($payload['payment_method'] ?? 'N/A'),
+            'transaction_id' => $payload['transaction_id'] ?? '—',
+            'customer_ip_address' => $payload['customer_ip_address'] ?? '—',
+            'customer_note' => $payload['customer_note'] ?? '',
+            'billing' => $payload['billing'] ?? [],
+            'shipping' => $payload['shipping'] ?? [],
+            'line_items' => $enrichedLineItems,
+            'shipping_lines' => $payload['shipping_lines'] ?? [],
+            'tax_lines' => $payload['tax_lines'] ?? [],
+            'fee_lines' => $payload['fee_lines'] ?? [],
+            'coupon_lines' => $payload['coupon_lines'] ?? [],
+            'selling_supplier_name' => $storeInfo['name'],
+            'selling_supplier_url' => $storeInfo['store_url'],
+            'source_store' => $storeInfo['domain'],
+            'headers' => $headers,
+            'raw_payload' => $payload,
+        ];
+
+        // Resolve candidate supplier emails for admin email functionality
+        $candidateSuppliers = [];
+        if (!empty($storeInfo['supplier_id'])) {
+            $sup = $allSuppliers->firstWhere('sno', $storeInfo['supplier_id']);
+            if ($sup && !empty($sup->email)) {
+                $candidateSuppliers[$sup->email] = $sup->name . ' (Selling Store - ' . $sup->email . ')';
+            }
+        }
+        foreach ($enrichedLineItems as $it) {
+            if (!empty($it['origin_supplier_id'])) {
+                $sup = $allSuppliers->firstWhere('sno', $it['origin_supplier_id']);
+                if ($sup && !empty($sup->email) && !isset($candidateSuppliers[$sup->email])) {
+                    $candidateSuppliers[$sup->email] = $sup->name . ' (Manufacturer - ' . $sup->email . ')';
+                }
+            }
+        }
+        foreach ($allSuppliers as $sup) {
+            if (!empty($sup->email) && !isset($candidateSuppliers[$sup->email])) {
+                $candidateSuppliers[$sup->email] = $sup->name . ' (' . $sup->email . ')';
+            }
+        }
+
+        $defaultSupplierEmail = !empty($candidateSuppliers) ? array_key_first($candidateSuppliers) : '';
+        $orderData['default_supplier_email'] = $defaultSupplierEmail;
+        $orderData['candidate_suppliers'] = $candidateSuppliers;
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'data' => $orderData
+            ]);
+        }
+
+        return view('admin.website_orders.show', compact('orderData', 'record'));
+    }
+
+    /**
+     * Send order details email to supplier.
+     */
+    public function sendSupplierEmail(Request $request, $id)
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated.'
+            ], 401);
+        }
+
+        $request->validate([
+            'recipient_email' => 'required|email',
+            'subject' => 'required|string|max:255',
+            'custom_message' => 'nullable|string|max:2000',
         ]);
+
+        $recipientEmail = trim($request->input('recipient_email'));
+        $subject = trim($request->input('subject'));
+        $customMessage = trim($request->input('custom_message', ''));
+
+        $record = OrderWebhookPayload::findOrFail($id);
+        $payload = is_array($record->payload) ? $record->payload : (json_decode($record->payload, true) ?? []);
+        $headers = is_array($record->headers) ? $record->headers : (json_decode($record->headers, true) ?? []);
+
+        $allSuppliers = DB::table('suppliers')->get();
+        $storeInfo = $this->resolveSellingSupplier($headers, $allSuppliers);
+
+        $lineItems = $payload['line_items'] ?? [];
+        $skus = [];
+        $wcProductIds = [];
+
+        foreach ($lineItems as $item) {
+            if (!empty($item['sku'])) $skus[] = trim($item['sku']);
+            if (!empty($item['product_id'])) $wcProductIds[] = (int) $item['product_id'];
+        }
+
+        $specLookup = $this->buildSpecificationLookup(array_unique($skus), array_unique($wcProductIds));
+
+        $enrichedLineItems = [];
+        foreach ($lineItems as $item) {
+            $sku = trim($item['sku'] ?? '');
+            $wcPid = (int) ($item['product_id'] ?? 0);
+            $specData = $specLookup['by_sku'][$sku] ?? ($specLookup['by_wc_id'][$wcPid] ?? null);
+
+            $imgSrc = $specData['enhanced_image'] ?? ($item['image']['src'] ?? null);
+
+            $enrichedLineItems[] = array_merge($item, [
+                'resolved_sku' => !empty($sku) ? $sku : ($specData['sku'] ?? '—'),
+                'resolved_image' => $imgSrc,
+                'is_matched' => !empty($specData),
+                'spec_id' => $specData['spec_id'] ?? null,
+                'barcode' => $specData['barcode'] ?? null,
+                'origin_supplier_id' => $specData['origin_supplier_id'] ?? null,
+                'origin_supplier_name' => $specData['origin_supplier_name'] ?? '—',
+                'product_type' => $specData['product_type'] ?? null,
+                'colour' => $specData['colour'] ?? null,
+                'size' => $specData['size'] ?? null,
+                'composition' => $specData['composition'] ?? null,
+            ]);
+        }
+
+        $orderData = [
+            'record_id' => $record->id,
+            'order_id' => $record->order_id ?: ($payload['number'] ?? ('#' . $record->id)),
+            'order_number' => $payload['number'] ?? $record->order_id ?? ('#' . $record->id),
+            'status' => strtolower($record->status ?: ($payload['status'] ?? 'pending')),
+            'date_created' => !empty($payload['date_created']) ? date('d M Y, h:i A', strtotime($payload['date_created'])) : '—',
+            'currency_symbol' => $payload['currency_symbol'] ?? '₹',
+            'currency' => $payload['currency'] ?? 'INR',
+            'total' => isset($payload['total']) ? (float) $payload['total'] : 0,
+            'subtotal' => isset($payload['subtotal']) ? (float) $payload['subtotal'] : (isset($payload['total']) ? (float) $payload['total'] : 0),
+            'discount_total' => isset($payload['discount_total']) ? (float) $payload['discount_total'] : 0,
+            'shipping_total' => isset($payload['shipping_total']) ? (float) $payload['shipping_total'] : 0,
+            'total_tax' => isset($payload['total_tax']) ? (float) $payload['total_tax'] : 0,
+            'payment_method' => $payload['payment_method_title'] ?? ($payload['payment_method'] ?? 'N/A'),
+            'customer_note' => $payload['customer_note'] ?? '',
+            'billing' => $payload['billing'] ?? [],
+            'shipping' => $payload['shipping'] ?? [],
+            'line_items' => $enrichedLineItems,
+            'shipping_lines' => $payload['shipping_lines'] ?? [],
+            'selling_supplier_name' => $storeInfo['name'],
+            'selling_supplier_url' => $storeInfo['store_url'],
+        ];
+
+        try {
+            \Illuminate\Support\Facades\Mail::to($recipientEmail)->send(new \App\Mail\SupplierOrderDetailsMail($orderData, $subject, $customMessage));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Order details email successfully sent to ' . $recipientEmail
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to send supplier order email: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send email: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

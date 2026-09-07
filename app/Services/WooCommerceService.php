@@ -398,49 +398,80 @@ class WooCommerceService
         $wcImages = [];
 
         foreach ($approvedImages as $idx => $img) {
-            $relativePath = ltrim(str_replace('\\', '/', $img->enhanced_image_path), '/');
-            $localFullPath = public_path($relativePath);
+            $localFullPath = $this->findLocalImageFile($img->enhanced_image_path);
 
-            if (!file_exists($localFullPath)) {
+            if (!$localFullPath || !file_exists($localFullPath)) {
+                Log::warning("Product image file not found locally: {$img->enhanced_image_path}");
                 continue;
             }
 
+            $relativePath = ltrim(str_replace(['\\', '/'], '/', $img->enhanced_image_path), '/');
             $fileName = basename($localFullPath);
             $imgAlt = ($idx === 0 && !empty($altText)) 
                 ? $this->cleanMetaText($altText) 
                 : ($title . ' - Image ' . ($idx + 1));
 
             $directUrl = null;
-            $fileContent = file_get_contents($localFullPath);
 
-            // 1. Try Catbox
-            try {
-                $catRes = Http::timeout(25)
-                    ->attach('fileToUpload', $fileContent, $fileName)
-                    ->post('https://catbox.moe/user/api.php', [
-                        'reqtype' => 'fileupload'
-                    ]);
-                if ($catRes->successful() && str_starts_with(trim($catRes->body()), 'https://')) {
-                    $directUrl = trim($catRes->body());
+            // 1. If running on a live public domain, provide direct public asset URL
+            $currentHost = request()->getHost() ?: parse_url(config('app.url'), PHP_URL_HOST);
+            if ($this->isPublicHost($currentHost)) {
+                $publicUrl = asset($relativePath);
+                if (filter_var($publicUrl, FILTER_VALIDATE_URL)) {
+                    $directUrl = $publicUrl;
                 }
-            } catch (\Exception $e) {
-                Log::warning('Catbox upload failed: ' . $e->getMessage());
             }
 
-            // 2. Fallback to FreeImage
+            // 2. Fallback to external uploads if on localhost / private IP or public URL not available
             if (!$directUrl) {
+                $fileContent = file_get_contents($localFullPath);
+
+                // Option A: Catbox
                 try {
-                    $freeRes = Http::timeout(25)->post('https://freeimage.host/api/1/upload', [
-                        'key' => '6d207e02198a847aa98d0a2a901485a5',
-                        'action' => 'upload',
-                        'source' => base64_encode($fileContent),
-                        'format' => 'json'
-                    ]);
-                    if ($freeRes->successful()) {
-                        $directUrl = $freeRes->json()['image']['url'] ?? null;
+                    $catRes = Http::timeout(25)
+                        ->attach('fileToUpload', $fileContent, $fileName)
+                        ->post('https://catbox.moe/user/api.php', [
+                            'reqtype' => 'fileupload'
+                        ]);
+                    if ($catRes->successful() && str_starts_with(trim($catRes->body()), 'https://')) {
+                        $directUrl = trim($catRes->body());
                     }
                 } catch (\Exception $e) {
-                    Log::warning('FreeImage upload failed: ' . $e->getMessage());
+                    Log::warning('Catbox upload failed: ' . $e->getMessage());
+                }
+
+                // Option B: tmpfiles.org
+                if (!$directUrl) {
+                    try {
+                        $tmpRes = Http::timeout(25)
+                            ->attach('file', $fileContent, $fileName)
+                            ->post('https://tmpfiles.org/api/v1/upload');
+                        if ($tmpRes->successful()) {
+                            $tmpJson = $tmpRes->json();
+                            if (!empty($tmpJson['data']['url'])) {
+                                $directUrl = str_replace('tmpfiles.org/', 'tmpfiles.org/dl/', $tmpJson['data']['url']);
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning('tmpfiles upload failed: ' . $e->getMessage());
+                    }
+                }
+
+                // Option C: FreeImage host
+                if (!$directUrl) {
+                    try {
+                        $freeRes = Http::timeout(25)->post('https://freeimage.host/api/1/upload', [
+                            'key' => '6d207e02198a847aa98d0a2a901485a5',
+                            'action' => 'upload',
+                            'source' => base64_encode($fileContent),
+                            'format' => 'json'
+                        ]);
+                        if ($freeRes->successful()) {
+                            $directUrl = $freeRes->json()['image']['url'] ?? null;
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning('FreeImage upload failed: ' . $e->getMessage());
+                    }
                 }
             }
 
@@ -451,10 +482,69 @@ class WooCommerceService
                     'alt' => $imgAlt,
                     'position' => $idx
                 ];
+            } else {
+                Log::error("Failed to generate a public/valid URL for image {$fileName} (spec ID: {$img->specification_id})");
             }
         }
 
         return $wcImages;
+    }
+
+    /**
+     * Locate local image file across common Laravel and cPanel directory structures.
+     */
+    private function findLocalImageFile($rawPath)
+    {
+        if (empty($rawPath)) return null;
+
+        $cleanPath = ltrim(str_replace(['\\', '/'], '/', $rawPath), '/');
+
+        $candidates = [
+            public_path($cleanPath),
+            base_path('public_html/' . $cleanPath),
+            base_path('public/' . $cleanPath),
+            base_path($cleanPath),
+            storage_path('app/public/' . $cleanPath),
+            storage_path('app/' . $cleanPath),
+        ];
+
+        if (str_starts_with($cleanPath, 'public/')) {
+            $sub = substr($cleanPath, 7);
+            $candidates[] = public_path($sub);
+            $candidates[] = base_path('public_html/' . $sub);
+        }
+
+        foreach ($candidates as $cand) {
+            if (file_exists($cand) && is_file($cand)) {
+                return $cand;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if the given hostname is a public, internet-accessible host.
+     */
+    private function isPublicHost($host)
+    {
+        if (empty($host)) return false;
+
+        $host = strtolower(trim($host));
+
+        if (in_array($host, ['localhost', '127.0.0.1', '::1', '0.0.0.0'], true)) {
+            return false;
+        }
+
+        if (preg_match('/^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|127\.)/', $host)) {
+            return false;
+        }
+
+        if (preg_match('/\.(test|local|localhost|invalid|example)$/i', $host)) {
+            return false;
+        }
+
+        return filter_var($host, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) !== false;
     }
 
     private function resolveCategory($storeUrl, $consumerKey, $consumerSecret, $categoryName)
