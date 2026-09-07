@@ -1036,7 +1036,7 @@
 
                     <div class="form-field">
                         <label for="minprice" class="form-label">
-                            Sale Price
+                            Min Price
                             <span class="text-muted">(Optional)</span>
                         </label>
 
@@ -1686,6 +1686,20 @@
                         <div class="view-info-box view-info-box-wide">
                             <span>Client Reference / Description</span>
                             <strong id="viewClientReference">-</strong>
+                        </div>
+                        <div class="view-info-box">
+                            <span>Product Price</span>
+                            <strong id="viewPrice">-</strong>
+                        </div>
+
+                        <div class="view-info-box">
+                            <span>Sale Price</span>
+                            <strong id="viewSalePrice">-</strong>
+                        </div>
+
+                        <div class="view-info-box">
+                            <span>Min Price</span>
+                            <strong id="viewMinPrice">-</strong>
                         </div>
 
                     </div>
@@ -2820,24 +2834,22 @@
                 <!-- CODE -->
                 
                 <div
-                    class="mb-3"
-                    id="masterCodeWrapper"
-                    style="display:none;"
-                >
+    class="mb-3"
+    id="masterCodeWrapper"
+    style="display:block;"
+>
+    <label class="form-label">
+        Code
+    </label>
 
-                    <label class="form-label">
-                        Code
-                    </label>
-
-                    <input
-                        type="text"
-                        id="masterCodeInput"
-                        class="form-control"
-                        placeholder="Code will be generated automatically"
-                        readonly
-                    >
-
-                </div>
+    <input
+        type="text"
+        id="masterCodeInput"
+        class="form-control"
+        placeholder="Code will be generated automatically"
+        autocomplete="off"
+    >
+</div>
 
 
                 <!-- BUTTONS -->
@@ -14090,6 +14102,10 @@ if (allSection) {
                             value('colour')
                         );
 
+                    document.getElementById('viewPrice').textContent = value('price');
+                    document.getElementById('viewSalePrice').textContent = value('sale_price');
+                    document.getElementById('viewMinPrice').textContent = value('min_price');
+
 
                     document.getElementById(
                         'viewSize'
@@ -15760,6 +15776,21 @@ if (
                 specification.clientreference
             );
 
+            setInputValue(
+                'price',
+                specification.price
+            );
+
+            setInputValue(
+                'saleprice',
+                specification.sale_price
+            );
+
+            setInputValue(
+                'minprice',
+                specification.min_price
+            );
+
 
             /*
             |--------------------------------------------------------------------------
@@ -16588,32 +16619,54 @@ function getMasterModal() {
         |--------------------------------------------------------------------------
         */
 
-        function clearMasterForm() {
+       function clearMasterForm() {
 
-            nameInput.value = '';
+    nameInput.value = '';
 
-            codeInput.value = '';
+    codeInput.value =
+        generateMasterCode(
+            currentMaster
+        );
 
-            selectedIdInput.value = '';
+    codeInput.readOnly = false;
 
-            btnUpdate.disabled = true;
+    selectedIdInput.value = '';
 
-            document
-                .querySelectorAll(
-                    '.master-list-row'
-                )
-                .forEach(function (row) {
+    btnUpdate.disabled = true;
 
-                    row.classList.remove(
-                        'table-primary'
-                    );
+    document
+        .querySelectorAll(
+            '.master-list-row'
+        )
+        .forEach(function (row) {
 
-                });
+            row.classList.remove(
+                'table-primary'
+            );
 
-            nameInput.focus();
+        });
 
-        }
+    nameInput.focus();
+}
 
+        function generateMasterCode(master)
+{
+    const name =
+        String(
+            nameInput.value || ''
+        ).trim();
+
+    let prefix =
+        name
+            .split(/\s+/)
+            .filter(Boolean)
+            .map(word => word.charAt(0))
+            .join('')
+            .toUpperCase();
+
+    return (prefix + 'XXX')
+        .substring(0, 3);
+}
 
         /*
         |--------------------------------------------------------------------------
@@ -16907,15 +16960,25 @@ function getMasterModal() {
         |--------------------------------------------------------------------------
         */
 
-        if (
-            currentMaster ===
-            'craftsman'
-        ) {
+        const existingCode =
+    String(row.code || '').trim();
 
-            codeInput.value =
-                row.code || '';
+if (existingCode) {
 
-        }
+    codeInput.value =
+        existingCode;
+
+    codeInput.readOnly = true;
+
+} else {
+
+    codeInput.value =
+        generateMasterCode(
+            currentMaster
+        );
+
+    codeInput.readOnly = false;
+}
 
 
         /*
@@ -17069,49 +17132,73 @@ if (btnClearMasterSearch) {
         */
 
         function selectMasterRow(
-            row,
-            rowElement
-        ) {
+    row,
+    rowElement
+) {
+    document
+        .querySelectorAll(
+            '.master-list-row'
+        )
+        .forEach(function (row) {
 
-            document
-                .querySelectorAll(
-                    '.master-list-row'
-                )
-                .forEach(function (row) {
-
-                    row.classList.remove(
-                        'table-primary'
-                    );
-
-                });
-
-
-            rowElement.classList.add(
+            row.classList.remove(
                 'table-primary'
             );
 
-
-            const nameColumn =
-                getNameColumn(
-                    currentMaster
-                );
+        });
 
 
-            nameInput.value =
-                row[nameColumn] || '';
+    rowElement.classList.add(
+        'table-primary'
+    );
 
 
-            selectedIdInput.value =
-                row.id;
+    const nameColumn =
+        getNameColumn(
+            currentMaster
+        );
 
 
-            codeInput.value =
-             row.code || '';
+    nameInput.value =
+        row[nameColumn] || '';
 
 
-            btnUpdate.disabled = false;
+    selectedIdInput.value =
+        row.id;
 
-        }
+
+    const existingCode =
+        String(
+            row.code || ''
+        ).trim();
+
+
+    if (existingCode) {
+
+        // Old master already has code
+        codeInput.value =
+            existingCode;
+
+        codeInput.readOnly =
+            true;
+
+    } else {
+
+        // Old master has no code
+        // Generate new code
+        codeInput.value =
+            generateMasterCode(
+                currentMaster
+            );
+
+        // Allow user to change it
+        codeInput.readOnly =
+            false;
+    }
+
+
+    btnUpdate.disabled = false;
+}
 
 
         /*
@@ -17230,9 +17317,7 @@ if (btnClearMasterSearch) {
 
 
                 codeWrapper.style.display =
-                    currentMaster === 'craftsman'
-                        ? 'block'
-                        : 'none';
+                'block';
 
 
                 clearMasterForm();
@@ -17417,8 +17502,10 @@ if (btnClearMasterSearch) {
                                 body: JSON.stringify({
 
                                     name:
-                                        name
+                                        name,
 
+                                    code:
+                                        codeInput.value.trim()
                                 })
                             }
                         );
@@ -17570,10 +17657,11 @@ if (btnClearMasterSearch) {
                                 },
 
                                 body: JSON.stringify({
-
                                     name:
-                                        name
+                                        name,
 
+                                    code:
+                                        codeInput.value.trim()
                                 })
                             }
                         );

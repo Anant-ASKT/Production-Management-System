@@ -889,6 +889,10 @@ public function data(Request $request)
             'dsm.manufecture',
             'dsm.client',
 
+            'dsm.price',
+            'dsm.sale_price',
+            'dsm.min_price',
+
             // Optional specification names
             'embellishment.embellishmentname as embellishment_text',
 
@@ -2463,7 +2467,7 @@ private function generateProductSku(
             */
 
             $itemTypeCode =
-                $validated['item_type_code'] ?? '';
+                $validated['item_name_code'] ?? '';
 
             $generatedSku =
                 $itemTypeCode . '-' .
@@ -3472,7 +3476,7 @@ private function generateProductSku(
             );
 
             $itemTypeCode =
-                $validated['item_type_code'] ?? '';
+                $validated['item_name_code'] ?? '';
 
             $supplierNickname =
                 $validated['supplier_nickname'] ?? '';
