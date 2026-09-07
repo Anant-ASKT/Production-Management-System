@@ -601,23 +601,15 @@ document.addEventListener('DOMContentLoaded', function () {
                         <div class="fw-bold text-dark fs-6">${order.total_formatted}</div>
                     </td>
                     <td class="text-end pe-3">
-                        <button class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-xs view-order-btn" data-id="${order.id}">
+                        <a href="{{ url('/admin/website-orders') }}/${order.id}" class="btn btn-sm btn-primary rounded-pill px-3 shadow-xs">
                             <i class="bi bi-eye me-1"></i> View
-                        </button>
+                        </a>
                     </td>
                 </tr>
             `;
         });
 
         tableBody.innerHTML = html;
-
-        // Attach modal click listeners
-        document.querySelectorAll('.view-order-btn').forEach(btn => {
-            btn.addEventListener('click', function () {
-                const orderId = this.dataset.id;
-                openOrderDetailModal(orderId);
-            });
-        });
     }
 
     function renderPagination(meta) {
