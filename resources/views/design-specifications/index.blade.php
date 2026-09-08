@@ -14053,7 +14053,7 @@ if (allSection) {
                                     )}">
 
                                     <i class="bi bi-pencil"></i>
-                                    Edit
+                                    Completeness
 
                                 </button>
 
@@ -16201,7 +16201,7 @@ if (
             if (saveButton) {
 
                 saveButton.innerHTML =
-                    '<i class="bi bi-pencil-square me-1"></i> Update Specification';
+                    '<i class="bi bi-pencil-square me-1"></i> Update Completeness Specification';
 
             }
 

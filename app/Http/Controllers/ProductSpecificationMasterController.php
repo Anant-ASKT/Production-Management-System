@@ -144,7 +144,6 @@ class ProductSpecificationMasterController extends Controller
         $subCompanyId = (int) $user->sub_company_id;
         $projectId = (int) $user->project_id;
 
-
         /*
         |--------------------------------------------------------------------------
         | FILTERS
@@ -155,7 +154,6 @@ class ProductSpecificationMasterController extends Controller
         $itemName = $request->input('item_name');
         $composition = $request->input('composition');
         $gender = $request->input('gender');
-
 
         /*
         |--------------------------------------------------------------------------
@@ -190,10 +188,8 @@ class ProductSpecificationMasterController extends Controller
             $projectId
         )
         ->where(function ($q) {
-
             $q->whereNull('vs.tedit')
               ->orWhere('vs.tedit', '');
-
         })
         ->where(
             'vs.avilable_qty',
@@ -209,10 +205,8 @@ class ProductSpecificationMasterController extends Controller
             ''
         )
         ->where(function ($q) {
-
             $q->whereNull('vs.orderstatus')
               ->orWhere('vs.orderstatus', '');
-
         })
         ->whereNotNull(
             'vs.barcode'
@@ -227,101 +221,312 @@ class ProductSpecificationMasterController extends Controller
             'vs.barcode'
         ]);
 
-
         /*
         |--------------------------------------------------------------------------
-        | GET SPECIFICATION DETAILS FOR EACH BARCODE
+        | NO STOCK
         |--------------------------------------------------------------------------
         */
 
-        $products = [];
+        if ($stockRows->isEmpty()) {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+                'pagination' => [
+                    'current_page' => 1,
+                    'per_page' => max(
+                        1,
+                        min(
+                            50,
+                            (int) $request->input(
+                                'per_page',
+                                20
+                            )
+                        )
+                    ),
+                    'total' => 0,
+                    'last_page' => 1,
+                    'from' => 0,
+                    'to' => 0
+                ]
+            ]);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | LOAD BARCODE RELATIONS ONCE
+        |--------------------------------------------------------------------------
+        |
+        | Previously resolveProductBarcode() was called inside the stock loop.
+        | That caused one database query for every stock barcode.
+        |
+        | Load the complete relation map once and resolve old -> current
+        | barcodes in memory instead.
+        |
+        */
+
+        $barcodeHistory = DB::table(
+            'product_specification_barcode_history'
+        )
+        ->where(
+            'companyid',
+            $companyId
+        )
+        ->where(
+            'subcompanyid',
+            $subCompanyId
+        )
+        ->where(
+            'projectid',
+            $projectId
+        )
+        ->orderByDesc('id')
+        ->get([
+            'old_barcode',
+            'new_barcode'
+        ]);
+
+        $barcodeMap = [];
+
+        foreach ($barcodeHistory as $history) {
+            $old = trim((string) $history->old_barcode);
+            $new = trim((string) $history->new_barcode);
+
+            if (
+                $old === '' ||
+                $new === '' ||
+                isset($barcodeMap[$old])
+            ) {
+                continue;
+            }
+
+            $barcodeMap[$old] = $new;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | RESOLVE ALL STOCK BARCODES IN MEMORY
+        |--------------------------------------------------------------------------
+        */
+
+        $resolvedBarcodes = [];
 
         foreach ($stockRows as $stock) {
+            $current = trim((string) $stock->barcode);
 
-            $specification = DB::table(
+            if ($current === '') {
+                continue;
+            }
+
+            $seen = [];
+
+            for ($i = 0; $i < 20; $i++) {
+                if (isset($seen[$current])) {
+                    break;
+                }
+
+                $seen[$current] = true;
+
+                $next = $barcodeMap[$current] ?? null;
+
+                if (
+                    !$next ||
+                    (string) $next === $current
+                ) {
+                    break;
+                }
+
+                $current = (string) $next;
+            }
+
+            $resolvedBarcodes[] = $current;
+        }
+
+        $resolvedBarcodes = array_values(
+            array_unique($resolvedBarcodes)
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | GET SPECIFICATIONS IN BULK
+        |--------------------------------------------------------------------------
+        |
+        | Previously this query ran once for every stock row.
+        | Now all required specifications are fetched in bulk.
+        |
+        */
+
+        $specifications = collect();
+
+        foreach (array_chunk($resolvedBarcodes, 1000) as $barcodeChunk) {
+            $specificationQuery = DB::table(
                 'auto_designer_specification_master as dsm'
             )
-
             ->leftJoin(
                 'auto_itemtype_master as itemtype',
                 'itemtype.id',
                 '=',
                 'dsm.item_type'
             )
-
             ->leftJoin(
                 'auto_itemname_master as itemname',
                 'itemname.id',
                 '=',
                 'dsm.item_name'
             )
-
             ->leftJoin(
                 'auto_composition_master_stock as composition',
                 'composition.id',
                 '=',
                 'dsm.composition'
             )
-
             ->leftJoin(
                 'auto_gender_master as gender',
                 'gender.id',
                 '=',
                 'dsm.gender'
             )
-
-            ->where(
+            ->whereIn(
                 'dsm.barcode',
-                $this->resolveProductBarcode(
-                    $stock->barcode,
-                    $companyId,
-                    $subCompanyId,
-                    $projectId
-                )
+                $barcodeChunk
             )
-
             ->where(
                 'dsm.companyid',
                 $companyId
             )
-
             ->where(
                 'dsm.subcompanyid',
                 $subCompanyId
             )
-
             ->where(
                 'dsm.projectid',
                 $projectId
             )
-
             ->where(function ($q) {
-
                 $q->whereNull('dsm.status')
                   ->orWhere('dsm.status', '');
-
             })
-
             ->where(function ($q) {
-
                 $q->whereNull('dsm.tedit')
                   ->orWhere('dsm.tedit', '');
+            });
 
-            })
+            /*
+            |--------------------------------------------------------------------------
+            | APPLY FILTERS IN SQL
+            |--------------------------------------------------------------------------
+            */
 
-            ->first([
-                'dsm.item_type',
-                'dsm.item_name',
-                'dsm.composition',
-                'dsm.gender',
-                'dsm.img_path',
+            if (
+                $itemType !== null &&
+                $itemType !== ''
+            ) {
+                $specificationQuery->where(
+                    'dsm.item_type',
+                    $itemType
+                );
+            }
 
-                'itemtype.itemtype as item_type_text',
-                            'itemname.itemname as item_name_text',
-                'composition.composition_details as composition_text',
-                'gender.name as gender_text'
-            ]);
+            if (
+                $itemName !== null &&
+                $itemName !== ''
+            ) {
+                $specificationQuery->where(
+                    'dsm.item_name',
+                    $itemName
+                );
+            }
 
+            if (
+                $composition !== null &&
+                $composition !== ''
+            ) {
+                $specificationQuery->where(
+                    'dsm.composition',
+                    $composition
+                );
+            }
+
+            if (
+                $gender !== null &&
+                $gender !== ''
+            ) {
+                $specificationQuery->where(
+                    'dsm.gender',
+                    $gender
+                );
+            }
+
+            $specifications = $specifications->merge(
+                $specificationQuery->get([
+                    'dsm.barcode',
+                    'dsm.item_type',
+                    'dsm.item_name',
+                    'dsm.composition',
+                    'dsm.gender',
+                    'dsm.img_path',
+                    'itemtype.itemtype as item_type_text',
+                    'itemname.itemname as item_name_text',
+                    'composition.composition_details as composition_text',
+                    'gender.name as gender_text'
+                ])
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | INDEX SPECIFICATIONS BY BARCODE
+        |--------------------------------------------------------------------------
+        */
+
+        $specificationMap = [];
+
+        foreach ($specifications as $specification) {
+            $specificationMap[
+                (string) $specification->barcode
+            ] = $specification;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | GROUP PRODUCTS
+        |--------------------------------------------------------------------------
+        */
+
+        $products = [];
+
+        foreach ($stockRows as $stock) {
+            $currentBarcode = trim(
+                (string) $stock->barcode
+            );
+
+            if ($currentBarcode === '') {
+                continue;
+            }
+
+            $seen = [];
+
+            for ($i = 0; $i < 20; $i++) {
+                if (isset($seen[$currentBarcode])) {
+                    break;
+                }
+
+                $seen[$currentBarcode] = true;
+
+                $next = $barcodeMap[$currentBarcode] ?? null;
+
+                if (
+                    !$next ||
+                    (string) $next === $currentBarcode
+                ) {
+                    break;
+                }
+
+                $currentBarcode = (string) $next;
+            }
+
+            $specification =
+                $specificationMap[$currentBarcode]
+                ?? null;
 
             /*
             |--------------------------------------------------------------------------
@@ -332,46 +537,6 @@ class ProductSpecificationMasterController extends Controller
             if (!$specification) {
                 continue;
             }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | APPLY FILTERS
-            |--------------------------------------------------------------------------
-            */
-
-            if (
-                $itemType !== null &&
-                $itemType !== '' &&
-                (string) $specification->item_type !== (string) $itemType
-            ) {
-                continue;
-            }
-
-            if (
-                $itemName !== null &&
-                $itemName !== '' &&
-                (string) $specification->item_name !== (string) $itemName
-            ) {
-                continue;
-            }
-
-            if (
-                $composition !== null &&
-                $composition !== '' &&
-                (string) $specification->composition !== (string) $composition
-            ) {
-                continue;
-            }
-
-            if (
-                $gender !== null &&
-                $gender !== '' &&
-                (string) $specification->gender !== (string) $gender
-            ) {
-                continue;
-            }
-
 
             /*
             |--------------------------------------------------------------------------
@@ -385,9 +550,7 @@ class ProductSpecificationMasterController extends Controller
                 $specification->composition . '|' .
                 $specification->gender;
 
-
             if (!isset($products[$groupKey])) {
-
                 $products[$groupKey] = [
                     'item_type' =>
                         $specification->item_type,
@@ -428,7 +591,6 @@ class ProductSpecificationMasterController extends Controller
                 ];
             }
 
-
             /*
             |--------------------------------------------------------------------------
             | ADD STOCK QUANTITY
@@ -439,7 +601,6 @@ class ProductSpecificationMasterController extends Controller
                 (float) ($stock->quantity_received ?? 0);
         }
 
-
         /*
         |--------------------------------------------------------------------------
         | RESET ARRAY INDEXES
@@ -448,91 +609,87 @@ class ProductSpecificationMasterController extends Controller
 
         $products = array_values($products);
 
+        /*
+        |--------------------------------------------------------------------------
+        | SORT
+        |--------------------------------------------------------------------------
+        */
 
-            /*
-            |--------------------------------------------------------------------------
-            | SORT
-            |--------------------------------------------------------------------------
-            */
+        usort(
+            $products,
+            function ($a, $b) {
 
-            usort(
-                $products,
-                function ($a, $b) {
+                $stockQtyA =
+                    (float) ($a['stock_qty'] ?? 0);
 
-                    return strcasecmp(
-                        (string) $a['item_name_text'],
-                        (string) $b['item_name_text']
-                    );
+                $stockQtyB =
+                    (float) ($b['stock_qty'] ?? 0);
 
-                }
-            );
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | PAGINATION
-            |--------------------------------------------------------------------------
-            */
-
-            $page = max(
-                1,
-                (int) $request->input(
-                    'page',
-                    1
-                )
-            );
-
-            $perPage = max(
-                1,
-                min(
-                    50,
-                    (int) $request->input(
-                        'per_page',
-                        20
-                    )
-                )
-            );
-
-            $total = count($products);
-
-            $lastPage = max(
-                1,
-                (int) ceil(
-                    $total / $perPage
-                )
-            );
-
-            if ($page > $lastPage) {
-                $page = $lastPage;
+                return $stockQtyB <=> $stockQtyA;
             }
+        );
 
-            $offset =
-                ($page - 1) *
-                $perPage;
+        /*
+        |--------------------------------------------------------------------------
+        | PAGINATION
+        |--------------------------------------------------------------------------
+        */
 
-            $paginatedProducts =
-                array_slice(
-                    $products,
-                    $offset,
-                    $perPage
-                );
+        $page = max(
+            1,
+            (int) $request->input(
+                'page',
+                1
+            )
+        );
 
+        $perPage = max(
+            1,
+            min(
+                50,
+                (int) $request->input(
+                    'per_page',
+                    20
+                )
+            )
+        );
 
-            /*
-            |--------------------------------------------------------------------------
-            | RESPONSE
-            |--------------------------------------------------------------------------
-            */
+        $total = count($products);
+
+        $lastPage = max(
+            1,
+            (int) ceil(
+                $total / $perPage
+            )
+        );
+
+        if ($page > $lastPage) {
+            $page = $lastPage;
+        }
+
+        $offset =
+            ($page - 1) *
+            $perPage;
+
+        $paginatedProducts =
+            array_slice(
+                $products,
+                $offset,
+                $perPage
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | RESPONSE
+        |--------------------------------------------------------------------------
+        */
 
         return response()->json([
-
             'success' => true,
-
             'data' =>
                 $paginatedProducts,
 
             'pagination' => [
-
                 'current_page' =>
                     $page,
 
@@ -555,9 +712,7 @@ class ProductSpecificationMasterController extends Controller
                         $offset + $perPage,
                         $total
                     )
-
             ]
-
         ]);
     }
 
