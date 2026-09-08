@@ -695,6 +695,40 @@ Route::get(
 
 /*
 |--------------------------------------------------------------------------
+| UPDATE PRODUCT (STOCK & PRICE SYNC WITH WOOCOMMERCE & ERP) ROUTES
+|--------------------------------------------------------------------------
+*/
+use App\Http\Controllers\AdminUpdateProductController;
+
+Route::middleware('auth')->group(function () {
+    Route::get(
+        '/admin/update-products',
+        [AdminUpdateProductController::class, 'index']
+    )->name('admin.update-products.index');
+
+    Route::get(
+        '/admin/update-products/data',
+        [AdminUpdateProductController::class, 'data']
+    )->name('admin.update-products.data');
+
+    Route::post(
+        '/admin/update-products/{id}',
+        [AdminUpdateProductController::class, 'update']
+    )->name('admin.update-products.update');
+
+    Route::get(
+        '/admin/update-products/logs',
+        [AdminUpdateProductController::class, 'logs']
+    )->name('admin.update-products.logs');
+
+    Route::get(
+        '/admin/update-products/{id}/logs',
+        [AdminUpdateProductController::class, 'productLogs']
+    )->name('admin.update-products.product-logs');
+});
+
+/*
+|--------------------------------------------------------------------------
 | WEBSITE ORDERS (WOOCOMMERCE WEBHOOK DATA) ROUTES
 |--------------------------------------------------------------------------
 */
