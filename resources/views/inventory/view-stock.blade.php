@@ -121,6 +121,11 @@
         text-align: center;
         font-weight: 700;
     }
+
+    .qty-badge.zero {
+        background: #fee2e2;
+        color: #991b1b;
+    }
     /* ============================================================
    PRODUCT STOCK MODAL
 ============================================================ */
@@ -1115,11 +1120,8 @@
                                 </td>
 
                                 <td>
-                                    {{-- {{ $stock->available_qty ?? 0 }} --}}
-                                    <span class="qty-badge">
-
-                                        {{ $stock->total_received }}
-
+                                    <span class="qty-badge {{ ($stock->total_available ?? 0) <= 0 ? 'zero' : '' }}">
+                                        {{ $stock->total_available ?? 0 }}
                                     </span>
                                 </td>
 

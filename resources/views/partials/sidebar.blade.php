@@ -220,6 +220,19 @@
 
             <li>
                 <a
+                    href="{{ route('admin.update-products.index') }}"
+                    class="{{ request()->routeIs('admin.update-products.*') ? 'active' : '' }}"
+                >
+                    <i class="bi bi-pencil-square"></i>
+
+                    <span>
+                        Update Product
+                    </span>
+                </a>
+            </li>
+
+            <li>
+                <a
                     href="{{ route('admin.website-orders.index') }}"
                     class="{{ request()->routeIs('admin.website-orders.*') ? 'active' : '' }}"
                 >
