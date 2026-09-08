@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use App\Http\Controllers\AllGarmentsController;
 use App\Http\Controllers\AdminPublishProductsController;
+use App\Http\Controllers\ProductSpecificationMasterController;
+
 
 
 Route::get('/', function () {
@@ -436,6 +438,34 @@ Route::middleware('auth')->group(function () {
 
 });
 
+Route::get(
+    '/admin/product-specification-masters',
+    [ProductSpecificationMasterController::class, 'index']
+)->name('product-specification-masters.index');
+
+Route::get(
+    '/admin/product-specification-masters/data',
+    [ProductSpecificationMasterController::class, 'data']
+)->name('product-specification-masters.data');
+
+Route::get(
+    '/admin/product-specification-masters/details',
+    [ProductSpecificationMasterController::class, 'details']
+)->name(
+    'product-specification-masters.details'
+);
+
+Route::post(
+    '/admin/product-specification-masters/{id}',
+    [ProductSpecificationMasterController::class, 'update']
+)->name('product-specification-masters.update');
+
+Route::get(
+    '/admin/make-all-masters',
+    function () {
+        return view('make-all-masters.index');
+    }
+)->name('make-all-masters.index');
 
 /*
 |--------------------------------------------------------------------------
