@@ -647,4 +647,92 @@ class WooCommerceService
 
         return $html ?: '<p>' . htmlspecialchars($product->master_product_name ?: 'Handcrafted garment.') . '</p>';
     }
+
+    /**
+     * Update product price and stock on WooCommerce store.
+     *
+     * @param int $publishedProductId
+     * @param array $data ['regular_price' => ..., 'sale_price' => ..., 'stock_quantity' => ...]
+     * @return array
+     */
+    public function updateProductPriceAndStock($publishedProductId, array $data)
+    {
+        $published = DB::table('published_products')->where('sno', $publishedProductId)->first();
+        if (!$published) {
+            return ['success' => false, 'message' => 'Published product record not found.'];
+        }
+
+        $wcProductId = $published->woocommerce_product_id;
+        if (!$wcProductId) {
+            return ['success' => false, 'message' => 'WooCommerce Product ID is not set for this item.'];
+        }
+
+        $supplier = DB::table('suppliers')->where('sno', $published->target_supplier_id)->first();
+        if (!$supplier) {
+            return ['success' => false, 'message' => 'Target supplier not found.'];
+        }
+
+        $storeUrl = rtrim($supplier->store_url ?? '', '/');
+        $consumerKey = trim($supplier->consumer_key ?? '');
+        $consumerSecret = trim($supplier->consumer_secret ?? '');
+
+        if (empty($storeUrl) || empty($consumerKey) || empty($consumerSecret)) {
+            return [
+                'success' => false,
+                'message' => 'Target supplier "' . $supplier->name . '" does not have valid WooCommerce API credentials.'
+            ];
+        }
+
+        $stockQuantity = isset($data['stock_quantity']) ? (int) $data['stock_quantity'] : null;
+        $regularPrice = isset($data['regular_price']) && $data['regular_price'] !== '' ? (string) $data['regular_price'] : null;
+        $salePrice = isset($data['sale_price']) && $data['sale_price'] !== '' ? (string) $data['sale_price'] : '';
+
+        $payload = [];
+        if ($regularPrice !== null) {
+            $payload['regular_price'] = $regularPrice;
+        }
+        // If sale price is given, set it. If explicitly empty string, clear it.
+        $payload['sale_price'] = $salePrice;
+
+        if ($stockQuantity !== null) {
+            $payload['manage_stock'] = true;
+            $payload['stock_quantity'] = $stockQuantity;
+            $payload['stock_status'] = $stockQuantity > 0 ? 'instock' : 'outofstock';
+        }
+
+        $endpoint = $storeUrl . '/wp-json/wc/v3/products/' . $wcProductId;
+
+        try {
+            $response = Http::withBasicAuth($consumerKey, $consumerSecret)
+                ->timeout(30)
+                ->acceptJson()
+                ->asJson()
+                ->put($endpoint, $payload);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'message' => 'Product updated successfully on WooCommerce.',
+                    'status_code' => $response->status(),
+                    'payload' => $payload,
+                    'data' => $response->json()
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => 'WooCommerce update failed (HTTP ' . $response->status() . '): ' . $response->body(),
+                'status_code' => $response->status(),
+                'payload' => $payload,
+                'response' => $response->body()
+            ];
+        } catch (\Exception $e) {
+            Log::error('WooCommerce updateProductPriceAndStock exception: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Connection to WooCommerce store failed: ' . $e->getMessage(),
+                'payload' => $payload
+            ];
+        }
+    }
 }
