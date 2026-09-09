@@ -26,8 +26,9 @@ class AdminSupplierController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'nickname' => 'required|string|size:3|alpha|unique:suppliers,nickname',
+            'company_email' => 'required|email|max:255|unique:suppliers,email',
             'user_name' => 'nullable|string|max:255',
-            'email' => 'required|email|unique:supplier_users,email',
+            'user_email' => 'required|email|max:255|unique:supplier_users,email',
             'password' => 'required|string|min:6',
             'role' => 'nullable|in:Employee,Owner',
             'phone' => 'nullable|string|max:20',
@@ -39,16 +40,24 @@ class AdminSupplierController extends Controller
             'nickname.size' => 'Nick Name must be exactly 3 letters (e.g. ABC).',
             'nickname.alpha' => 'Nick Name must contain only letters.',
             'nickname.unique' => 'This Nick Name has already been taken.',
+            'company_email.required' => 'Company Email is required.',
+            'company_email.email' => 'Please provide a valid Company Email address.',
+            'company_email.unique' => 'This company email is already registered to another supplier.',
+            'user_email.required' => 'Login Email is required.',
+            'user_email.email' => 'Please provide a valid Login Email address.',
+            'user_email.unique' => 'This login email is already registered to another user.',
         ]);
 
         $user = auth()->user();
+        $companyEmail = $request->filled('company_email') ? $request->company_email : $request->email;
+        $userEmail = $request->filled('user_email') ? $request->user_email : $request->email;
 
         DB::beginTransaction();
         try {
             $supplier = Supplier::create([
                 'name' => $request->name,
                 'nickname' => strtoupper(trim($request->nickname)),
-                'email' => $request->email,
+                'email' => $companyEmail,
                 'password' => Hash::make($request->password),
                 'phone' => $request->phone,
                 'address' => $request->address,
@@ -66,7 +75,7 @@ class AdminSupplierController extends Controller
             SupplierUser::create([
                 'supplier_id' => $supplier->sno,
                 'name' => $request->filled('user_name') ? $request->user_name : $request->name,
-                'email' => $request->email,
+                'email' => $userEmail,
                 'password' => Hash::make($request->password),
                 'phone' => $request->phone,
                 'role' => $request->role ?? 'Owner',
@@ -100,6 +109,7 @@ class AdminSupplierController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'nickname' => 'required|string|size:3|alpha|unique:suppliers,nickname,' . $id . ',sno',
+            'email' => 'required|email|max:255|unique:suppliers,email,' . $id . ',sno',
             'phone' => 'nullable|string|max:20',
             'address' => 'nullable|string',
             'store_url' => 'nullable|url',
@@ -109,11 +119,14 @@ class AdminSupplierController extends Controller
             'nickname.size' => 'Nick Name must be exactly 3 letters (e.g. ABC).',
             'nickname.alpha' => 'Nick Name must contain only letters.',
             'nickname.unique' => 'This Nick Name has already been taken.',
+            'email.required' => 'Company Email is required.',
+            'email.email' => 'Please provide a valid Company Email address.',
+            'email.unique' => 'This company email is already registered to another supplier.',
         ]);
 
         $user = auth()->user();
 
-        $data = $request->only(['name', 'phone', 'address', 'store_url', 'consumer_key', 'consumer_secret']);
+        $data = $request->only(['name', 'email', 'phone', 'address', 'store_url', 'consumer_key', 'consumer_secret']);
         $data['nickname'] = strtoupper(trim($request->nickname));
         $data['countryid'] = $user->country_id ?? null;
         $data['companyid'] = $user->company_id ?? null;

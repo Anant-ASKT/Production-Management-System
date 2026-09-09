@@ -49,24 +49,10 @@
             <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100 stat-hover-card">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
-                        <div class="text-muted small fw-semibold">New / Processing</div>
-                        <h3 class="fw-bold text-primary mt-1 mb-0" id="statProcessingOrders">{{ $processingOrders }}</h3>
+                        <div class="text-muted small fw-semibold">Order Confirmed</div>
+                        <h3 class="fw-bold text-primary mt-1 mb-0" id="statProcessingOrders">{{ $confirmedOrders }}</h3>
                     </div>
-                    <div class="p-3 rounded-4 bg-info-subtle text-info-emphasis">
-                        <i class="bi bi-hourglass-split fs-4"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100 stat-hover-card">
-                <div class="d-flex align-items-center justify-content-between">
-                    <div>
-                        <div class="text-muted small fw-semibold">Completed</div>
-                        <h3 class="fw-bold text-success mt-1 mb-0" id="statCompletedOrders">{{ $completedOrders }}</h3>
-                    </div>
-                    <div class="p-3 rounded-4 bg-success-subtle text-success">
+                    <div class="p-3 rounded-4 bg-primary-subtle text-primary">
                         <i class="bi bi-check2-circle fs-4"></i>
                     </div>
                 </div>
@@ -77,11 +63,25 @@
             <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100 stat-hover-card">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
-                        <div class="text-muted small fw-semibold">Pending</div>
-                        <h3 class="fw-bold text-warning-emphasis mt-1 mb-0" id="statPendingOrders">{{ $pendingOrders }}</h3>
+                        <div class="text-muted small fw-semibold">Shipped</div>
+                        <h3 class="fw-bold text-info-emphasis mt-1 mb-0" id="statShippedOrders">{{ $shippedOrders }}</h3>
                     </div>
-                    <div class="p-3 rounded-4 bg-warning-subtle text-warning-emphasis">
-                        <i class="bi bi-pause-circle fs-4"></i>
+                    <div class="p-3 rounded-4 bg-info-subtle text-info-emphasis">
+                        <i class="bi bi-truck fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100 stat-hover-card">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small fw-semibold">Delivered</div>
+                        <h3 class="fw-bold text-success mt-1 mb-0" id="statCompletedOrders">{{ $deliveredOrders }}</h3>
+                    </div>
+                    <div class="p-3 rounded-4 bg-success-subtle text-success">
+                        <i class="bi bi-box2-heart fs-4"></i>
                     </div>
                 </div>
             </div>
@@ -112,11 +112,9 @@
                 <div class="col-6 col-md-3 col-lg-3">
                     <select id="statusFilter" class="form-select rounded-3">
                         <option value="all">All Orders</option>
-                        <option value="processing">Processing (To Pack)</option>
-                        <option value="completed">Completed</option>
-                        <option value="pending">Pending</option>
-                        <option value="on-hold">On-Hold</option>
-                        <option value="cancelled">Cancelled</option>
+                        <option value="Order confirmed">Order confirmed</option>
+                        <option value="Shipped">Shipped</option>
+                        <option value="Delivered">Delivered</option>
                     </select>
                 </div>
 
@@ -217,20 +215,23 @@ document.addEventListener('DOMContentLoaded', function () {
         let text = s;
 
         switch(s) {
-            case 'completed':
-                bgClass = 'bg-success text-white';
+            case 'order confirmed':
+            case 'order_confirmed':
+            case 'processing':
+                bgClass = 'bg-primary text-white';
                 icon = 'bi-check2-circle';
-                text = 'Completed';
+                text = 'Order Confirmed';
                 break;
             case 'shipped':
                 bgClass = 'bg-info text-dark';
                 icon = 'bi-truck';
                 text = 'Shipped';
                 break;
-            case 'processing':
-                bgClass = 'bg-primary text-white';
-                icon = 'bi-arrow-repeat';
-                text = 'Processing';
+            case 'delivered':
+            case 'completed':
+                bgClass = 'bg-success text-white';
+                icon = 'bi-box2-heart';
+                text = 'Delivered';
                 break;
             case 'on-hold':
                 bgClass = 'bg-warning text-dark';
