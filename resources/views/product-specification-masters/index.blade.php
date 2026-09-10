@@ -105,6 +105,20 @@
         font-size: 13px;
     }
 
+    .product-table-search {
+        padding: 12px 16px;
+        border-bottom: 1px solid #dee2e6;
+        background: #fff;
+    }
+
+    .product-table-search input {
+        min-height: 38px;
+    }
+
+    .product-table-search .btn {
+        min-height: 38px;
+    }
+
     .view-product-btn {
         white-space: nowrap;
     }
@@ -498,6 +512,44 @@
 
         <div class="card-body p-0">
 
+            {{-- TABLE SEARCH --}}
+            <div class="product-table-search">
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-8">
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input
+                                type="text"
+                                id="productTableSearch"
+                                class="form-control"
+                                placeholder="Search Product Specification Master..."
+                                autocomplete="off"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="col-md-auto">
+                        <button
+                            type="button"
+                            id="btnResetTableSearch"
+                            class="btn btn-outline-secondary"
+                        >
+                            <i class="bi bi-arrow-clockwise me-1"></i>
+                            Reset
+                        </button>
+                    </div>
+
+                    <div class="col-md-auto">
+                        <small
+                            id="productTableSearchInfo"
+                            class="text-muted"
+                        ></small>
+                    </div>
+                </div>
+            </div>
+
             <div class="table-responsive">
                 <table
                     class="table table-bordered table-hover mb-0"
@@ -872,6 +924,15 @@ document.addEventListener('DOMContentLoaded', function () {
     const totalProducts =
         document.getElementById('totalProducts');
 
+    const productTableSearch =
+        document.getElementById('productTableSearch');
+
+    const resetTableSearch =
+        document.getElementById('btnResetTableSearch');
+
+    const productTableSearchInfo =
+        document.getElementById('productTableSearchInfo');
+
     const pagination =
         document.getElementById('specificationPagination');
 
@@ -1200,6 +1261,91 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /*
     |--------------------------------------------------------------------------
+    | TABLE SEARCH
+    |--------------------------------------------------------------------------
+    */
+
+    function applyProductTableSearch() {
+
+        const search =
+            String(productTableSearch?.value || '')
+                .trim()
+                .toLowerCase();
+
+        const rows =
+            Array.from(
+                tableBody.querySelectorAll('tr')
+            ).filter(function (row) {
+                return row.querySelectorAll('td').length === 8;
+            });
+
+        let visibleCount = 0;
+
+        rows.forEach(function (row) {
+
+            const rowText =
+                row.textContent
+                    .replace(/\s+/g, ' ')
+                    .trim()
+                    .toLowerCase();
+
+            const matched =
+                !search ||
+                rowText.includes(search);
+
+            row.style.display =
+                matched ? '' : 'none';
+
+            if (matched) {
+                visibleCount++;
+            }
+        });
+
+        const oldMessage =
+            tableBody.querySelector(
+                '.table-search-no-result'
+            );
+
+        if (oldMessage) {
+            oldMessage.remove();
+        }
+
+        if (
+            search &&
+            rows.length &&
+            visibleCount === 0
+        ) {
+            const tr =
+                document.createElement('tr');
+
+            tr.className =
+                'table-search-no-result';
+
+            tr.innerHTML = `
+                <td colspan="8"
+                    class="text-center py-4 text-muted">
+                    <i class="bi bi-search"
+                       style="font-size:24px;"></i>
+                    <div class="mt-2">
+                        No matching product found on this page.
+                    </div>
+                </td>
+            `;
+
+            tableBody.appendChild(tr);
+        }
+
+        if (productTableSearchInfo) {
+            productTableSearchInfo.textContent =
+                search
+                    ? `${visibleCount} matching row${visibleCount === 1 ? '' : 's'} on this page`
+                    : '';
+        }
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
     | RENDER PRODUCTS
     |--------------------------------------------------------------------------
     */
@@ -1354,6 +1500,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 tableBody.appendChild(row);
             }
         );
+
+        applyProductTableSearch();
     }
 
 
@@ -2902,6 +3050,51 @@ document.addEventListener('DOMContentLoaded', function () {
                 currentPage = 1;
 
                 loadProducts(1);
+            }
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PRODUCT TABLE SEARCH
+    |--------------------------------------------------------------------------
+    */
+
+    if (productTableSearch) {
+
+        productTableSearch.addEventListener(
+            'input',
+            function () {
+                applyProductTableSearch();
+            }
+        );
+
+        productTableSearch.addEventListener(
+            'keydown',
+            function (event) {
+
+                if (event.key === 'Escape') {
+                    this.value = '';
+                    applyProductTableSearch();
+                    this.focus();
+                }
+            }
+        );
+    }
+
+    if (resetTableSearch) {
+
+        resetTableSearch.addEventListener(
+            'click',
+            function () {
+
+                if (productTableSearch) {
+                    productTableSearch.value = '';
+                    productTableSearch.focus();
+                }
+
+                applyProductTableSearch();
             }
         );
     }

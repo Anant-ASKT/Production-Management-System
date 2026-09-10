@@ -318,6 +318,7 @@ class ReadyToSellStockController extends Controller
             'id',
             'box_title',
             'boxno',
+            'qr_code',
             'warehouseid',
             'FloorNo',
             'StackNo',
@@ -1074,7 +1075,7 @@ public function storeBox(Request $request)
     */
 
     $warehouse = DB::table('strs_warehouse')
-        ->where('sno', $warehouseId)
+        ->where('id', $warehouseId)
         ->where('companyid', $companyId)
         ->where('subcompanyid', $subCompanyId)
         ->where('projectid', $projectId)
@@ -1531,7 +1532,7 @@ public function boxView(Request $request)
 
         ->leftJoin(
             'auto_designer_master as designer',
-            'designer.sno',
+            'designer.id',
             '=',
             'dsm.designer_name'
         )
@@ -1545,7 +1546,7 @@ public function boxView(Request $request)
 
         ->leftJoin(
             'auto_itemtype_master as itemtype',
-            'itemtype.sno',
+            'itemtype.id',
             '=',
             'dsm.item_type'
         )
@@ -1559,7 +1560,7 @@ public function boxView(Request $request)
 
         ->leftJoin(
             'auto_gender_master as gender',
-            'gender.sno',
+            'gender.id',
             '=',
             'dsm.gender'
         )
@@ -1573,7 +1574,7 @@ public function boxView(Request $request)
 
         ->leftJoin(
             'auto_itemname_master as itemname',
-            'itemname.sno',
+            'itemname.id',
             '=',
             'dsm.item_name'
         )
@@ -1587,7 +1588,7 @@ public function boxView(Request $request)
 
         ->leftJoin(
             'auto_composition_master_stock as composition',
-            'composition.sno',
+            'composition.id',
             '=',
             'dsm.composition'
         )
@@ -1601,7 +1602,7 @@ public function boxView(Request $request)
 
         ->leftJoin(
             'auto_colour_master as colour',
-            'colour.sno',
+            'colour.id',
             '=',
             'dsm.colour'
         )
@@ -1615,7 +1616,7 @@ public function boxView(Request $request)
 
         ->leftJoin(
             'auto_size_master as size',
-            'size.sno',
+            'size.id',
             '=',
             'dsm.sizes'
         )
@@ -1629,7 +1630,7 @@ public function boxView(Request $request)
 
         ->leftJoin(
             'auto_embellishment_master as embellishment',
-            'embellishment.sno',
+            'embellishment.id',
             '=',
             'dsm.embellishment'
         )
@@ -1643,7 +1644,7 @@ public function boxView(Request $request)
 
         ->leftJoin(
             'auto_manufacturing_process_master as manufacturing',
-            'manufacturing.sno',
+            'manufacturing.id',
             '=',
             'dsm.manufacturing_process'
         )
@@ -1657,7 +1658,7 @@ public function boxView(Request $request)
 
         ->leftJoin(
             'auto_craftsman_master as craftsman',
-            'craftsman.sno',
+            'craftsman.id',
             '=',
             'dsm.craftsman'
         )
@@ -1671,7 +1672,7 @@ public function boxView(Request $request)
 
         ->leftJoin(
             'auto_manufacture_master as manufacture',
-            'manufacture.sno',
+            'manufacture.id',
             '=',
             'dsm.manufecture'
         )
@@ -1690,7 +1691,7 @@ public function boxView(Request $request)
 
         ->leftJoin(
             'auto_client_master as client',
-            'client.sno',
+            'client.id',
             '=',
             'dsm.client'
         )
@@ -1779,7 +1780,7 @@ public function boxView(Request $request)
             |--------------------------------------------------------------------------
             */
 
-            'dsm.sno as specification_id',
+            'dsm.id as specification_id',
 
             'dsm.sku',
 
@@ -3348,6 +3349,7 @@ public function viewStock(Request $request)
             $locationId
         );
 
+
     }
 }
 
@@ -4665,21 +4667,21 @@ public function getProductStockDetails(
 
         ->leftJoin(
             'strs_warehouse as wh',
-            'wh.sno',
+            'wh.id',
             '=',
             'vs.warehouse_id'
         )
 
         ->leftJoin(
             'strs_locationmaster as lm',
-            'lm.sno',
+            'lm.id',
             '=',
             'vs.location_id'
         )
 
         ->leftJoin(
             'tbl_boxes as bx',
-            'bx.sno',
+            'bx.id',
             '=',
             'vs.boxid'
         )
@@ -4872,7 +4874,7 @@ public function patternTestFitStock()
 
         ->leftJoin(
             'auto_designer_master as designer',
-            'designer.sno',
+            'designer.id',
             '=',
             'dsm.designer_name'
         )
@@ -4886,7 +4888,7 @@ public function patternTestFitStock()
 
         ->leftJoin(
             'auto_itemtype_master as itemtype',
-            'itemtype.sno',
+            'itemtype.id',
             '=',
             'dsm.item_type'
         )
@@ -4900,7 +4902,7 @@ public function patternTestFitStock()
 
         ->leftJoin(
             'auto_gender_master as gender',
-            'gender.sno',
+            'gender.id',
             '=',
             'dsm.gender'
         )
@@ -4914,7 +4916,7 @@ public function patternTestFitStock()
 
         ->leftJoin(
             'auto_itemname_master as itemname',
-            'itemname.sno',
+            'itemname.id',
             '=',
             'dsm.item_name'
         )
@@ -4928,7 +4930,7 @@ public function patternTestFitStock()
 
         ->leftJoin(
             'auto_composition_master_stock as composition',
-            'composition.sno',
+            'composition.id',
             '=',
             'dsm.composition'
         )
@@ -4942,7 +4944,7 @@ public function patternTestFitStock()
 
         ->leftJoin(
             'auto_colour_master as colour',
-            'colour.sno',
+            'colour.id',
             '=',
             'dsm.colour'
         )
@@ -4956,7 +4958,7 @@ public function patternTestFitStock()
 
         ->leftJoin(
             'auto_size_master as size',
-            'size.sno',
+            'size.id',
             '=',
             'dsm.sizes'
         )
@@ -4970,7 +4972,7 @@ public function patternTestFitStock()
 
         ->leftJoin(
             'auto_embellishment_master as embellishment',
-            'embellishment.sno',
+            'embellishment.id',
             '=',
             'dsm.embellishment'
         )
@@ -4984,7 +4986,7 @@ public function patternTestFitStock()
 
         ->leftJoin(
             'auto_manufacturing_process_master as manufacturing',
-            'manufacturing.sno',
+            'manufacturing.id',
             '=',
             'dsm.manufacturing_process'
         )
@@ -4998,7 +5000,7 @@ public function patternTestFitStock()
 
         ->leftJoin(
             'auto_craftsman_master as craftsman',
-            'craftsman.sno',
+            'craftsman.id',
             '=',
             'dsm.craftsman'
         )
@@ -5012,7 +5014,7 @@ public function patternTestFitStock()
 
         ->leftJoin(
             'auto_manufacture_master as manufacture',
-            'manufacture.sno',
+            'manufacture.id',
             '=',
             'dsm.manufecture'
         )
@@ -5026,7 +5028,7 @@ public function patternTestFitStock()
 
         ->leftJoin(
             'auto_client_master as client',
-            'client.sno',
+            'client.id',
             '=',
             'dsm.client'
         )
@@ -6597,21 +6599,21 @@ public function getPatternTestFitAssignments(Request $request)
 
         ->leftJoin(
             'strs_locationmaster as l',
-            'l.sno',
+            'l.id',
             '=',
             'ps.location_id'
         )
 
         ->leftJoin(
             'strs_warehouse as w',
-            'w.sno',
+            'w.id',
             '=',
             'l.warehouse_id'
         )
 
         ->leftJoin(
             'tbl_boxes as b',
-            'b.sno',
+            'b.id',
             '=',
             'ps.boxid'
         )
@@ -6681,21 +6683,21 @@ public function getPatternTestFitAssignments(Request $request)
 
         ->leftJoin(
             'strs_locationmaster as l',
-            'l.sno',
+            'l.id',
             '=',
             'ts.location_id'
         )
 
         ->leftJoin(
             'strs_warehouse as w',
-            'w.sno',
+            'w.id',
             '=',
             'l.warehouse_id'
         )
 
         ->leftJoin(
             'tbl_boxes as b',
-            'b.sno',
+            'b.id',
             '=',
             'ts.boxid'
         )
@@ -6850,7 +6852,7 @@ public function getPatternTestFitStock(Request $request)
 
         ->leftJoin(
             'strs_locationmaster as l',
-            'l.sno',
+            'l.id',
             '=',
             'ps.location_id'
         )
@@ -6863,7 +6865,7 @@ public function getPatternTestFitStock(Request $request)
 
         ->leftJoin(
             'strs_warehouse as w',
-            'w.sno',
+            'w.id',
             '=',
             'l.warehouse_id'
         )
@@ -6876,7 +6878,7 @@ public function getPatternTestFitStock(Request $request)
 
         ->leftJoin(
             'tbl_boxes as b',
-            'b.sno',
+            'b.id',
             '=',
             'ps.boxid'
         )
@@ -6902,7 +6904,7 @@ public function getPatternTestFitStock(Request $request)
 
         ->leftJoin(
             'auto_designer_master as designer',
-            'designer.sno',
+            'designer.id',
             '=',
             'dsm.designer_name'
         )
@@ -6915,7 +6917,7 @@ public function getPatternTestFitStock(Request $request)
 
         ->leftJoin(
             'auto_itemtype_master as itemtype',
-            'itemtype.sno',
+            'itemtype.id',
             '=',
             'dsm.item_type'
         )
@@ -6928,7 +6930,7 @@ public function getPatternTestFitStock(Request $request)
 
         ->leftJoin(
             'auto_gender_master as gender',
-            'gender.sno',
+            'gender.id',
             '=',
             'dsm.gender'
         )
@@ -6941,7 +6943,7 @@ public function getPatternTestFitStock(Request $request)
 
         ->leftJoin(
             'auto_itemname_master as itemname',
-            'itemname.sno',
+            'itemname.id',
             '=',
             'dsm.item_name'
         )
@@ -6954,7 +6956,7 @@ public function getPatternTestFitStock(Request $request)
 
         ->leftJoin(
             'auto_composition_master_stock as composition',
-            'composition.sno',
+            'composition.id',
             '=',
             'dsm.composition'
         )
@@ -6967,7 +6969,7 @@ public function getPatternTestFitStock(Request $request)
 
         ->leftJoin(
             'auto_colour_master as colour',
-            'colour.sno',
+            'colour.id',
             '=',
             'dsm.colour'
         )
@@ -6980,7 +6982,7 @@ public function getPatternTestFitStock(Request $request)
 
         ->leftJoin(
             'auto_size_master as size',
-            'size.sno',
+            'size.id',
             '=',
             'dsm.sizes'
         )
@@ -6993,7 +6995,7 @@ public function getPatternTestFitStock(Request $request)
 
         ->leftJoin(
             'auto_embellishment_master as embellishment',
-            'embellishment.sno',
+            'embellishment.id',
             '=',
             'dsm.embellishment'
         )
@@ -7006,7 +7008,7 @@ public function getPatternTestFitStock(Request $request)
 
         ->leftJoin(
             'auto_manufacturing_process_master as manufacturing',
-            'manufacturing.sno',
+            'manufacturing.id',
             '=',
             'dsm.manufacturing_process'
         )
@@ -7019,7 +7021,7 @@ public function getPatternTestFitStock(Request $request)
 
         ->leftJoin(
             'auto_craftsman_master as craftsman',
-            'craftsman.sno',
+            'craftsman.id',
             '=',
             'dsm.craftsman'
         )
@@ -7032,7 +7034,7 @@ public function getPatternTestFitStock(Request $request)
 
         ->leftJoin(
             'auto_manufacture_master as manufacture',
-            'manufacture.sno',
+            'manufacture.id',
             '=',
             'dsm.manufecture'
         )
@@ -7045,7 +7047,7 @@ public function getPatternTestFitStock(Request $request)
 
         ->leftJoin(
             'auto_client_master as client',
-            'client.sno',
+            'client.id',
             '=',
             'dsm.client'
         )
@@ -7090,7 +7092,7 @@ public function getPatternTestFitStock(Request $request)
 
         ->leftJoin(
             'strs_locationmaster as l',
-            'l.sno',
+            'l.id',
             '=',
             'ts.location_id'
         )
@@ -7103,7 +7105,7 @@ public function getPatternTestFitStock(Request $request)
 
         ->leftJoin(
             'strs_warehouse as w',
-            'w.sno',
+            'w.id',
             '=',
             'l.warehouse_id'
         )
@@ -7116,7 +7118,7 @@ public function getPatternTestFitStock(Request $request)
 
         ->leftJoin(
             'tbl_boxes as b',
-            'b.sno',
+            'b.id',
             '=',
             'ts.boxid'
         )
@@ -7142,84 +7144,84 @@ public function getPatternTestFitStock(Request $request)
 
         ->leftJoin(
             'auto_designer_master as designer',
-            'designer.sno',
+            'designer.id',
             '=',
             'dsm.designer_name'
         )
 
         ->leftJoin(
             'auto_itemtype_master as itemtype',
-            'itemtype.sno',
+            'itemtype.id',
             '=',
             'dsm.item_type'
         )
 
         ->leftJoin(
             'auto_gender_master as gender',
-            'gender.sno',
+            'gender.id',
             '=',
             'dsm.gender'
         )
 
         ->leftJoin(
             'auto_itemname_master as itemname',
-            'itemname.sno',
+            'itemname.id',
             '=',
             'dsm.item_name'
         )
 
         ->leftJoin(
             'auto_composition_master_stock as composition',
-            'composition.sno',
+            'composition.id',
             '=',
             'dsm.composition'
         )
 
         ->leftJoin(
             'auto_colour_master as colour',
-            'colour.sno',
+            'colour.id',
             '=',
             'dsm.colour'
         )
 
         ->leftJoin(
             'auto_size_master as size',
-            'size.sno',
+            'size.id',
             '=',
             'dsm.sizes'
         )
 
         ->leftJoin(
             'auto_embellishment_master as embellishment',
-            'embellishment.sno',
+            'embellishment.id',
             '=',
             'dsm.embellishment'
         )
 
         ->leftJoin(
             'auto_manufacturing_process_master as manufacturing',
-            'manufacturing.sno',
+            'manufacturing.id',
             '=',
             'dsm.manufacturing_process'
         )
 
         ->leftJoin(
             'auto_craftsman_master as craftsman',
-            'craftsman.sno',
+            'craftsman.id',
             '=',
             'dsm.craftsman'
         )
 
         ->leftJoin(
             'auto_manufacture_master as manufacture',
-            'manufacture.sno',
+            'manufacture.id',
             '=',
             'dsm.manufecture'
         )
 
         ->leftJoin(
             'auto_client_master as client',
-            'client.sno',
+            'client.id',
             '=',
             'dsm.client'
         )

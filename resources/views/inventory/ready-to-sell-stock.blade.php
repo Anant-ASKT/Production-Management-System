@@ -3412,6 +3412,7 @@ async function loadBoxes(
 
                 option.dataset.boxNo =
                     box.boxno || '';
+                    
                 option.dataset.qrCode =
                     box.qr_code || box.boxno || '';
 
@@ -3593,19 +3594,17 @@ function downloadBoxQr(
     |--------------------------------------------------------------------------
     */
 
-    new QRCode(
-        qrContainer,
-        {
-            text: qrValue,
+    qrContainer.innerHTML = '';
+    qrContainer.style.background = '#fff';
+    qrContainer.style.padding = '24px';
+    qrContainer.style.display = 'inline-block';
 
-            width: 400,
-
-            height: 400,
-
-            correctLevel:
-                QRCode.CorrectLevel.H
-        }
-    );
+    new QRCode(qrContainer, {
+    text: qrValue,
+    width: 352,
+    height: 352,
+    correctLevel: QRCode.CorrectLevel.H
+});
 
 
     /*

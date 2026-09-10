@@ -13,10 +13,10 @@ use App\Models\ProjectMaster;
 use Illuminate\Validation\Rule;
 use Mockery\Matcher\AndAnyOtherArgs;
 
-class DesignSpecificationController extends Controller
+class TraderSpecificationController extends Controller
 {
     /**
-     * Show Design Specification Master page.
+     * Show Trader Trader Design Specification Master page.
      *
      * IMPORTANT:
      * Do NOT load specifications here.
@@ -245,6 +245,10 @@ class DesignSpecificationController extends Controller
                 'code'
             ]);
 
+        $traders = DB::table('auto_trader_master')
+        ->orderBy('name')
+        ->get();
+
 
         /*
         |--------------------------------------------------------------------------
@@ -258,7 +262,7 @@ class DesignSpecificationController extends Controller
         */
 
        return view(
-    'design-specifications.index',
+    'trader-specifications.index',
     compact(
         'companyId',
         'subCompanyId',
@@ -280,7 +284,8 @@ class DesignSpecificationController extends Controller
         'manufacturingProcesses',
         'craftsmen',
         'manufactures',
-        'clients'
+        'clients',
+        'traders'
     )
 );
     }
@@ -504,14 +509,14 @@ public function supplierProducts(Request $request)
 
     /**
      * AJAX:
-     * Load all design specifications.
+     * Load all trader design specifications.
      *
      * This method is called ONLY when the user clicks
      * "Show All Specifications".
      */
     /**
  * AJAX:
- * Load design specifications with pagination and search.
+ * Load trader design specifications with pagination and search.
  */
 public function data(Request $request)
 {
@@ -549,7 +554,7 @@ public function data(Request $request)
     */
 
     $query = DB::table(
-        'auto_designer_specification_master as dsm'
+        'auto_traders_designer_specification_master as dsm'
     )
 
         /*
@@ -687,6 +692,13 @@ public function data(Request $request)
             )
 
             ->leftJoin(
+            'auto_trader_master as trader',
+            'trader.id',
+            '=',
+            'dsm.trader_id'
+        )
+
+        ->leftJoin(
                 'AI_product_description as ai',
                 'ai.product_id',
                 '=',
@@ -863,6 +875,24 @@ public function data(Request $request)
                 'dsm.clientreference',
                 'like',
                 '%' . $search . '%'
+            )
+
+            ->orWhere(
+                'dsm.trader_name',
+                'like',
+                '%' . $search . '%'
+            )
+
+            ->orWhere(
+                'dsm.trader_sku',
+                'like',
+                '%' . $search . '%'
+            )
+
+            ->orWhere(
+                'dsm.purchase_bill_no',
+                'like',
+                '%' . $search . '%'
             );
         });
     }
@@ -887,6 +917,23 @@ public function data(Request $request)
             'dsm.item_name',
             'dsm.composition',
             'dsm.yarn',
+            'dsm.trader_id',
+            'dsm.trader_name',
+            'trader.name as trader_name_text',
+            'trader.code as trader_code_text',
+            'dsm.trader_sku',
+            'dsm.purchase_bill_no',
+            'dsm.purchase_date',
+            'dsm.trader_quantity',
+            'dsm.trader_buying_price',
+            'dsm.trader_selling_price',
+            'dsm.trader_mrp',
+            'dsm.trader_min_selling_price',
+            'dsm.trader_gst_percent',
+            'dsm.trader_discount',
+            'dsm.trader_payment_terms',
+            'dsm.trader_reference',
+            'dsm.trader_notes',
             'dsm.colour',
             'dsm.sizes',
 
@@ -899,6 +946,16 @@ public function data(Request $request)
             'yarn.yarnname as yarn_text',
             'colour.colourname as colour_text',
             'size.size as size_text',
+
+            // Master codes (always resolved through master.id)
+            'designer.code as designer_code_text',
+            'itemtype.code as item_type_code_text',
+            'gender.code as gender_code_text',
+            'itemname.code as item_name_code_text',
+            'composition.code as composition_code_text',
+            'yarn.code as yarn_code_text',
+            'colour.code as colour_code_text',
+            'size.code as size_code_text',
 
             // Context names
             'company.companyname as company_name',
@@ -923,7 +980,7 @@ public function data(Request $request)
             'dsm.manufecture',
             'dsm.client',
 
-            'dsm.price',
+            'dsm.buying_price',
             'dsm.sale_price',
             'dsm.min_price',
 
@@ -938,6 +995,12 @@ public function data(Request $request)
             'manufacture.name as manufacture_text',
 
             'client.name as client_text',
+
+            'embellishment.code as embellishment_code_text',
+            'manufacturing.code as manufacturing_process_code_text',
+            'craftsman.code as craftsman_code_text',
+            'manufacture.code as manufacture_code_text',
+            'client.code as client_code_text',
 
             // AI Product Details
             'ai.AI_product_name',
@@ -1196,7 +1259,7 @@ public function findByBarcode(Request $request)
     */
 
     $product = DB::table(
-        'auto_designer_specification_master as dsm'
+        'auto_traders_designer_specification_master as dsm'
     )
 
 
@@ -2159,20 +2222,18 @@ private function generateProductSku(
 
 
     /**
-     * Save new Design Specification.
+     * Save new Trader Design Specification.
      */
-   public function store(Request $request)
+    public function store(Request $request)
 {
     $user = Auth::user();
 
     if (!$user) {
-
         return response()->json([
             'success' => false,
             'message' => 'Unauthenticated.'
         ], 401);
     }
-
 
     /*
     |--------------------------------------------------------------------------
@@ -2184,21 +2245,46 @@ private function generateProductSku(
     $subCompanyId = (int) $user->sub_company_id;
     $projectId    = (int) $user->project_id;
 
-
     /*
     |--------------------------------------------------------------------------
-    | Validation
+    | Validate Request
     |--------------------------------------------------------------------------
     */
 
     $validated = $request->validate([
-        'item_name' => 'required',
-        'item_type' => 'required',
-        'designer_name' => 'required',
-        'gender' => 'required',
-        'composition' => 'required',
-        'colour' => 'required',
-        'sizes' => 'required',
+
+        /*
+        |--------------------------------------------------------------------------
+        | Required Masters
+        |--------------------------------------------------------------------------
+        */
+
+        'item_name' => 'required|integer',
+        'item_type' => 'required|integer',
+        'designer_name' => 'required|integer',
+        'gender' => 'required|integer',
+        'composition' => 'required|integer',
+        'colour' => 'required|integer',
+        'sizes' => 'required|integer',
+
+        /*
+        |--------------------------------------------------------------------------
+        | Optional Masters
+        |--------------------------------------------------------------------------
+        */
+
+        'yarn' => 'nullable|integer',
+        'embellishment' => 'nullable|integer',
+        'manufacturing_process' => 'nullable|integer',
+        'craftsman' => 'nullable|integer',
+        'manufecture' => 'nullable|integer',
+        'client' => 'nullable|integer',
+
+        /*
+        |--------------------------------------------------------------------------
+        | Master Codes
+        |--------------------------------------------------------------------------
+        */
 
         'item_name_code' => 'nullable|string|max:100',
         'item_type_code' => 'nullable|string|max:100',
@@ -2207,184 +2293,197 @@ private function generateProductSku(
         'composition_code' => 'nullable|string|max:100',
         'colour_code' => 'nullable|string|max:100',
         'size_code' => 'nullable|string|max:100',
+        'yarn_code' => 'nullable|string|max:100',
         'embellishment_code' => 'nullable|string|max:100',
         'manufacturing_process_code' => 'nullable|string|max:100',
         'craftsman_code' => 'nullable|string|max:100',
         'manufacture_code' => 'nullable|string|max:100',
         'client_code' => 'nullable|string|max:100',
 
-        'supplier_id' => 'nullable|integer',
-        'supplier_user_id' => 'nullable|integer',
-        'supplier_nickname' => 'nullable|string|max:10',
-        'supplier_product_id' => 'nullable|integer',
+        /*
+        |--------------------------------------------------------------------------
+        | Client
+        |--------------------------------------------------------------------------
+        */
 
-        'embellishment' => 'nullable',
-        'yarn' => 'nullable',
-        'manufacturing_process' => 'nullable',
-        'craftsman' => 'nullable',
+        'clientreference' => 'nullable|string|max:500',
 
-        'manufecture' => 'nullable',
-        'client' => 'nullable',
+        /*
+        |--------------------------------------------------------------------------
+        | SKU
+        |--------------------------------------------------------------------------
+        */
 
         'sku' => [
             'nullable',
             'string',
             'max:1000',
             Rule::unique(
-                'auto_designer_specification_master',
+                'auto_traders_designer_specification_master',
                 'sku'
             ),
         ],
 
-        'clientreference' => 'nullable|string',
-        'price' => 'nullable|string',
-        'minprice' => 'nullable|string',
-        'saleprice' => 'nullable|string',
+        /*
+        |--------------------------------------------------------------------------
+        | Trader
+        |--------------------------------------------------------------------------
+        */
 
-        'AI_product_name' => 'nullable|string',
-        'AI_product_description' => 'nullable|string',
-        'AI_Metatitle' => 'nullable|string',
-        'AI_Metakeywards' => 'nullable|string',
-        'AI_Metadescription' => 'nullable|string',
-        'AI_Producttag' => 'nullable|string',
-        'AI_Imagealttext' => 'nullable|string',
+        'trader_id' => 'required|integer',
+        'trader_name' => 'nullable|string|max:255',
+        'trader_sku' => 'nullable|string|max:255',
+
+        /*
+        |--------------------------------------------------------------------------
+        | Trader Main Pricing
+        |--------------------------------------------------------------------------
+        */
+
+        'trader_buying_price' => 'required|numeric|min:0',
+        'trader_selling_price' => 'nullable|numeric|min:0',
+        'trader_mrp' => 'nullable|numeric|min:0',
+        'trader_min_selling_price' => 'nullable|numeric|min:0',
+
+        /*
+        |--------------------------------------------------------------------------
+        | Buying Information
+        |--------------------------------------------------------------------------
+        */
+
+        'purchase_bill_no' => 'nullable|string|max:255',
+        'purchase_date' => 'nullable|date',
+        'trader_quantity' => 'required|numeric|min:0.01',
+        'trader_gst_percent' => 'nullable|numeric|min:0|max:100',
+        'trader_discount' => 'nullable|numeric|min:0',
+        'trader_payment_terms' => 'nullable|string|max:255',
+        'trader_reference' => 'nullable|string|max:500',
+        'trader_notes' => 'nullable|string|max:2000',
+
+        /*
+        |--------------------------------------------------------------------------
+        | Supplier Information
+        |--------------------------------------------------------------------------
+        */
+
+        'supplier_id' => 'nullable|integer',
+        'supplier_user_id' => 'nullable|integer',
+        'supplier_product_id' => 'nullable|integer',
+        'supplier_nickname' => 'nullable|string|max:10',
+
+        /*
+        |--------------------------------------------------------------------------
+        | Images
+        |--------------------------------------------------------------------------
+        */
+
+        'design_images' => 'nullable|array',
+        'design_images.*' =>
+            'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+
+        'sub_images' => 'nullable|array',
+        'sub_images.*' =>
+            'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
     ]);
 
+    $traderMaster = DB::table('auto_trader_master')
+        ->where('id', $validated['trader_id'])
+        ->first();
+
+    if (!$traderMaster) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Selected Trader does not exist.'
+        ], 422);
+    }
+
+    $validated['trader_name'] = $traderMaster->name;
 
     /*
     |--------------------------------------------------------------------------
-    | Verify selected master records belong to current context
+    | Validate Required Masters
     |--------------------------------------------------------------------------
     */
 
-    $this->validateMasterRecord(
-        'auto_designer_master',
-        $validated['designer_name'],
-        $companyId,
-        $subCompanyId,
-        $projectId
-    );
+    $requiredMasters = [
 
+        'auto_designer_master'
+            => 'designer_name',
 
-    $this->validateMasterRecord(
-        'auto_itemtype_master',
-        $validated['item_type'],
-        $companyId,
-        $subCompanyId,
-        $projectId
-    );
+        'auto_itemtype_master'
+            => 'item_type',
 
+        'auto_gender_master'
+            => 'gender',
 
-    $this->validateMasterRecord(
-        'auto_gender_master',
-        $validated['gender'],
-        $companyId,
-        $subCompanyId,
-        $projectId
-    );
+        'auto_itemname_master'
+            => 'item_name',
 
+        'auto_composition_master_stock'
+            => 'composition',
 
-    $this->validateMasterRecord(
-        'auto_itemname_master',
-        $validated['item_name'],
-        $companyId,
-        $subCompanyId,
-        $projectId
-    );
+        'auto_colour_master'
+            => 'colour',
 
+        'auto_size_master'
+            => 'sizes',
+    ];
 
-    $this->validateMasterRecord(
-        'auto_composition_master_stock',
-        $validated['composition'],
-        $companyId,
-        $subCompanyId,
-        $projectId
-    );
+    foreach ($requiredMasters as $table => $field) {
 
-
-    $this->validateMasterRecord(
-        'auto_colour_master',
-        $validated['colour'],
-        $companyId,
-        $subCompanyId,
-        $projectId
-    );
-
-
-    $this->validateMasterRecord(
-        'auto_size_master',
-        $validated['sizes'],
-        $companyId,
-        $subCompanyId,
-        $projectId
-    );
-
+        $this->validateMasterRecord(
+            $table,
+            (int) $validated[$field],
+            $companyId,
+            $subCompanyId,
+            $projectId
+        );
+    }
 
     /*
     |--------------------------------------------------------------------------
-    | Optional master validation
+    | Validate Optional Masters
     |--------------------------------------------------------------------------
     */
 
-    if (!empty($validated['embellishment'])) {
+    $optionalMasters = [
 
-        $this->validateMasterRecord(
-            'auto_embellishment_master',
-            $validated['embellishment'],
-            $companyId,
-            $subCompanyId,
-            $projectId
-        );
+        'auto_yarn_master'
+            => 'yarn',
+
+        'auto_embellishment_master'
+            => 'embellishment',
+
+        'auto_manufacturing_process_master'
+            => 'manufacturing_process',
+
+        'auto_craftsman_master'
+            => 'craftsman',
+
+        'auto_manufacture_master'
+            => 'manufecture',
+
+        'auto_client_master'
+            => 'client',
+    ];
+
+    foreach ($optionalMasters as $table => $field) {
+
+        if (
+            isset($validated[$field]) &&
+            $validated[$field] !== null &&
+            $validated[$field] !== ''
+        ) {
+
+            $this->validateMasterRecord(
+                $table,
+                (int) $validated[$field],
+                $companyId,
+                $subCompanyId,
+                $projectId
+            );
+        }
     }
-
-
-    if (!empty($validated['manufacturing_process'])) {
-
-        $this->validateMasterRecord(
-            'auto_manufacturing_process_master',
-            $validated['manufacturing_process'],
-            $companyId,
-            $subCompanyId,
-            $projectId
-        );
-    }
-
-
-    if (!empty($validated['craftsman'])) {
-
-        $this->validateMasterRecord(
-            'auto_craftsman_master',
-            $validated['craftsman'],
-            $companyId,
-            $subCompanyId,
-            $projectId
-        );
-    }
-
-
-    if (!empty($validated['manufecture'])) {
-
-        $this->validateMasterRecord(
-            'auto_manufacture_master',
-            $validated['manufecture'],
-            $companyId,
-            $subCompanyId,
-            $projectId
-        );
-    }
-
-
-    if (!empty($validated['client'])) {
-
-        $this->validateMasterRecord(
-            'auto_client_master',
-            $validated['client'],
-            $companyId,
-            $subCompanyId,
-            $projectId
-        );
-    }
-
 
     /*
     |--------------------------------------------------------------------------
@@ -2395,317 +2494,107 @@ private function generateProductSku(
     $craftsmanCode =
         $validated['craftsman_code'] ?? null;
 
-
     if (!empty($validated['craftsman'])) {
 
-        $craftsman =
-            DB::table('auto_craftsman_master')
-                ->where('sno', $validated['craftsman'])
-                ->where('companyid', $companyId)
-                ->where('subcompanyid', $subCompanyId)
-                ->where('projectid', $projectId)
-                ->first([
-                    'code'
-                ]);
-
+        $craftsman = DB::table('auto_craftsman_master')
+            ->where('id', $validated['craftsman'])
+            ->where('companyid', $companyId)
+            ->where('subcompanyid', $subCompanyId)
+            ->where('projectid', $projectId)
+            ->first([
+                'code'
+            ]);
 
         if ($craftsman) {
-
-            $craftsmanCode =
-                $craftsman->code;
+            $craftsmanCode = $craftsman->code;
         }
     }
 
-
     /*
     |--------------------------------------------------------------------------
-    | Generate Barcode
-    |--------------------------------------------------------------------------
-    |
-    | Existing data uses the company/sub-company/project
-    | context followed by the selected specification IDs.
-    |
-    */
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | NEW OR EDIT
+    | Transaction
     |--------------------------------------------------------------------------
     */
 
+    try {
 
-    /*
-    |--------------------------------------------------------------------------
-    | Generate Barcode
-    |--------------------------------------------------------------------------
-    | NEW RECORD ONLY
-    |--------------------------------------------------------------------------
-    */
-
-    $barcode =
-        $this->generateBarcode(
+        $result = DB::transaction(function () use (
+            $request,
+            $validated,
+            $user,
             $companyId,
             $subCompanyId,
             $projectId,
-            $validated
-        );
-
-
-    $nextId =
-        ((int) DB::table(
-            'auto_designer_specification_master'
-        )->max('id')) + 1;
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Supplier ID and Supplier Nickname for SKU
-    |--------------------------------------------------------------------------
-    */
-
-    $supplierId =
-        $validated['supplier_id'] ?? null;
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | IMPORTANT:
-    | Check whether actual supplier was selected BEFORE
-    | assigning project ID as fallback.
-    |--------------------------------------------------------------------------
-    */
-
-    $hasSupplier =
-        !empty($supplierId);
-
-
-    $supplierNickname = '';
-
-
-    if (empty($supplierId)) {
-
-        $supplierId = $projectId;
-
-        $projectMaster = DB::table('tbl_project_master')
-            ->where('projectid', $projectId)
-            ->first(['projectname']);
-
-
-        if (
-            $projectMaster &&
-            !empty($projectMaster->projectname)
+            $craftsmanCode
         ) {
 
-            $projectName =
-                preg_replace(
-                    '/[^A-Za-z0-9]/',
-                    '',
-                    $projectMaster->projectname
-                );
+            /*
+            |--------------------------------------------------------------------------
+            | Generate Product ID
+            |--------------------------------------------------------------------------
+            |
+            | Product ID = MAX(id) + 1
+            |
+            */
 
+            $maxId = DB::table(
+                'auto_traders_designer_specification_master'
+            )
+                ->lockForUpdate()
+                ->max('id');
 
-            $supplierNickname =
-                strtoupper(
-                    substr(
-                        $projectName,
-                        0,
-                        3
-                    )
-                );
-        }
+            $nextId = ((int) $maxId) + 1;
 
-    } else {
+            if ($nextId <= 0) {
+                $nextId = 1;
+            }
 
-        $supplierNickname =
-            $validated['supplier_nickname'] ?? '';
-    }
+            /*
+            |--------------------------------------------------------------------------
+            | Generate Barcode
+            |--------------------------------------------------------------------------
+            */
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Generate Automatic SKU
-    |--------------------------------------------------------------------------
-    */
-
-    $itemTypeCode =
-        $validated['item_name_code'] ?? '';
-
-
-    $generatedSku =
-        $itemTypeCode . '-' .
-        $supplierNickname . '-' .
-        $nextId;
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Supplier SKU
-    |--------------------------------------------------------------------------
-    |
-    | The SKU entered by user from frontend is now treated as
-    | supplier SKU.
-    |
-    */
-
-    $supplierSku =
-        !empty($validated['sku'])
-            ? trim($validated['sku'])
-            : null;
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Check Duplicate Barcode
-    |--------------------------------------------------------------------------
-    |
-    | If barcode already exists in either master or vendor stock,
-    | do not save anything.
-    |
-    */
-
-    $barcodeExistsInMaster =
-        DB::table(
-            'auto_designer_specification_master'
-        )
-        ->where('barcode', $barcode)
-        ->exists();
-
-
-    $barcodeExistsInStock =
-        DB::table('vendor_stock')
-            ->where('barcode', $barcode)
-            ->exists();
-
-
-    if (
-        $barcodeExistsInMaster ||
-        $barcodeExistsInStock
-    ) {
-
-        return response()->json([
-            'success' => false,
-            'message' =>
-                'This barcode already exists. Data was not saved.'
-        ], 422);
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Image path
-    |--------------------------------------------------------------------------
-    */
-
-    $imgPath = null;
-
-    $price =
-        $validated['price'] ?? 0;
-
-    $minprice =
-        $validated['minprice'] ?? 0;
-
-    $saleprice =
-        $validated['saleprice'] ?? 0;
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Save Database Record
-    |--------------------------------------------------------------------------
-    */
-
-    $insertId =
-        DB::table(
-            'auto_designer_specification_master'
-        )->insertGetId([
-
-            'designer_name' =>
-                $validated['designer_name'],
-
-            'item_type' =>
-                $validated['item_type'],
-
-            'gender' =>
-                $validated['gender'],
-
-            'item_name' =>
-                $validated['item_name'],
-
-            'composition' =>
-                $validated['composition'],
-
-            'colour' =>
-                $validated['colour'],
-
-            'sizes' =>
-                $validated['sizes'],
-
-            'embellishment' =>
-                $validated['embellishment'] ?? 0,
-
-            'manufacturing_process' =>
-                $validated['manufacturing_process'] ?? 0,
-
-            'craftsman' =>
-                $validated['craftsman'] ?? 0,
-
-            'craftsman_code' =>
-                $craftsmanCode,
-
-            'manufecture' =>
-                $validated['manufecture'] ?? 0,
-
-            'client' =>
-                $validated['client'] ?? 0,
-
-            'clientreference' =>
-                $validated['clientreference'] ?? null,
-
-            'companyid' =>
+            $barcode = $this->generateBarcode(
                 $companyId,
-
-            'subcompanyid' =>
                 $subCompanyId,
-
-            'projectid' =>
                 $projectId,
+                $validated
+            );
 
-            'supplier_person_id' =>
-                $request->input('supplier_user_id') ?: null,
+            /*
+            |--------------------------------------------------------------------------
+            | Check Duplicate Barcode
+            |--------------------------------------------------------------------------
+            */
 
-            'supplier_product_id' =>
-                $request->input('supplier_product_id') ?: null,
+            $barcodeExistsInMaster = DB::table(
+                'auto_traders_designer_specification_master'
+            )
+                ->where('barcode', $barcode)
+                ->exists();
 
-            'supplier_id' =>
-                $supplierId,
+            if ($barcodeExistsInMaster) {
 
-            'loginid' =>
-                $user->username,
+                throw new \Exception(
+                    'This barcode already exists. Data was not saved.'
+                );
+            }
 
-            'edatetime' =>
-                now(),
+            /*
+            |--------------------------------------------------------------------------
+            | Supplier
+            |--------------------------------------------------------------------------
+            */
 
-            'id' =>
-                $nextId,
+            $supplierId =
+                $validated['supplier_id'] ?? null;
 
-            'barcode' =>
-                $barcode,
+            $supplierProductId =
+                $validated['supplier_product_id'] ?? null;
 
-            'qrcode' =>
-                $barcode,
-
-            'sku' =>
-                $generatedSku,
-
-            'price' =>
-                $validated['price'] ?? null,
-
-            'min_price' =>
-                $validated['minprice'] ?? null,
-
-            'sale_price' =>
-                $validated['saleprice'] ?? null,
+            $supplierPersonId =
+                $validated['supplier_user_id'] ?? null;
 
             /*
             |--------------------------------------------------------------------------
@@ -2713,496 +2602,145 @@ private function generateProductSku(
             |--------------------------------------------------------------------------
             */
 
-            'sku_supplier' =>
-                $supplierSku,
-
-            'img_path' =>
-                $imgPath,
-
-            'status' =>
-                '',
-
-            'box_assign' =>
-                '',
-
-            'print_status' =>
-                null,
-
-            'description_id' =>
-                null,
-
-            'oc_product_id' =>
-                null,
-
-            'oc_main_img' =>
-                null,
-
-            'yarn' =>
-                $validated['yarn'] ?? null,
-        ]);
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Image Upload
-    |--------------------------------------------------------------------------
-    |
-    | For now store uploaded images under:
-    |
-    | public/ItemsDesigner_Masterwithbarcode/{barcode}/
-    |
-    */
-
-    if ($request->hasFile('design_images')) {
-
-        /*
-         * Main product directory
-         */
-
-        $imageDirectory =
-            public_path(
-                'ItemsDesigner_Masterwithbarcode/' .
-                $barcode
-            );
-
-
-        /*
-         * Create directory if it doesn't exist
-         */
-
-        if (!is_dir($imageDirectory)) {
-
-            mkdir(
-                $imageDirectory,
-                0755,
-                true
-            );
-        }
-
-
-        /*
-         * Store relative paths for database
-         */
-
-        $uploadedPaths = [];
-
-
-        foreach (
-            $request->file('design_images')
-            as $image
-        ) {
-
-            /*
-             * Generate unique filename
-             */
-
-            $fileName =
-                \Illuminate\Support\Str::random(40) .
-                '.' .
-                strtolower(
-                    $image->getClientOriginalExtension()
-                );
-
-
-            /*
-             * Move image directly into:
-             *
-             * public/ItemsDesigner_Masterwithbarcode/{barcode}/
-             */
-
-            $image->move(
-                $imageDirectory,
-                $fileName
-            );
-
-
-            /*
-             * Save web-accessible relative path
-             */
-
-            $uploadedPaths[] =
-                'ItemsDesigner_Masterwithbarcode/' .
-                $barcode .
-                '/' .
-                $fileName;
-        }
-
-
-        /*
-         * Save paths in img_path
-         */
-
-        if (!empty($uploadedPaths)) {
-
-            $imgPath =
-                json_encode(
-                    $uploadedPaths,
-                    JSON_UNESCAPED_SLASHES
-                );
-
-
-            DB::table(
-                'auto_designer_specification_master'
-            )
-            ->where(
-                'sno',
-                $insertId
-            )
-            ->update([
-                'img_path' => $imgPath
-            ]);
-        }
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | SUB IMAGES
-    |--------------------------------------------------------------------------
-    |
-    | Save into:
-    |
-    | public/
-    |   ItemsDesigner_Masterwithbarcode/
-    |       {barcode}/
-    |           SubImgs/
-    |
-    |--------------------------------------------------------------------------
-    */
-
-    $subImagePaths = [];
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Check uploaded sub images
-    |--------------------------------------------------------------------------
-    */
-
-    if ($request->hasFile('sub_images')) {
-
-        $subImages =
-            $request->file('sub_images');
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Make sure it is an array
-        |--------------------------------------------------------------------------
-        */
-
-        if (!is_array($subImages)) {
-
-            $subImages = [
-                $subImages
-            ];
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Sub Image Directory
-        |--------------------------------------------------------------------------
-        */
-
-        $subImageDirectory =
-            public_path(
-                'ItemsDesigner_Masterwithbarcode/' .
-                $barcode .
-                '/SubImgs'
-            );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Create Directory
-        |--------------------------------------------------------------------------
-        */
-
-        if (!is_dir($subImageDirectory)) {
-
-            mkdir(
-                $subImageDirectory,
-                0755,
-                true
-            );
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Upload Each Sub Image
-        |--------------------------------------------------------------------------
-        */
-
-        foreach (
-            $subImages
-            as $subImage
-        ) {
+            $supplierSku =
+                !empty($validated['sku'])
+                    ? trim($validated['sku'])
+                    : null;
 
             /*
             |--------------------------------------------------------------------------
-            | Check Valid Uploaded File
+            | Generate System SKU
             |--------------------------------------------------------------------------
             */
 
-            if (
-                !$subImage ||
-                !$subImage->isValid()
-            ) {
+            $itemNameCode =
+                $validated['item_name_code'] ?? '';
 
-                continue;
-            }
+            $supplierNickname =
+                $validated['supplier_nickname'] ?? '';
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | Generate Unique File Name
-            |--------------------------------------------------------------------------
-            */
-
-            $extension =
-                strtolower(
-                    $subImage
-                        ->getClientOriginalExtension()
-                );
-
-
-            $fileName =
-                \Illuminate\Support\Str::random(40) .
-                '.' .
-                $extension;
-
+            $generatedSku =
+                $itemNameCode .
+                '-' .
+                $supplierNickname .
+                '-' .
+                $nextId;
 
             /*
             |--------------------------------------------------------------------------
-            | Move File
+            | Insert Main Trader Specification
             |--------------------------------------------------------------------------
             */
 
-            $subImage->move(
-                $subImageDirectory,
-                $fileName
-            );
+            $insertData = [
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | Relative Database Path
-            |--------------------------------------------------------------------------
-            */
-
-            $subImagePaths[] =
-                'ItemsDesigner_Masterwithbarcode/' .
-                $barcode .
-                '/SubImgs/' .
-                $fileName;
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Save JSON Path
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            !empty($subImagePaths)
-        ) {
-
-            DB::table(
-                'auto_designer_specification_master'
-            )
-            ->where(
-                'sno',
-                $insertId
-            )
-            ->update([
-                'subimg_path' =>
-                    json_encode(
-                        $subImagePaths,
-                        JSON_UNESCAPED_SLASHES
-                    )
-            ]);
-        }
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Save AI Product Description
-    |--------------------------------------------------------------------------
-    */
-
-    $aiFields = [
-        'AI_product_name',
-        'AI_product_description',
-        'AI_Metatitle',
-        'AI_Metakeywards',
-        'AI_Metadescription',
-        'AI_Producttag',
-        'AI_Imagealttext',
-    ];
-
-
-    $hasAiDetails = false;
-
-
-    foreach ($aiFields as $field) {
-
-        if (
-            isset($validated[$field]) &&
-            trim((string) $validated[$field]) !== ''
-        ) {
-
-            $hasAiDetails = true;
-
-            break;
-        }
-    }
-
-
-    if ($hasAiDetails) {
-
-        DB::table('AI_product_description')->insert([
-
-            'product_id' =>
-                $insertId,
-
-            'AI_product_name' =>
-                $validated['AI_product_name'] ?? null,
-
-            'AI_product_description' =>
-                $validated['AI_product_description'] ?? null,
-
-            'AI_Metatitle' =>
-                $validated['AI_Metatitle'] ?? null,
-
-            'AI_Metakeywards' =>
-                $validated['AI_Metakeywards'] ?? null,
-
-            'AI_Metadescription' =>
-                $validated['AI_Metadescription'] ?? null,
-
-            'AI_Producttag' =>
-                $validated['AI_Producttag'] ?? null,
-
-            'AI_Imagealttext' =>
-                $validated['AI_Imagealttext'] ?? null,
-
-            'company_id' =>
-                $companyId,
-
-            'subcompany_id' =>
-                $subCompanyId,
-
-            'projectid' =>
-                $projectId,
-        ]);
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Update Supplier Product SKU
-    |--------------------------------------------------------------------------
-    */
-
-    $supplierProductId =
-        $request->input('supplier_product_id');
-
-
-    if (
-        $supplierProductId !== null &&
-        $supplierProductId !== ''
-    ) {
-
-        DB::table('supplier_products')
-            ->where('sno', $supplierProductId)
-            ->update([
-                'product_sku' => $generatedSku,
-            ]);
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Supplier Vendor Stock
-    |--------------------------------------------------------------------------
-    |
-    | IMPORTANT:
-    | Only create vendor_stock when an actual supplier_id
-    | was provided.
-    |
-    | If supplier_id is null/empty:
-    |   - Master record IS saved
-    |   - supplierId may use projectId for existing master/SKU logic
-    |   - vendor_stock IS NOT created
-    |
-    |--------------------------------------------------------------------------
-    */
-
-    if ($hasSupplier) {
-
-        $supplierStock =
-            $request->input('login_supplier_stock');
-
-
-        if (
-            $supplierStock === null ||
-            $supplierStock === '' ||
-            !is_numeric($supplierStock) ||
-            (int) $supplierStock <= 0
-        ) {
-
-            $supplierStock = 1;
-
-        } else {
-
-            $supplierStock = (int) $supplierStock;
-        }
-
-
-        $createatDate =
-            $request->input('login_createatdate');
-
-
-        if (empty($createatDate)) {
-
-            $createatDate = now();
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Generate next vendor_stock.id
-        |--------------------------------------------------------------------------
-        */
-
-        $nextVendorStockId =
-            ((int) DB::table('vendor_stock')->max('id')) + 1;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Insert one row per physical stock item
-        |--------------------------------------------------------------------------
-        */
-
-        $saleprice =
-            $validated['saleprice'] ?? 0;
-
-
-        for (
-            $stockIndex = 0;
-            $stockIndex < $supplierStock;
-            $stockIndex++
-        ) {
-
-            DB::table('vendor_stock')->insert([
+                /*
+                |--------------------------------------------------------------------------
+                | Product ID
+                |--------------------------------------------------------------------------
+                */
 
                 'id' =>
-                    $nextVendorStockId++,
+                    $nextId,
+
+                /*
+                |--------------------------------------------------------------------------
+                | Masters
+                |--------------------------------------------------------------------------
+                */
+
+                'designer_name' =>
+                    $validated['designer_name'],
+
+                'item_type' =>
+                    $validated['item_type'],
+
+                'gender' =>
+                    $validated['gender'],
+
+                'item_name' =>
+                    $validated['item_name'],
+
+                'composition' =>
+                    $validated['composition'],
+
+                'colour' =>
+                    $validated['colour'],
+
+                'sizes' =>
+                    $validated['sizes'],
+
+                'yarn' =>
+                    $validated['yarn'] ?? null,
+
+                'embellishment' =>
+                    $validated['embellishment'] ?? null,
+
+                'manufacturing_process' =>
+                    $validated['manufacturing_process'] ?? null,
+
+                'craftsman' =>
+                    $validated['craftsman'] ?? null,
+
+                'craftsman_code' =>
+                    $craftsmanCode,
+
+                'manufecture' =>
+                    $validated['manufecture'] ?? null,
+
+                'client' =>
+                    $validated['client'] ?? null,
+
+                'clientreference' =>
+                    $validated['clientreference'] ?? null,
+
+                /*
+                |--------------------------------------------------------------------------
+                | Master Codes
+                |--------------------------------------------------------------------------
+                */
+
+                'item_name_code' =>
+                    $validated['item_name_code'] ?? null,
+
+                'item_type_code' =>
+                    $validated['item_type_code'] ?? null,
+
+                'designer_code' =>
+                    $validated['designer_code'] ?? null,
+
+                'gender_code' =>
+                    $validated['gender_code'] ?? null,
+
+                'composition_code' =>
+                    $validated['composition_code'] ?? null,
+
+                'colour_code' =>
+                    $validated['colour_code'] ?? null,
+
+                'sizes_code' =>
+                    $validated['size_code'] ?? null,
+
+                'yarn_code' =>
+                    $validated['yarn_code'] ?? null,
+
+                'embellishment_code' =>
+                    $validated['embellishment_code'] ?? null,
+
+                'manufacturing_process_code' =>
+                    $validated['manufacturing_process_code'] ?? null,
+
+                'manufacture_code' =>
+                    $validated['manufacture_code'] ?? null,
+
+                'client_code' =>
+                    $validated['client_code'] ?? null,
+
+                /*
+                |--------------------------------------------------------------------------
+                | Company Context
+                |--------------------------------------------------------------------------
+                */
 
                 'companyid' =>
                     $companyId,
@@ -3213,65 +2751,420 @@ private function generateProductSku(
                 'projectid' =>
                     $projectId,
 
-                'vendor_id' =>
-                    $supplierId,
+                /*
+                |--------------------------------------------------------------------------
+                | Login
+                |--------------------------------------------------------------------------
+                */
 
-                'item_id' =>
-                    $insertId,
+                'loginid' =>
+                    $user->username ?? null,
 
-                'quantity_received' =>
-                    1,
+                'edatetime' =>
+                    now(),
 
-                'send_qty' =>
-                    0,
+                /*
+                |--------------------------------------------------------------------------
+                | Barcode / QR
+                |--------------------------------------------------------------------------
+                */
 
                 'barcode' =>
                     $barcode,
 
-                'g_id' =>
-                    $insertId,
+                'qrcode' =>
+                    $barcode,
 
-                'sale_price' =>
-                    $saleprice,
+                /*
+                |--------------------------------------------------------------------------
+                | SKU
+                |--------------------------------------------------------------------------
+                */
 
-                'createat_date' =>
-                    $createatDate,
+                'sku' =>
+                    $generatedSku,
+
+                'sku_supplier' =>
+                    $supplierSku,
+
+                /*
+                |--------------------------------------------------------------------------
+                | Status
+                |--------------------------------------------------------------------------
+                */
+
+                'status' =>
+                    '',
+
+                'box_assign' =>
+                    '',
+
+                'print_status' =>
+                    null,
+
+                /*
+                |--------------------------------------------------------------------------
+                | Existing System Fields
+                |--------------------------------------------------------------------------
+                */
+
+                'description_id' =>
+                    null,
+
+                'oc_product_id' =>
+                    null,
+
+                'oc_main_img' =>
+                    null,
+
+                'supplier_id' =>
+                    $supplierId,
+
+                'supplier_person_id' =>
+                    $supplierPersonId,
+
+                'supplier_product_id' =>
+                    $supplierProductId,
+
+                'is_sent_to_photo_section' =>
+                    0,
+
+                /*
+                |--------------------------------------------------------------------------
+                | Trader
+                |--------------------------------------------------------------------------
+                */
+
+                'trader_name' =>
+                    $validated['trader_name'],
+
+                'trader_id' =>
+                    $validated['trader_id'] ?? null,
+
+                'trader_sku' =>
+                    $validated['trader_sku'] ?? null,
+
+                /*
+                |--------------------------------------------------------------------------
+                | Trader Pricing
+                |--------------------------------------------------------------------------
+                */
+
+                'trader_buying_price' =>
+                    $validated['trader_buying_price'],
+
+                'trader_selling_price' =>
+                    $validated['trader_selling_price'] ?? null,
+
+                'trader_mrp' =>
+                    $validated['trader_mrp'] ?? null,
+
+                'trader_min_selling_price' =>
+                    $validated['trader_min_selling_price'] ?? null,
+
+                /*
+                |--------------------------------------------------------------------------
+                | Images
+                |--------------------------------------------------------------------------
+                */
+
+                'img_path' =>
+                    null,
+
+                'subimg_path' =>
+                    null,
+            ];
+
+            /*
+            |--------------------------------------------------------------------------
+            | Insert Main Record
+            |--------------------------------------------------------------------------
+            */
+
+            DB::table(
+                'auto_traders_designer_specification_master'
+            )->insert($insertData);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Save Main Images
+            |--------------------------------------------------------------------------
+            */
+
+            $mainImagePaths = [];
+
+            if ($request->hasFile('design_images')) {
+
+                $imageDirectory = public_path(
+                    'ItemsDesigner_Masterwithbarcode/' .
+                    $barcode
+                );
+
+                if (!is_dir($imageDirectory)) {
+
+                    mkdir(
+                        $imageDirectory,
+                        0755,
+                        true
+                    );
+                }
+
+                foreach (
+                    $request->file('design_images')
+                    as $image
+                ) {
+
+                    $fileName =
+                        \Illuminate\Support\Str::random(40) .
+                        '.' .
+                        strtolower(
+                            $image->getClientOriginalExtension()
+                        );
+
+                    $image->move(
+                        $imageDirectory,
+                        $fileName
+                    );
+
+                    $mainImagePaths[] =
+                        'ItemsDesigner_Masterwithbarcode/' .
+                        $barcode .
+                        '/' .
+                        $fileName;
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Save Sub Images
+            |--------------------------------------------------------------------------
+            */
+
+            $subImagePaths = [];
+
+            if ($request->hasFile('sub_images')) {
+
+                $subImageDirectory = public_path(
+                    'ItemsDesigner_Masterwithbarcode/' .
+                    $barcode .
+                    '/SubImgs'
+                );
+
+                if (!is_dir($subImageDirectory)) {
+
+                    mkdir(
+                        $subImageDirectory,
+                        0755,
+                        true
+                    );
+                }
+
+                foreach (
+                    $request->file('sub_images')
+                    as $image
+                ) {
+
+                    $fileName =
+                        \Illuminate\Support\Str::random(40) .
+                        '.' .
+                        strtolower(
+                            $image->getClientOriginalExtension()
+                        );
+
+                    $image->move(
+                        $subImageDirectory,
+                        $fileName
+                    );
+
+                    $subImagePaths[] =
+                        'ItemsDesigner_Masterwithbarcode/' .
+                        $barcode .
+                        '/SubImgs/' .
+                        $fileName;
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Update Image Paths
+            |--------------------------------------------------------------------------
+            */
+
+            if (!empty($mainImagePaths)) {
+
+                DB::table(
+                    'auto_traders_designer_specification_master'
+                )
+                    ->where('id', $nextId)
+                    ->update([
+                        'img_path' =>
+                            json_encode(
+                                $mainImagePaths,
+                                JSON_UNESCAPED_SLASHES
+                            )
+                    ]);
+            }
+
+            if (!empty($subImagePaths)) {
+
+                DB::table(
+                    'auto_traders_designer_specification_master'
+                )
+                    ->where('id', $nextId)
+                    ->update([
+                        'subimg_path' =>
+                            json_encode(
+                                $subImagePaths,
+                                JSON_UNESCAPED_SLASHES
+                            )
+                    ]);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Insert Buying Information
+            |--------------------------------------------------------------------------
+            |
+            | IMPORTANT:
+            | Related table uses PRODUCT id.
+            |
+            */
+
+            DB::table(
+                'auto_traders_designer_specification_buying'
+            )->insert([
+
+                'trader_specification_id' =>
+                    $nextId,
+
+                'purchase_bill_no' =>
+                    $validated['purchase_bill_no'] ?? null,
+
+                'purchase_date' =>
+                    $validated['purchase_date'] ?? null,
+
+                'trader_quantity' =>
+                    $validated['trader_quantity'],
+
+                'trader_gst_percent' =>
+                    $validated['trader_gst_percent'] ?? null,
+
+                'trader_discount' =>
+                    $validated['trader_discount'] ?? null,
+
+                'trader_payment_terms' =>
+                    $validated['trader_payment_terms'] ?? null,
+
+                'trader_reference' =>
+                    $validated['trader_reference'] ?? null,
+
+                'trader_notes' =>
+                    $validated['trader_notes'] ?? null,
+
+                'companyid' =>
+                    $companyId,
+
+                'subcompanyid' =>
+                    $subCompanyId,
+
+                'projectid' =>
+                    $projectId,
+
+                'loginid' =>
+                    $user->username ?? null,
+
+                'edatetime' =>
+                    now(),
+
+                'tedit' =>
+                    null,
             ]);
-        }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Return Result
+            |--------------------------------------------------------------------------
+            */
+
+            return [
+                'id' =>
+                    $nextId,
+
+                'barcode' =>
+                    $barcode,
+
+                'sku' =>
+                    $generatedSku,
+
+                'main_images' =>
+                    $mainImagePaths,
+
+                'sub_images' =>
+                    $subImagePaths,
+            ];
+        });
+
+        /*
+        |--------------------------------------------------------------------------
+        | Success
+        |--------------------------------------------------------------------------
+        */
+
+        return response()->json([
+
+            'success' => true,
+
+            'message' =>
+                'Trader Specification saved successfully.',
+
+            'id' =>
+                $result['id'],
+
+            'barcode' =>
+                $result['barcode'],
+
+            'sku' =>
+                $result['sku'],
+
+            'main_images' =>
+                $result['main_images'],
+
+            'sub_images' =>
+                $result['sub_images'],
+        ]);
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+
+        throw $e;
+
+    } catch (\Throwable $e) {
+
+        return response()->json([
+
+            'success' => false,
+
+            'message' =>
+                'Unable to save Trader Specification.',
+
+            'error' =>
+                config('app.debug')
+                    ? $e->getMessage()
+                    : null,
+
+        ], 500);
     }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Response
-    |--------------------------------------------------------------------------
-    */
-
-    return response()->json([
-
-        'success' => true,
-
-        'message' =>
-            'Design specification saved successfully.',
-
-        'id' =>
-            $insertId,
-
-        'barcode' =>
-            $barcode,
-    ]);
 }
 
     
         /**
-         * Update existing Design Specification.
+         * Update existing Trader Design Specification.
          *
          * IMPORTANT:
          * Barcode is NEVER regenerated during update.
          * Existing barcode remains unchanged.
          */
     /**
-     * Update an existing Design Specification.
+     * Update an existing Trader Design Specification.
      *
      * IMPORTANT:
      * - Barcode is NEVER regenerated.
@@ -3305,7 +3198,7 @@ private function generateProductSku(
         */
 
         $specification = DB::table(
-            'auto_designer_specification_master'
+            'auto_traders_designer_specification_master'
         )
             ->where(function ($query) use ($id) {
                 $query->where('sno', $id)
@@ -3319,7 +3212,7 @@ private function generateProductSku(
         if (!$specification) {
             return response()->json([
                 'success' => false,
-                'message' => 'Current design specification not found.'
+                'message' => 'Current trader design specification not found.'
             ], 404);
         }
 
@@ -3369,6 +3262,7 @@ private function generateProductSku(
             'designer_code' => 'nullable|string|max:100',
             'gender_code' => 'nullable|string|max:100',
             'composition_code' => 'nullable|string|max:100',
+            'yarn_code' => 'nullable|string|max:100',
             'colour_code' => 'nullable|string|max:100',
             'size_code' => 'nullable|string|max:100',
             'embellishment_code' => 'nullable|string|max:100',
@@ -3418,7 +3312,24 @@ private function generateProductSku(
             | AI
             |--------------------------------------------------------------------------
             */
-            'AI_product_name' => 'nullable|string',
+    
+        'trader_id' => 'required|integer',
+        'trader_name' => 'nullable|string|max:255',
+        'trader_sku' => 'nullable|string|max:255',
+        'purchase_bill_no' => 'nullable|string|max:255',
+        'purchase_date' => 'nullable|date',
+        'trader_quantity' => 'required|numeric|min:0.01',
+        'trader_buying_price' => 'required|numeric|min:0',
+        'trader_selling_price' => 'nullable|numeric|min:0',
+        'trader_mrp' => 'nullable|numeric|min:0',
+        'trader_min_selling_price' => 'nullable|numeric|min:0',
+        'trader_gst_percent' => 'nullable|numeric|min:0|max:100',
+        'trader_discount' => 'nullable|numeric|min:0',
+        'trader_payment_terms' => 'nullable|string|max:255',
+        'trader_reference' => 'nullable|string|max:500',
+        'trader_notes' => 'nullable|string|max:2000',
+
+        'AI_product_name' => 'nullable|string',
             'AI_product_description' => 'nullable|string',
             'AI_Metatitle' => 'nullable|string',
             'AI_Metakeywards' => 'nullable|string',
@@ -3426,6 +3337,19 @@ private function generateProductSku(
             'AI_Producttag' => 'nullable|string',
             'AI_Imagealttext' => 'nullable|string',
         ]);
+
+        $traderMaster = DB::table('auto_trader_master')
+            ->where('id', $validated['trader_id'])
+            ->first();
+
+        if (!$traderMaster) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Selected Trader does not exist.'
+            ], 422);
+        }
+
+        $validated['trader_name'] = $traderMaster->name;
 
 
         /*
@@ -3545,7 +3469,7 @@ private function generateProductSku(
             $craftsman = DB::table(
                 'auto_craftsman_master'
             )
-                ->where('sno', $validated['craftsman'])
+                ->where('id', $validated['craftsman'])
                 ->where('companyid', $companyId)
                 ->where('subcompanyid', $subCompanyId)
                 ->where('projectid', $projectId)
@@ -3645,7 +3569,7 @@ private function generateProductSku(
         if (!empty($supplierSku)) {
 
             $skuExists = DB::table(
-                'auto_designer_specification_master'
+                'auto_traders_designer_specification_master'
             )
                 ->where('sku_supplier', $supplierSku)
                 ->where('sno', '!=', $specification->sno)
@@ -3674,7 +3598,7 @@ private function generateProductSku(
         if ($barcodeChanged) {
 
             $barcodeExists = DB::table(
-                'auto_designer_specification_master'
+                'auto_traders_designer_specification_master'
             )
                 ->where('barcode', $newBarcode)
                 ->where('sno', '!=', $specification->sno)
@@ -3953,7 +3877,7 @@ private function generateProductSku(
         $price =
             $request->has('price')
                 ? ($validated['price'] ?? null)
-                : ($specification->price ?? null);
+                : ($specification->buying_price ?? null);
 
 
         $minPrice =
@@ -4015,6 +3939,38 @@ private function generateProductSku(
             'yarn' =>
                 $yarn,
 
+            'trader_id' =>
+                $validated['trader_id'],
+
+            'trader_name' =>
+                $validated['trader_name'],
+            'trader_sku' =>
+                $validated['trader_sku'] ?? null,
+            'purchase_bill_no' =>
+                $validated['purchase_bill_no'] ?? null,
+            'purchase_date' =>
+                $validated['purchase_date'] ?? null,
+            'trader_quantity' =>
+                $validated['trader_quantity'],
+            'trader_buying_price' =>
+                $validated['trader_buying_price'],
+            'trader_selling_price' =>
+                $validated['trader_selling_price'] ?? null,
+            'trader_mrp' =>
+                $validated['trader_mrp'] ?? null,
+            'trader_min_selling_price' =>
+                $validated['trader_min_selling_price'] ?? null,
+            'trader_gst_percent' =>
+                $validated['trader_gst_percent'] ?? null,
+            'trader_discount' =>
+                $validated['trader_discount'] ?? null,
+            'trader_payment_terms' =>
+                $validated['trader_payment_terms'] ?? null,
+            'trader_reference' =>
+                $validated['trader_reference'] ?? null,
+            'trader_notes' =>
+                $validated['trader_notes'] ?? null,
+
             'manufacturing_process' =>
                 $validated['manufacturing_process'] ?? 0,
 
@@ -4054,14 +4010,17 @@ private function generateProductSku(
             |--------------------------------------------------------------------------
             */
 
-            'price' =>
-                $price,
+            'buying_price' =>
+
+                $validated['trader_buying_price'],
 
             'min_price' =>
-                $minPrice,
+
+                $validated['trader_min_selling_price'] ?? null,
 
             'sale_price' =>
-                $salePrice,
+
+                $validated['trader_selling_price'] ?? null,
 
             /*
             |--------------------------------------------------------------------------
@@ -4164,10 +4123,31 @@ private function generateProductSku(
             */
 
             DB::table(
-                'auto_designer_specification_master'
+                'auto_traders_designer_specification_master'
             )
                 ->where('sno', $specification->sno)
                 ->update($commonData);
+
+            DB::table('auto_traders_designer_specification_buying')
+                ->updateOrInsert(
+                    ['trader_specification_id' => $specification->id],
+                    [
+                        'purchase_bill_no' => $validated['purchase_bill_no'] ?? null,
+                        'purchase_date' => $validated['purchase_date'] ?? null,
+                        'trader_quantity' => $validated['trader_quantity'],
+                        'trader_gst_percent' => $validated['trader_gst_percent'] ?? null,
+                        'trader_discount' => $validated['trader_discount'] ?? null,
+                        'trader_payment_terms' => $validated['trader_payment_terms'] ?? null,
+                        'trader_reference' => $validated['trader_reference'] ?? null,
+                        'trader_notes' => $validated['trader_notes'] ?? null,
+                        'companyid' => $companyId,
+                        'subcompanyid' => $subCompanyId,
+                        'projectid' => $projectId,
+                        'loginid' => $user->username ?? null,
+                        'edatetime' => now(),
+                        'tedit' => null,
+                    ]
+                );
 
 
             /*
@@ -4313,7 +4293,7 @@ private function generateProductSku(
 
 
                         DB::table(
-                            'auto_designer_specification_master'
+                            'auto_traders_designer_specification_master'
                         )
                             ->where(
                                 'sno',
@@ -4363,7 +4343,7 @@ private function generateProductSku(
                     true,
 
                 'message' =>
-                    'Design specification updated successfully.',
+                    'Trader design specification updated successfully.',
 
                 'id' =>
                     $specification->sno,
@@ -4401,7 +4381,7 @@ private function generateProductSku(
 
         $historyId =
             DB::table(
-                'auto_designer_specification_history'
+                'trader_designer_specification_history'
             )
             ->insertGetId([
 
@@ -4437,7 +4417,7 @@ private function generateProductSku(
         */
 
         DB::table(
-            'auto_designer_specification_master'
+            'auto_traders_designer_specification_master'
         )
             ->where(
                 'sno',
@@ -4462,7 +4442,7 @@ private function generateProductSku(
 
         $nextId =
             ((int) DB::table(
-                'auto_designer_specification_master'
+                'auto_traders_designer_specification_master'
             )->max('id')) + 1;
 
 
@@ -4584,6 +4564,38 @@ private function generateProductSku(
             'yarn' =>
                 $yarn,
 
+            'trader_id' =>
+                $validated['trader_id'],
+
+            'trader_name' =>
+                $validated['trader_name'],
+            'trader_sku' =>
+                $validated['trader_sku'] ?? null,
+            'purchase_bill_no' =>
+                $validated['purchase_bill_no'] ?? null,
+            'purchase_date' =>
+                $validated['purchase_date'] ?? null,
+            'trader_quantity' =>
+                $validated['trader_quantity'],
+            'trader_buying_price' =>
+                $validated['trader_buying_price'],
+            'trader_selling_price' =>
+                $validated['trader_selling_price'] ?? null,
+            'trader_mrp' =>
+                $validated['trader_mrp'] ?? null,
+            'trader_min_selling_price' =>
+                $validated['trader_min_selling_price'] ?? null,
+            'trader_gst_percent' =>
+                $validated['trader_gst_percent'] ?? null,
+            'trader_discount' =>
+                $validated['trader_discount'] ?? null,
+            'trader_payment_terms' =>
+                $validated['trader_payment_terms'] ?? null,
+            'trader_reference' =>
+                $validated['trader_reference'] ?? null,
+            'trader_notes' =>
+                $validated['trader_notes'] ?? null,
+
             'manufacturing_process' =>
                 $validated['manufacturing_process'] ?? 0,
 
@@ -4680,14 +4692,17 @@ private function generateProductSku(
             |--------------------------------------------------------------------------
             */
 
-            'price' =>
-                $price,
+            'buying_price' =>
+
+                $validated['trader_buying_price'],
 
             'min_price' =>
-                $minPrice,
+
+                $validated['trader_min_selling_price'] ?? null,
 
             'sale_price' =>
-                $salePrice,
+
+                $validated['trader_selling_price'] ?? null,
 
             /*
             |--------------------------------------------------------------------------
@@ -4745,11 +4760,30 @@ private function generateProductSku(
 
         $newSno =
             DB::table(
-                'auto_designer_specification_master'
+                'auto_traders_designer_specification_master'
             )
             ->insertGetId(
                 $newRowData
             );
+
+        DB::table('auto_traders_designer_specification_buying')
+            ->insert([
+                'trader_specification_id' => $nextId,
+                'purchase_bill_no' => $validated['purchase_bill_no'] ?? null,
+                'purchase_date' => $validated['purchase_date'] ?? null,
+                'trader_quantity' => $validated['trader_quantity'],
+                'trader_gst_percent' => $validated['trader_gst_percent'] ?? null,
+                'trader_discount' => $validated['trader_discount'] ?? null,
+                'trader_payment_terms' => $validated['trader_payment_terms'] ?? null,
+                'trader_reference' => $validated['trader_reference'] ?? null,
+                'trader_notes' => $validated['trader_notes'] ?? null,
+                'companyid' => $companyId,
+                'subcompanyid' => $subCompanyId,
+                'projectid' => $projectId,
+                'loginid' => $user->username ?? null,
+                'edatetime' => now(),
+                'tedit' => null,
+            ]);
 
 
         /*
@@ -4759,7 +4793,7 @@ private function generateProductSku(
         */
 
         DB::table(
-            'auto_designer_specification_history'
+            'trader_designer_specification_history'
         )
             ->where(
                 'sno',
@@ -4968,7 +5002,7 @@ private function generateProductSku(
 
 
             DB::table(
-                'auto_designer_specification_master'
+                'auto_traders_designer_specification_master'
             )
                 ->where(
                     'sno',
@@ -5016,7 +5050,7 @@ private function generateProductSku(
                 true,
 
             'message' =>
-                'Design specification updated successfully. Old version saved in history.',
+                'Trader design specification updated successfully. Old version saved in history.',
 
             'id' =>
                 $newSno,
@@ -5108,7 +5142,7 @@ private function generateProductSku(
 
         $exists =
             DB::table($table)
-                ->where('sno', $sno)
+                ->where('id', $sno)
                 ->where('companyid', $companyId)
                 ->where('subcompanyid', $subCompanyId)
                 ->where('projectid', $projectId)
