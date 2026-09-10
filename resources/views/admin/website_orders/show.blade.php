@@ -5,53 +5,73 @@
 @section('content')
 <div class="container-fluid py-3 px-3 px-md-4">
 
-    {{-- HEADER BAR --}}
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    {{-- TOP ACTION & NAVIGATION HEADER --}}
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2 pb-3 border-bottom">
         <div class="d-flex align-items-center gap-3">
-            <a href="{{ route('admin.website-orders.index') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 shadow-xs">
+            <a href="{{ route('admin.website-orders.index') }}" class="btn btn-sm btn-outline-secondary rounded-2">
                 <i class="bi bi-arrow-left me-1"></i> Back to Orders
             </a>
-            <div>
-                <div class="d-flex align-items-center gap-2">
-                    <h4 class="fw-bold text-dark mb-0">Order #{{ $orderData['order_number'] }}</h4>
-                    @php
-                        $s = strtolower($orderData['status'] ?? 'pending');
-                        $badgeClass = 'bg-secondary text-white';
-                        if ($s === 'processing') $badgeClass = 'bg-primary text-white';
-                        elseif ($s === 'completed') $badgeClass = 'bg-success text-white';
-                        elseif ($s === 'pending') $badgeClass = 'bg-info text-dark';
-                        elseif ($s === 'on-hold') $badgeClass = 'bg-warning text-dark';
-                        elseif ($s === 'cancelled' || $s === 'failed') $badgeClass = 'bg-danger text-white';
-                        elseif ($s === 'refunded') $badgeClass = 'bg-dark text-white';
-                    @endphp
-                    <span class="badge {{ $badgeClass }} rounded-pill px-3 py-1.5 text-capitalize fw-semibold fs-8">
-                        {{ $orderData['status'] }}
-                    </span>
-                </div>
-                <div class="text-muted small mt-1">
-                    <span><i class="bi bi-calendar3 me-1"></i> Placed on {{ $orderData['date_created'] }}</span>
-                    <span class="mx-2">•</span>
-                    <span><i class="bi bi-shop me-1"></i> Store: <strong class="text-dark">{{ $orderData['selling_supplier_name'] }}</strong></span>
-                    @if(!empty($orderData['selling_supplier_url']))
-                        <a href="{{ $orderData['selling_supplier_url'] }}" target="_blank" rel="noopener noreferrer" class="text-primary text-decoration-none ms-1">
-                            <i class="bi bi-box-arrow-up-right fs-8"></i>
-                        </a>
-                    @endif
-                </div>
+            <div class="d-flex align-items-center gap-2">
+                <h4 class="fw-bold text-dark mb-0">Order #{{ $orderData['order_number'] }}</h4>
+                @php
+                    $s = strtolower(trim($orderData['status'] ?? 'order confirmed'));
+                    $badgeClass = 'bg-secondary-subtle text-secondary border border-secondary-subtle';
+                    $icon = 'bi-circle';
+                    $statusLabel = $orderData['status'];
+
+                    if (in_array($s, ['order confirmed', 'order_confirmed', 'processing'])) {
+                        $badgeClass = 'bg-primary-subtle text-primary border border-primary-subtle';
+                        $icon = 'bi-check2-circle';
+                        $statusLabel = 'Order confirmed';
+                    } elseif ($s === 'shipped') {
+                        $badgeClass = 'bg-info-subtle text-info-emphasis border border-info-subtle';
+                        $icon = 'bi-truck';
+                        $statusLabel = 'Shipped';
+                    } elseif (in_array($s, ['delivered', 'completed'])) {
+                        $badgeClass = 'bg-success-subtle text-success border border-success-subtle';
+                        $icon = 'bi-box2-heart';
+                        $statusLabel = 'Delivered';
+                    } elseif ($s === 'cancelled' || $s === 'failed') {
+                        $badgeClass = 'bg-danger-subtle text-danger border border-danger-subtle';
+                        $icon = 'bi-x-circle';
+                    }
+                @endphp
+                <span class="badge {{ $badgeClass }} rounded-pill px-3 py-1.5 fw-semibold d-inline-flex align-items-center gap-1">
+                    <i class="bi {{ $icon }}"></i> {{ $statusLabel }}
+                </span>
             </div>
         </div>
 
         <div class="d-flex align-items-center gap-2">
-            {{-- EMAIL TO SUPPLIER BUTTON --}}
-            <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 shadow-xs fw-semibold" data-bs-toggle="modal" data-bs-target="#emailSupplierModal">
-                <i class="bi bi-envelope-paper me-1.5"></i> Email to Supplier
+            <button type="button" class="btn btn-sm btn-primary rounded-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#updateStatusModal">
+                <i class="bi bi-pencil-square me-1"></i> Update Status & Shipping
             </button>
-
-            <button class="btn btn-outline-dark btn-sm rounded-pill px-3 shadow-xs" onclick="window.print()">
-                <i class="bi bi-printer me-1"></i> Print Order
+            <button type="button" class="btn btn-sm btn-outline-primary rounded-2" data-bs-toggle="modal" data-bs-target="#emailSupplierModal">
+                <i class="bi bi-envelope me-1"></i> Email Supplier
+            </button>
+            <button class="btn btn-sm btn-outline-secondary rounded-2" onclick="window.print()">
+                <i class="bi bi-printer me-1"></i> Print
             </button>
         </div>
     </div>
+
+    {{-- ALERTS --}}
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show rounded-2 py-2 px-3 mb-3 small" role="alert">
+            <i class="bi bi-check2-circle me-1"></i> {{ session('success') }}
+            <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+    @if(isset($errors) && $errors->any())
+        <div class="alert alert-danger alert-dismissible fade show rounded-2 py-2 px-3 mb-3 small" role="alert">
+            <ul class="mb-0 ps-3">
+                @foreach($errors->all() as $err)
+                    <li>{{ $err }}</li>
+                @endforeach
+            </ul>
+            <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
 
     @php
         $b = $orderData['billing'] ?? [];
@@ -59,8 +79,8 @@
         $custName = trim(($b['first_name'] ?? '') . ' ' . ($b['last_name'] ?? '')) 
             ?: trim(($s['first_name'] ?? '') . ' ' . ($s['last_name'] ?? '')) 
             ?: 'Customer';
-        $phone = $b['phone'] ?? ($s['phone'] ?? null);
-        $email = $b['email'] ?? null;
+        $phone = $b['phone'] ?? ($s['phone'] ?? '—');
+        $email = $b['email'] ?? ($orderData['customer_email'] ?? '—');
 
         $shipName = trim(($s['first_name'] ?? '') . ' ' . ($s['last_name'] ?? '')) ?: $custName;
         $address1 = $s['address_1'] ?? ($b['address_1'] ?? '');
@@ -69,206 +89,226 @@
         $state = $s['state'] ?? ($b['state'] ?? '');
         $postcode = $s['postcode'] ?? ($b['postcode'] ?? '');
         $country = $s['country'] ?? ($b['country'] ?? '');
+        $fullAddress = trim("{$address1} {$address2}, {$city}, {$state} {$postcode}, {$country}", " ,");
     @endphp
 
-    {{-- ROW 1: CUSTOMER & SHIPPING CARDS --}}
-    <div class="row g-3 mb-3">
-        {{-- CUSTOMER DETAILS CARD --}}
-        <div class="col-md-6">
-            <div class="card border shadow-xs rounded-3 bg-white h-100">
-                <div class="card-body p-3.5">
-                    <h6 class="fw-bold text-dark mb-3 d-flex align-items-center text-uppercase fs-7 text-secondary" style="letter-spacing: 0.05em;">
-                        <i class="bi bi-person-circle text-primary me-2 fs-6"></i> Customer Details
-                    </h6>
+    {{-- 3-COLUMN SUMMARY CARD (ONE VIEW AT A GLANCE) --}}
+    <div class="row g-3 mb-4">
+        {{-- 1. ORDER & CUSTOMER INFO --}}
+        <div class="col-md-4">
+            <div class="card border rounded-3 bg-white h-100 shadow-2xs">
+                <div class="card-header bg-light py-2 px-3 border-bottom">
+                    <span class="fw-bold text-dark small text-uppercase" style="letter-spacing: 0.05em;">
+                        <i class="bi bi-person me-1.5 text-primary"></i> Customer Details
+                    </span>
+                </div>
+                <div class="card-body p-3">
+                    <table class="table table-sm table-borderless mb-0 small">
+                        <tr>
+                            <td class="text-muted ps-0" style="width: 100px;">Name:</td>
+                            <td class="fw-semibold text-dark">{{ $custName }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted ps-0">Phone:</td>
+                            <td class="text-dark">{{ $phone }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted ps-0">Email:</td>
+                            <td class="text-dark text-break">{{ $email }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted ps-0">Payment:</td>
+                            <td>
+                                <span class="badge bg-light text-dark border">{{ $orderData['payment_method'] }}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted ps-0">Store:</td>
+                            <td class="text-dark fw-medium">{{ $orderData['selling_supplier_name'] }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted ps-0">Order Date:</td>
+                            <td class="text-dark">{{ $orderData['date_created'] }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
 
-                    <div class="fw-bold text-dark fs-6 mb-2">{{ $custName }}</div>
-
-                    <div class="d-flex flex-column gap-2 text-muted small">
-                        <div class="d-flex align-items-center">
-                            <span class="text-secondary" style="width: 120px;"><i class="bi bi-envelope me-1.5 text-muted"></i> Email:</span>
-                            @if(!empty($email))
-                                <a href="mailto:{{ $email }}" class="text-dark fw-medium text-decoration-none">{{ $email }}</a>
-                            @else
-                                <span class="text-muted fst-italic">Not provided</span>
-                            @endif
-                        </div>
-
-                        <div class="d-flex align-items-center">
-                            <span class="text-secondary" style="width: 120px;"><i class="bi bi-telephone me-1.5 text-muted"></i> Phone:</span>
-                            @if(!empty($phone))
-                                <a href="tel:{{ $phone }}" class="text-dark fw-medium text-decoration-none">{{ $phone }}</a>
-                            @else
-                                <span class="text-muted fst-italic">Not provided</span>
-                            @endif
-                        </div>
-
-                        <div class="d-flex align-items-center">
-                            <span class="text-secondary" style="width: 120px;"><i class="bi bi-credit-card me-1.5 text-muted"></i> Payment:</span>
-                            <span class="badge bg-light text-dark border fw-medium px-2 py-1">
-                                {{ $orderData['payment_method'] }}
-                            </span>
-                        </div>
-
-                        @if(!empty($orderData['transaction_id']) && $orderData['transaction_id'] !== '—')
-                            <div class="d-flex align-items-center">
-                                <span class="text-secondary" style="width: 120px;"><i class="bi bi-hash me-1.5 text-muted"></i> Txn ID:</span>
-                                <span class="font-monospace text-dark">{{ $orderData['transaction_id'] }}</span>
-                            </div>
-                        @endif
+        {{-- 2. DELIVERY ADDRESS --}}
+        <div class="col-md-4">
+            <div class="card border rounded-3 bg-white h-100 shadow-2xs">
+                <div class="card-header bg-light py-2 px-3 border-bottom">
+                    <span class="fw-bold text-dark small text-uppercase" style="letter-spacing: 0.05em;">
+                        <i class="bi bi-geo-alt me-1.5 text-primary"></i> Delivery Address
+                    </span>
+                </div>
+                <div class="card-body p-3">
+                    <div class="fw-semibold text-dark mb-1">{{ $shipName }}</div>
+                    <div class="text-secondary small lh-base mb-2">
+                        @if(!empty($address1)) <div>{{ $address1 }}</div> @endif
+                        @if(!empty($address2)) <div>{{ $address2 }}</div> @endif
+                        <div>{{ $city }}@if(!empty($city) && !empty($state)), @endif{{ $state }} {{ $postcode }}</div>
+                        <div class="text-muted">{{ $country ?: 'India' }}</div>
                     </div>
 
                     @if(!empty($orderData['customer_note']))
-                        <div class="mt-3 p-2.5 rounded-2 bg-light border small text-dark">
-                            <strong class="text-secondary d-block mb-0.5"><i class="bi bi-chat-left-text me-1"></i> Customer Note:</strong>
-                            {{ $orderData['customer_note'] }}
+                        <div class="mt-2 pt-2 border-top small">
+                            <span class="text-muted d-block fw-semibold">Note:</span>
+                            <span class="text-dark">{{ $orderData['customer_note'] }}</span>
                         </div>
                     @endif
                 </div>
             </div>
         </div>
 
-        {{-- SHIPPING DETAILS CARD --}}
-        <div class="col-md-6">
-            <div class="card border shadow-xs rounded-3 bg-white h-100">
-                <div class="card-body p-3.5">
-                    <h6 class="fw-bold text-dark mb-3 d-flex align-items-center text-uppercase fs-7 text-secondary" style="letter-spacing: 0.05em;">
-                        <i class="bi bi-truck text-primary me-2 fs-6"></i> Shipping Details
-                    </h6>
-
-                    <div class="fw-bold text-dark fs-6 mb-2">{{ $shipName }}</div>
-
-                    <div class="text-dark small lh-base mb-3">
-                        @if(!empty($address1)) <div>{{ $address1 }}</div> @endif
-                        @if(!empty($address2)) <div>{{ $address2 }}</div> @endif
-                        <div>
-                            <strong>{{ $city }}</strong>@if(!empty($city) && !empty($state)), @endif{{ $state }} {{ $postcode }}
+        {{-- 3. SHIPPING & TRACKING DETAILS (ADMIN FILLED) --}}
+        <div class="col-md-4">
+            <div class="card border rounded-3 bg-white h-100 shadow-2xs">
+                @php
+                    $isOrderDelivered = strtolower(trim($orderData['status'])) === 'delivered';
+                    $isOrderConfirmed = in_array(strtolower(trim($orderData['status'])), ['order confirmed', 'order_confirmed', 'processing']);
+                    $hasTracking = !empty($orderData['tracking_id']) || !empty($orderData['courier_name']);
+                @endphp
+                <div class="card-header bg-light py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+                    <span class="fw-bold text-dark small text-uppercase" style="letter-spacing: 0.05em;">
+                        <i class="bi {{ $isOrderDelivered ? 'bi-check2-circle text-success' : 'bi-truck text-primary' }} me-1.5"></i>
+                        {{ $isOrderDelivered ? 'Delivery & Shipment' : 'Shipping & Tracking' }}
+                    </span>
+                    <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none small text-primary" data-bs-toggle="modal" data-bs-target="#updateStatusModal">
+                        Edit
+                    </button>
+                </div>
+                <div class="card-body p-3">
+                    @if($isOrderConfirmed && !$hasTracking)
+                        <div class="py-2 text-center text-muted small">
+                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle mb-2 px-2 py-1">
+                                <i class="bi bi-hourglass-split me-1"></i> Awaiting Dispatch
+                            </span>
+                            <p class="mb-0 text-secondary" style="font-size: 0.8rem;">Courier partner and tracking ID can be assigned when the order is shipped.</p>
                         </div>
-                        <div class="text-muted">{{ $country ?: 'India' }}</div>
-                    </div>
-
-                    <div class="pt-2 border-top d-flex justify-content-between align-items-center text-muted small">
-                        <span><i class="bi bi-box-seam me-1 text-muted"></i> Shipping Method:</span>
-                        <span class="fw-medium text-dark">
-                            {{ $orderData['shipping_lines'][0]['method_title'] ?? 'Standard Delivery' }}
-                            ({{ $orderData['shipping_total'] > 0 ? ($orderData['currency_symbol'] . number_format($orderData['shipping_total'], 2)) : 'Free' }})
-                        </span>
-                    </div>
+                    @else
+                        @if($isOrderDelivered)
+                            <div class="mb-2">
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                    <i class="bi bi-check-circle-fill me-1"></i> Delivered Successfully
+                                </span>
+                            </div>
+                        @endif
+                        <table class="table table-sm table-borderless mb-0 small">
+                            <tr>
+                                <td class="text-muted ps-0" style="width: 110px;">Courier:</td>
+                                <td class="fw-semibold text-dark">
+                                    {{ $orderData['courier_name'] ?: ($isOrderDelivered ? 'Direct / In-person' : 'Not assigned') }}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted ps-0">AWB / Tracking:</td>
+                                <td>
+                                    @if(!empty($orderData['tracking_id']))
+                                        <span class="fw-bold font-monospace text-dark">{{ $orderData['tracking_id'] }}</span>
+                                        @if(!empty($orderData['tracking_url']))
+                                            <a href="{{ $orderData['tracking_url'] }}" target="_blank" class="ms-1 text-primary text-decoration-none">
+                                                <i class="bi bi-box-arrow-up-right"></i> Track
+                                            </a>
+                                        @endif
+                                    @else
+                                        <span class="text-muted fst-italic">{{ $isOrderDelivered ? 'Completed' : 'Not added' }}</span>
+                                    @endif
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted ps-0">{{ $isOrderDelivered ? 'Dispatched:' : 'Shipped Date:' }}</td>
+                                <td class="text-dark">
+                                    {{ $orderData['shipped_at_formatted'] ?: '—' }}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted ps-0">Shipping Note:</td>
+                                <td class="text-dark">
+                                    {{ $orderData['shipping_notes'] ?: '—' }}
+                                </td>
+                            </tr>
+                        </table>
+                    @endif
                 </div>
             </div>
         </div>
     </div>
 
-    {{-- ROW 2: ORDER DETAILS & PRODUCTS CARD --}}
-    <div class="card border shadow-xs rounded-3 bg-white mb-4">
-        <div class="card-header bg-white py-3 px-3.5 border-bottom d-flex justify-content-between align-items-center">
-            <h6 class="fw-bold text-dark mb-0 d-flex align-items-center text-uppercase fs-7 text-secondary" style="letter-spacing: 0.05em;">
-                <i class="bi bi-bag-check text-primary me-2 fs-6"></i> Order Items & Payment Details
-            </h6>
-            <span class="badge bg-light text-secondary border">
+    {{-- ORDERED ITEMS TABLE --}}
+    <div class="card border rounded-3 bg-white mb-4 shadow-2xs">
+        <div class="card-header bg-light py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+            <span class="fw-bold text-dark small text-uppercase" style="letter-spacing: 0.05em;">
+                <i class="bi bi-box-seam me-1.5 text-primary"></i> Ordered Items
+            </span>
+            <span class="badge bg-white text-secondary border">
                 {{ count($orderData['line_items']) }} {{ count($orderData['line_items']) === 1 ? 'Item' : 'Items' }}
             </span>
         </div>
-
-        <div class="card-body p-3.5">
-            {{-- PRODUCTS TABLE --}}
+        <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table align-middle mb-0">
-                    <thead class="table-light text-secondary small text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.05em;">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light small text-uppercase text-secondary" style="font-size: 0.72rem;">
                         <tr>
-                            <th style="width: 60px;">Image</th>
-                            <th>Product</th>
-                            <th style="min-width: 160px;">Manufacturer / Origin</th>
+                            <th class="ps-3" style="width: 40px;">#</th>
+                            <th>Product Name</th>
+                            <th>SKU</th>
+                            <th>Manufacturer / Origin</th>
                             <th class="text-center" style="width: 100px;">Price</th>
-                            <th class="text-center" style="width: 70px;">Qty</th>
-                            <th class="text-end" style="width: 110px;">Total</th>
+                            <th class="text-center" style="width: 80px;">Qty</th>
+                            <th class="text-end pe-3" style="width: 120px;">Total</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        @forelse($orderData['line_items'] as $item)
+                    <tbody class="small">
+                        @forelse($orderData['line_items'] as $idx => $item)
                             <tr>
-                                {{-- Thumbnail --}}
-                                <td>
-                                    @php
-                                        $imgUrl = $item['resolved_image'] ?: ($item['image']['src'] ?? null);
-                                    @endphp
-                                    @if(!empty($imgUrl))
-                                        <a href="{{ $imgUrl }}" target="_blank" rel="noopener noreferrer">
-                                            <img src="{{ $imgUrl }}" class="rounded-2 border" style="width: 48px; height: 48px; object-fit: cover;" alt="Product">
-                                        </a>
-                                    @else
-                                        <div class="rounded-2 border bg-light d-flex align-items-center justify-content-center text-muted" style="width: 48px; height: 48px;">
-                                            <i class="bi bi-image fs-5"></i>
-                                        </div>
-                                    @endif
-                                </td>
-
-                                {{-- Product Name & Attributes --}}
+                                <td class="ps-3 text-muted">{{ $idx + 1 }}</td>
                                 <td>
                                     <div class="fw-semibold text-dark">{{ $item['name'] }}</div>
-                                    <div class="d-flex flex-wrap gap-1 align-items-center mt-0.5">
-                                        @if(!empty($item['resolved_sku']) && $item['resolved_sku'] !== '—')
-                                            <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.7rem;">
-                                                SKU: {{ $item['resolved_sku'] }}
-                                            </span>
-                                        @endif
-                                        @if(!empty($item['barcode']))
-                                            <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.7rem;">
-                                                Barcode: {{ $item['barcode'] }}
-                                            </span>
-                                        @endif
-                                        @if(!empty($item['colour']))
-                                            <span class="badge bg-light text-secondary border" style="font-size: 0.7rem;">
-                                                {{ $item['colour'] }}
-                                            </span>
-                                        @endif
-                                        @if(!empty($item['size']))
-                                            <span class="badge bg-light text-secondary border" style="font-size: 0.7rem;">
-                                                {{ $item['size'] }}
-                                            </span>
-                                        @endif
-                                    </div>
+                                    @php
+                                        $attrs = [];
+                                        if(!empty($item['colour'])) $attrs[] = $item['colour'];
+                                        if(!empty($item['size'])) $attrs[] = 'Size: ' . $item['size'];
+                                    @endphp
+                                    @if(count($attrs) > 0)
+                                        <div class="text-muted" style="font-size: 0.75rem;">{{ implode(' • ', $attrs) }}</div>
+                                    @endif
                                 </td>
-
-                                {{-- Origin / Spec --}}
                                 <td>
-                                    <div class="text-dark small fw-medium">
-                                        {{ $item['origin_supplier_name'] ?: 'Global / In-house' }}
-                                    </div>
+                                    <span class="font-monospace text-dark">{{ $item['resolved_sku'] ?: ($item['sku'] ?: '—') }}</span>
+                                </td>
+                                <td>
+                                    <span class="text-dark">{{ $item['origin_supplier_name'] ?: 'In-house' }}</span>
                                     @if(!empty($item['spec_id']))
-                                        <a href="{{ route('admin.publish-products.show', $item['spec_id']) }}" class="text-primary text-decoration-none small" target="_blank">
-                                            <i class="bi bi-link-45deg"></i> Spec #{{ $item['spec_id'] }}
+                                        <a href="{{ route('admin.publish-products.show', $item['spec_id']) }}" target="_blank" class="ms-1 text-primary text-decoration-none" title="View Specification">
+                                            <i class="bi bi-box-arrow-up-right" style="font-size: 0.75rem;"></i>
                                         </a>
                                     @endif
                                 </td>
-
-                                {{-- Price --}}
-                                <td class="text-center font-monospace small">
+                                <td class="text-center font-monospace">
                                     {{ $orderData['currency_symbol'] }}{{ number_format($item['price'] ?? 0, 2) }}
                                 </td>
-
-                                {{-- Quantity --}}
-                                <td class="text-center fw-bold small">
+                                <td class="text-center fw-bold">
                                     {{ $item['quantity'] ?? 1 }}
                                 </td>
-
-                                {{-- Total --}}
-                                <td class="text-end font-monospace fw-bold text-dark">
+                                <td class="text-end pe-3 font-monospace fw-bold text-dark">
                                     {{ $orderData['currency_symbol'] }}{{ number_format($item['total'] ?? 0, 2) }}
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center py-3 text-muted">No items found.</td>
+                                <td colspan="7" class="text-center py-3 text-muted">No items in this order.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
 
-            {{-- TOTALS SUMMARY (Right Aligned, Crisp & Clean) --}}
-            <div class="d-flex justify-content-end mt-3 pt-3 border-top">
-                <div style="min-width: 260px;">
-                    <div class="d-flex justify-content-between text-muted small mb-1.5">
+            {{-- TOTALS SUMMARY --}}
+            <div class="d-flex justify-content-end p-3 border-top bg-light-subtle">
+                <div style="min-width: 260px;" class="small">
+                    <div class="d-flex justify-content-between text-muted mb-1">
                         <span>Subtotal:</span>
                         <span class="font-monospace text-dark fw-medium">
                             {{ $orderData['currency_symbol'] }}{{ number_format($orderData['subtotal'], 2) }}
@@ -276,7 +316,7 @@
                     </div>
 
                     @if($orderData['discount_total'] > 0)
-                        <div class="d-flex justify-content-between text-success small mb-1.5">
+                        <div class="d-flex justify-content-between text-success mb-1">
                             <span>Discount:</span>
                             <span class="font-monospace fw-medium">
                                 -{{ $orderData['currency_symbol'] }}{{ number_format($orderData['discount_total'], 2) }}
@@ -284,7 +324,7 @@
                         </div>
                     @endif
 
-                    <div class="d-flex justify-content-between text-muted small mb-1.5">
+                    <div class="d-flex justify-content-between text-muted mb-1">
                         <span>Shipping:</span>
                         <span class="font-monospace text-dark fw-medium">
                             {{ $orderData['shipping_total'] > 0 ? ($orderData['currency_symbol'] . number_format($orderData['shipping_total'], 2)) : 'Free' }}
@@ -292,7 +332,7 @@
                     </div>
 
                     @if($orderData['total_tax'] > 0)
-                        <div class="d-flex justify-content-between text-muted small mb-1.5">
+                        <div class="d-flex justify-content-between text-muted mb-1">
                             <span>Tax:</span>
                             <span class="font-monospace text-dark fw-medium">
                                 {{ $orderData['currency_symbol'] }}{{ number_format($orderData['total_tax'], 2) }}
@@ -300,7 +340,7 @@
                         </div>
                     @endif
 
-                    <div class="d-flex justify-content-between align-items-center pt-2 mt-2 border-top">
+                    <div class="d-flex justify-content-between align-items-center pt-2 mt-1 border-top">
                         <span class="fw-bold text-dark fs-6">Grand Total:</span>
                         <span class="fw-bold text-primary fs-5 font-monospace">
                             {{ $orderData['currency_symbol'] }}{{ number_format($orderData['total'], 2) }}
@@ -308,129 +348,233 @@
                     </div>
                 </div>
             </div>
-
         </div>
     </div>
 
-    {{-- WEBHOOK PAYLOAD (COLLAPSED BY DEFAULT) --}}
-    <div class="accordion accordion-flush" id="accWebhook">
-        <div class="accordion-item border-0 bg-transparent">
-            <h2 class="accordion-header" id="headingOne">
-                <button class="accordion-button collapsed bg-transparent text-muted small p-0 py-2 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
-                    <i class="bi bi-code-slash me-1"></i> View Raw Webhook JSON
-                </button>
-            </h2>
-            <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#accWebhook">
-                <div class="accordion-body p-3 bg-white border rounded-3 mt-2">
-                    <pre class="bg-dark text-white p-3 rounded-2 small mb-0 font-monospace" style="max-height: 250px; overflow-y: auto;"><code>{{ json_encode($orderData['raw_payload'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</code></pre>
-                </div>
+    {{-- ACTIVITY & AUDIT LOG (SIMPLE TABLE) --}}
+    @if(isset($orderData['histories']) && count($orderData['histories']) > 0)
+    <div class="card border rounded-3 bg-white mb-4 shadow-2xs">
+        <div class="card-header bg-light py-2 px-3 border-bottom">
+            <span class="fw-bold text-dark small text-uppercase" style="letter-spacing: 0.05em;">
+                <i class="bi bi-clock-history me-1.5 text-primary"></i> Order Activity & History Log
+            </span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0 small">
+                    <thead class="table-light text-secondary text-uppercase" style="font-size: 0.72rem;">
+                        <tr>
+                            <th class="ps-3" style="width: 170px;">Date & Time</th>
+                            <th style="width: 180px;">Action / Status</th>
+                            <th style="width: 160px;">Updated By</th>
+                            <th>Remark / Comment</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($orderData['histories'] as $history)
+                            <tr>
+                                <td class="ps-3 text-muted">
+                                    {{ $history->created_at ? $history->created_at->format('d M Y, h:i A') : '—' }}
+                                </td>
+                                <td class="fw-semibold text-dark">
+                                    {{ $history->action ?: 'Order Updated' }}
+                                </td>
+                                <td>
+                                    <span class="text-secondary">{{ $history->user_name }}</span>
+                                </td>
+                                <td class="text-dark">
+                                    {{ $history->comment ?: '—' }}
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- RAW WEBHOOK PAYLOAD COLLAPSED (OPTIONAL) --}}
+    <div class="mb-3">
+        <a class="text-muted small text-decoration-none" data-bs-toggle="collapse" href="#collapseRawJson" role="button" aria-expanded="false">
+            <i class="bi bi-chevron-right me-1"></i> View Raw Webhook JSON
+        </a>
+        <div class="collapse mt-2" id="collapseRawJson">
+            <pre class="bg-dark text-white p-3 rounded-2 small mb-0 font-monospace" style="max-height: 220px; overflow-y: auto;"><code>{{ json_encode($orderData['raw_payload'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</code></pre>
         </div>
     </div>
 
 </div>
 
-<style>
-    #emailSupplierModal .modal-dialog {
-        max-width: 1120px;
-        margin: 1.25rem auto;
-        height: calc(100vh - 2.5rem);
-        max-height: calc(100vh - 2.5rem);
-        display: flex;
-        align-items: center;
-    }
-    #emailSupplierModal .modal-content {
-        height: 100%;
-        max-height: 100%;
-        display: flex;
-        flex-direction: column;
-        border: none;
-        border-radius: 1rem;
-        overflow: hidden;
-        box-shadow: 0 1rem 3rem rgba(15, 23, 42, 0.2);
-    }
-    #emailSupplierModal .modal-header {
-        flex-shrink: 0;
-        padding: 0.9rem 1.25rem;
-        background: #f8fafc;
-        border-bottom: 1px solid #e2e8f0;
-    }
-    #emailSupplierModal .modal-footer {
-        flex-shrink: 0;
-        padding: 0.75rem 1.25rem;
-        background: #f8fafc;
-        border-top: 1px solid #e2e8f0;
-    }
-    #emailSupplierModal .modal-body {
-        flex: 1 1 auto;
-        min-height: 0;
-        overflow-y: auto;
-        padding: 1rem 1.25rem;
-        background-color: #f1f5f9;
-    }
-    .email-preview-card {
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.5rem;
-        overflow: hidden;
-    }
-    .email-preview-scrollable {
-        flex: 1 1 auto;
-        min-height: 0;
-        max-height: 54vh;
-        overflow-y: auto;
-        padding: 0.85rem;
-        background: #f8fafc;
-    }
-    @media (max-width: 991.98px) {
-        #emailSupplierModal .modal-dialog {
-            height: calc(100vh - 1rem);
-            max-height: calc(100vh - 1rem);
-            margin: 0.5rem;
-        }
-        .email-preview-scrollable {
-            max-height: 360px;
-        }
-    }
-</style>
+{{-- MODAL: UPDATE STATUS & SHIPPING --}}
+<div class="modal fade" id="updateStatusModal" tabindex="-1" aria-labelledby="updateStatusModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow rounded-3 overflow-hidden">
+            <form action="{{ route('admin.website-orders.update-status', $orderData['record_id']) }}" method="POST">
+                @csrf
 
-{{-- EMAIL SUPPLIER MODAL --}}
+                <div class="modal-header bg-light py-2 px-3 border-bottom">
+                    <h6 class="modal-title fw-bold text-dark" id="updateStatusModalLabel">
+                        <i class="bi bi-truck me-1.5 text-primary"></i> Update Order Status & Shipping
+                    </h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body p-3">
+                    @php
+                        $currStatus = strtolower(trim($orderData['status'] ?? ''));
+                    @endphp
+                    {{-- 1. Status --}}
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark">Order Status *</label>
+                        <select name="status" id="modalOrderStatus" class="form-select form-select-sm rounded-2 fw-semibold" required>
+                            <option value="Order confirmed" {{ in_array($currStatus, ['order confirmed', 'order_confirmed', 'processing']) ? 'selected' : '' }}>
+                                Order confirmed
+                            </option>
+                            <option value="Shipped" {{ $currStatus === 'shipped' ? 'selected' : '' }}>
+                                Shipped
+                            </option>
+                            <option value="Delivered" {{ in_array($currStatus, ['delivered', 'completed']) ? 'selected' : '' }}>
+                                Delivered
+                            </option>
+                        </select>
+                    </div>
+
+                    {{-- 2-6. Courier & Shipping Details (Shown when status is Shipped) --}}
+                    <div id="shippingFieldsContainer">
+                        <div class="row g-2 mb-3">
+                            {{-- 2. Courier --}}
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-dark">Courier / Shipping Partner</label>
+                                <input type="text" name="courier_name" id="modalCourierName" list="courierList" class="form-control form-control-sm rounded-2" value="{{ old('courier_name', $orderData['courier_name']) }}" placeholder="e.g. Delhivery, Blue Dart, DTDC..." oninput="autoSuggestTrackingUrl()">
+                                <datalist id="courierList">
+                                    <option value="Delhivery">
+                                    <option value="Blue Dart">
+                                    <option value="DTDC">
+                                    <option value="India Post">
+                                    <option value="Ekart Logistics">
+                                    <option value="Shadowfax">
+                                    <option value="Xpressbees">
+                                    <option value="Ecom Express">
+                                    <option value="Shiprocket">
+                                    <option value="FedEx">
+                                    <option value="DHL Express">
+                                </datalist>
+                            </div>
+
+                            {{-- 3. AWB --}}
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-dark">Tracking ID / AWB Number</label>
+                                <input type="text" name="tracking_id" id="modalTrackingId" class="form-control form-control-sm rounded-2 font-monospace" value="{{ old('tracking_id', $orderData['tracking_id']) }}" placeholder="e.g. DEL123456789" oninput="autoSuggestTrackingUrl()">
+                            </div>
+                        </div>
+
+                        {{-- 4. Tracking URL --}}
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-dark">Tracking Link / URL</label>
+                            <input type="url" name="tracking_url" id="modalTrackingUrl" class="form-control form-control-sm rounded-2" value="{{ old('tracking_url', $orderData['tracking_url']) }}" placeholder="https://...">
+                            <small class="text-muted" style="font-size: 0.72rem;">Auto-generated for Delhivery, Blue Dart, etc., or enter custom tracking URL.</small>
+                        </div>
+
+                        {{-- 5. Shipped Date --}}
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-dark">Shipped Date</label>
+                            <input type="datetime-local" name="shipped_at" class="form-control form-control-sm rounded-2" value="{{ old('shipped_at', $orderData['shipped_at'] ?? now()->format('Y-m-d\TH:i')) }}">
+                        </div>
+
+                        {{-- 6. Shipping Note --}}
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-dark">Shipping / Packing Note</label>
+                            <textarea name="shipping_notes" rows="2" class="form-control form-control-sm rounded-2" placeholder="e.g. Packed in polybag with dispatch invoice...">{{ old('shipping_notes', $orderData['shipping_notes']) }}</textarea>
+                        </div>
+                    </div>
+
+                    {{-- 7. History Remark --}}
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark">History Log Remark</label>
+                        <input type="text" name="comment" class="form-control form-control-sm rounded-2" placeholder="e.g. Handed over to courier partner / Marked delivered">
+                    </div>
+
+                    {{-- 8. Email Notification Switches (Default Enabled) --}}
+                    @php
+                        $customerEmail = $orderData['billing']['email'] ?? ($orderData['shipping']['email'] ?? null);
+                        $supplierEmail = $orderData['default_supplier_email'] ?? null;
+                    @endphp
+                    <div class="p-3 bg-light rounded-2 border mb-2">
+                        <div class="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom">
+                            <span class="small fw-bold text-dark">
+                                <i class="bi bi-envelope-check me-1.5 text-primary"></i> Email Notifications
+                            </span>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size: 0.68rem;">Default Enabled</span>
+                        </div>
+
+                        {{-- Customer Notification --}}
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="notify_customer" id="notifyCustomer" value="1" checked>
+                            <label class="form-check-label small fw-semibold text-dark" for="notifyCustomer">
+                                Send update email to Customer
+                                @if(!empty($customerEmail))
+                                    <span class="text-muted fw-normal">({{ $customerEmail }})</span>
+                                @else
+                                    <span class="text-warning fw-normal">(No email on file)</span>
+                                @endif
+                            </label>
+                        </div>
+
+                        {{-- Supplier Notification --}}
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" name="notify_supplier" id="notifySupplier" value="1" checked>
+                            <label class="form-check-label small fw-semibold text-dark" for="notifySupplier">
+                                Send update email to Supplier
+                                @if(!empty($supplierEmail))
+                                    <span class="text-muted fw-normal">({{ $supplierEmail }})</span>
+                                @else
+                                    <span class="text-muted fw-normal">({{ $orderData['selling_supplier_name'] ?? 'Supplier' }})</span>
+                                @endif
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light py-2 px-3">
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-2" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary rounded-2 fw-semibold">
+                        <i class="bi bi-check2-circle me-1"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- MODAL: EMAIL TO SUPPLIER (WITH LIVE EMAIL PREVIEW) --}}
 <div class="modal fade" id="emailSupplierModal" tabindex="-1" aria-labelledby="emailSupplierModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-        <div class="modal-content">
-            
-            {{-- Fixed Modal Header --}}
-            <div class="modal-header">
+        <div class="modal-content border-0 shadow rounded-3">
+            <div class="modal-header bg-light py-2 px-3 border-bottom">
                 <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-primary-subtle text-primary p-2 rounded-3">
-                        <i class="bi bi-envelope-paper-fill fs-5"></i>
+                    <span class="badge bg-primary-subtle text-primary p-1.5 rounded-2">
+                        <i class="bi bi-envelope-paper fs-6"></i>
                     </span>
                     <div>
-                        <h5 class="modal-title fw-bold text-dark mb-0" id="emailSupplierModalLabel">Email Order Details to Supplier</h5>
-                        <small class="text-muted">Customize recipient, subject, or admin instructions and preview before sending.</small>
+                        <h6 class="modal-title fw-bold text-dark mb-0" id="emailSupplierModalLabel">Email Order Details to Supplier</h6>
+                        <small class="text-muted" style="font-size: 0.72rem;">Review recipient, instructions, and preview the email before sending.</small>
                     </div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
-            {{-- Scrollable Modal Body with 2-Column Desktop Grid --}}
-            <div class="modal-body">
-                
-                {{-- Alert Box --}}
+            <div class="modal-body p-3">
                 <div id="emailAlertContainer" class="d-none"></div>
 
                 <form id="sendSupplierEmailForm" onsubmit="handleSendEmail(event)">
                     <div class="row g-3">
-                        
-                        {{-- LEFT COLUMN: EMAIL CONTROLS --}}
+                        {{-- LEFT COLUMN: EMAIL FORM INPUTS --}}
                         <div class="col-lg-5">
-                            <div class="card border shadow-xs rounded-3 p-3 bg-white h-100">
-                                <h6 class="fw-bold text-dark mb-3 d-flex align-items-center text-uppercase fs-7 text-secondary" style="letter-spacing: 0.05em;">
-                                    <i class="bi bi-sliders text-primary me-2 fs-6"></i> Email Settings
-                                </h6>
+                            <div class="card border rounded-3 p-3 bg-white h-100 shadow-2xs">
+                                <span class="fw-bold text-dark small text-uppercase mb-3 pb-2 border-bottom d-block" style="letter-spacing: 0.05em; font-size: 0.72rem;">
+                                    <i class="bi bi-sliders me-1 text-primary"></i> Email Configuration
+                                </span>
 
                                 {{-- Recipient Email --}}
                                 <div class="mb-3">
@@ -444,12 +588,13 @@
                                         class="form-control form-control-sm rounded-2"
                                         value="{{ $orderData['default_supplier_email'] ?? '' }}"
                                         placeholder="supplier@example.com"
+                                        oninput="updateEmailPreview()"
                                         required
                                     >
                                     @if(!empty($orderData['candidate_suppliers']) && count($orderData['candidate_suppliers']) > 0)
-                                        <div class="mt-2">
-                                            <div class="text-muted small mb-1" style="font-size: 0.72rem;">Suggested Contacts:</div>
-                                            <div class="d-flex flex-wrap gap-1 align-items-center">
+                                        <div class="mt-1.5">
+                                            <div class="text-muted" style="font-size: 0.7rem;">Suggested:</div>
+                                            <div class="d-flex flex-wrap gap-1 align-items-center mt-1">
                                                 @foreach($orderData['candidate_suppliers'] as $cEmail => $cLabel)
                                                     <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill py-0 px-2" style="font-size: 0.7rem;" onclick="setRecipientEmail('{{ $cEmail }}')">
                                                         {{ $cLabel }}
@@ -471,248 +616,263 @@
                                         name="subject"
                                         class="form-control form-control-sm rounded-2"
                                         value="Order #{{ $orderData['order_number'] }} Details - {{ $orderData['selling_supplier_name'] }}"
-                                        oninput="document.getElementById('previewSubject').textContent = this.value"
+                                        oninput="updateEmailPreview()"
                                         required
                                     >
                                 </div>
 
-                                {{-- Custom Note from Admin --}}
-                                <div class="mb-2">
+                                {{-- Custom Instructions / Note --}}
+                                <div class="mb-3">
                                     <label for="customMessage" class="form-label small fw-bold text-dark mb-1">
-                                        Admin Instructions / Remarks (Optional)
+                                        Admin Instructions / Note (Optional)
                                     </label>
                                     <textarea
                                         id="customMessage"
                                         name="custom_message"
                                         rows="3"
                                         class="form-control form-control-sm rounded-2"
-                                        placeholder="Add packing/dispatch notes or special requests for the supplier..."
-                                        oninput="updateLivePreview()"
+                                        placeholder="Add packing or dispatch instructions for the supplier..."
+                                        oninput="updateEmailPreview()"
                                     ></textarea>
-                                    <div class="text-muted small mt-1" style="font-size: 0.72rem;">
-                                        This message will appear in a highlighted banner inside the email.
+                                    <div class="text-muted mt-1" style="font-size: 0.7rem;">
+                                        This note will appear inside a highlighted blue banner in the email.
                                     </div>
+                                </div>
+
+                                <div class="d-flex justify-content-end gap-2 pt-2 border-top mt-auto">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-2" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" id="btnSendEmail" class="btn btn-sm btn-primary rounded-2 fw-semibold shadow-2xs">
+                                        <span class="spinner-border spinner-border-sm me-1 d-none" id="sendEmailSpinner" role="status"></span>
+                                        <i class="bi bi-send me-1" id="sendEmailIcon"></i> Send Email
+                                    </button>
                                 </div>
                             </div>
                         </div>
 
                         {{-- RIGHT COLUMN: LIVE EMAIL PREVIEW --}}
                         <div class="col-lg-7">
-                            <div class="email-preview-card shadow-xs">
-                                <div class="card-header bg-light py-2 px-3 d-flex justify-content-between align-items-center border-bottom">
+                            <div class="border rounded-3 bg-light h-100 d-flex flex-column overflow-hidden shadow-2xs">
+                                <div class="bg-white py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
                                     <span class="small fw-bold text-uppercase text-secondary" style="letter-spacing: 0.05em; font-size: 0.72rem;">
                                         <i class="bi bi-eye text-primary me-1"></i> Live Email Template Preview
                                     </span>
-                                    <span class="badge bg-white text-muted border small" style="font-size: 0.68rem;">HTML Output</span>
+                                    <span class="badge bg-light text-muted border" style="font-size: 0.7rem;">Live</span>
                                 </div>
 
-                                <div class="email-preview-scrollable">
-                                    
-                                    {{-- Simulated Email Card --}}
-                                    <div class="border rounded-3 p-3 bg-white shadow-xs" style="font-size: 12.5px;">
-                                        
-                                        {{-- Email Banner --}}
-                                        <div class="p-3 text-white rounded-2 mb-3" style="background-color: #2b5288;">
-                                            <h6 class="fw-bold mb-0 text-white" id="previewSubject">
-                                                Order #{{ $orderData['order_number'] }} Details - {{ $orderData['selling_supplier_name'] }}
-                                            </h6>
-                                            <div class="opacity-75 small mt-0.5" style="font-size: 0.75rem;">
-                                                Store: {{ $orderData['selling_supplier_name'] }} | Placed: {{ $orderData['date_created'] }}
-                                            </div>
-                                        </div>
-
-                                        {{-- Live Custom Message Banner --}}
-                                        <div id="previewCustomNoteContainer" class="p-2.5 rounded-2 bg-primary-subtle border border-primary-subtle text-dark mb-3 d-none">
-                                            <strong class="text-primary d-block small" style="font-size: 0.75rem;"><i class="bi bi-info-circle-fill me-1"></i> Message from Admin:</strong>
-                                            <div id="previewCustomNoteText" class="mt-0.5 small text-dark"></div>
-                                        </div>
-
-                                        {{-- Customer & Shipping 2-col --}}
-                                        <div class="row g-2 mb-3">
-                                            <div class="col-6">
-                                                <div class="p-2.5 rounded-2 bg-light border h-100">
-                                                    <div class="fw-bold text-secondary text-uppercase mb-1" style="font-size: 0.7rem;">Customer Info</div>
-                                                    <div class="fw-bold text-dark">{{ $custName }}</div>
-                                                    <div class="text-muted small">Email: {{ $email ?: '—' }}</div>
-                                                    <div class="text-muted small">Phone: {{ $phone ?: '—' }}</div>
-                                                    <div class="text-muted small">Payment: {{ $orderData['payment_method'] }}</div>
-                                                </div>
-                                            </div>
-                                            <div class="col-6">
-                                                <div class="p-2.5 rounded-2 bg-light border h-100">
-                                                    <div class="fw-bold text-secondary text-uppercase mb-1" style="font-size: 0.7rem;">Shipping Address</div>
-                                                    <div class="fw-bold text-dark">{{ $shipName }}</div>
-                                                    <div class="text-muted small">{{ $address1 }} {{ $address2 }}</div>
-                                                    <div class="text-muted small">{{ $city }}, {{ $state }} {{ $postcode }}</div>
-                                                    <div class="text-muted small">{{ $country ?: 'India' }}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {{-- Ordered Items Table --}}
-                                        <div class="fw-bold text-secondary text-uppercase mb-1" style="font-size: 0.7rem;">Ordered Items ({{ count($orderData['line_items']) }})</div>
-                                        <div class="table-responsive mb-2">
-                                            <table class="table table-sm table-bordered mb-0 align-middle" style="font-size: 0.78rem;">
-                                                <thead class="table-light">
-                                                    <tr>
-                                                        <th>Item & SKU</th>
-                                                        <th class="text-center" style="width: 75px;">Price</th>
-                                                        <th class="text-center" style="width: 45px;">Qty</th>
-                                                        <th class="text-end" style="width: 80px;">Total</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    @foreach($orderData['line_items'] as $item)
-                                                        <tr>
-                                                            <td>
-                                                                <div class="fw-semibold text-dark">{{ $item['name'] }}</div>
-                                                                @if(!empty($item['resolved_sku']) && $item['resolved_sku'] !== '—')
-                                                                    <div class="text-muted" style="font-size: 0.7rem;">SKU: {{ $item['resolved_sku'] }}</div>
-                                                                @endif
-                                                            </td>
-                                                            <td class="text-center">{{ $orderData['currency_symbol'] }}{{ number_format($item['price'] ?? 0, 2) }}</td>
-                                                            <td class="text-center fw-bold">{{ $item['quantity'] ?? 1 }}</td>
-                                                            <td class="text-end font-monospace">{{ $orderData['currency_symbol'] }}{{ number_format($item['total'] ?? 0, 2) }}</td>
-                                                        </tr>
-                                                    @endforeach
-                                                </tbody>
-                                            </table>
-                                        </div>
-
-                                        {{-- Summary Totals --}}
-                                        <div class="d-flex justify-content-end text-end">
-                                            <div style="min-width: 180px;">
-                                                <div class="text-muted small" style="font-size: 0.75rem;">Subtotal: {{ $orderData['currency_symbol'] }}{{ number_format($orderData['subtotal'], 2) }}</div>
-                                                <div class="text-muted small" style="font-size: 0.75rem;">Shipping: {{ $orderData['shipping_total'] > 0 ? ($orderData['currency_symbol'] . number_format($orderData['shipping_total'], 2)) : 'Free' }}</div>
-                                                <div class="fw-bold text-primary small mt-1 pt-1 border-top" style="font-size: 0.85rem;">
-                                                    Grand Total: {{ $orderData['currency_symbol'] }}{{ number_format($orderData['total'], 2) }}
-                                                </div>
-                                            </div>
-                                        </div>
-
+                                {{-- Envelope Header --}}
+                                <div class="p-2.5 bg-white border-bottom small">
+                                    <div class="d-flex text-muted mb-1" style="font-size: 0.75rem;">
+                                        <span style="width: 65px;" class="fw-semibold">To:</span>
+                                        <span id="previewToEmail" class="text-dark font-monospace">{{ $orderData['default_supplier_email'] ?: 'supplier@example.com' }}</span>
                                     </div>
+                                    <div class="d-flex text-muted" style="font-size: 0.75rem;">
+                                        <span style="width: 65px;" class="fw-semibold">Subject:</span>
+                                        <span id="previewSubject" class="text-dark fw-medium">Order #{{ $orderData['order_number'] }} Details - {{ $orderData['selling_supplier_name'] }}</span>
+                                    </div>
+                                </div>
 
+                                {{-- Scrollable Email Body --}}
+                                <div class="p-3 overflow-y-auto flex-grow-1" style="max-height: 480px; background-color: #f4f6f9;">
+                                    <div class="bg-white rounded-2 border shadow-xs overflow-hidden mx-auto" style="max-width: 580px;">
+                                        {{-- Header Banner --}}
+                                        <div class="p-3 text-white" style="background-color: #2b5288;">
+                                            <h6 class="fw-bold mb-0 text-white">Order Details #{{ $orderData['order_number'] }}</h6>
+                                            <div class="opacity-75" style="font-size: 0.72rem;">Store: {{ $orderData['selling_supplier_name'] }} • Placed: {{ $orderData['date_created'] }}</div>
+                                        </div>
+
+                                        <div class="p-3 small text-dark">
+                                            {{-- Live Admin Note Banner --}}
+                                            <div id="previewNoteBanner" class="p-2.5 bg-primary-subtle border-start border-3 border-primary rounded-2 mb-3 d-none">
+                                                <strong class="d-block text-primary mb-1" style="font-size: 0.75rem;"><i class="bi bi-info-circle me-1"></i> Admin Instructions:</strong>
+                                                <div id="previewNoteText" class="text-dark small" style="white-space: pre-wrap;"></div>
+                                            </div>
+
+                                            {{-- Customer & Shipping Box --}}
+                                            <div class="row g-2 mb-3">
+                                                <div class="col-6">
+                                                    <div class="p-2 bg-light rounded border h-100">
+                                                        <div class="text-muted fw-bold text-uppercase mb-1" style="font-size: 0.68rem;">Customer Info</div>
+                                                        <div class="fw-semibold text-truncate">{{ $custName }}</div>
+                                                        <div class="text-muted text-truncate" style="font-size: 0.72rem;">{{ $email }}</div>
+                                                        <div class="text-muted" style="font-size: 0.72rem;">{{ $phone }}</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="p-2 bg-light rounded border h-100">
+                                                        <div class="text-muted fw-bold text-uppercase mb-1" style="font-size: 0.68rem;">Delivery Address</div>
+                                                        <div class="fw-semibold text-truncate">{{ $shipName }}</div>
+                                                        <div class="text-muted text-truncate" style="font-size: 0.72rem;">{{ $fullAddress ?: ($city ?: 'India') }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {{-- Line Items Table --}}
+                                            <div class="table-responsive mb-2">
+                                                <table class="table table-sm table-bordered align-middle mb-0" style="font-size: 0.72rem;">
+                                                    <thead class="table-light text-secondary text-uppercase" style="font-size: 0.68rem;">
+                                                        <tr>
+                                                            <th>Item</th>
+                                                            <th>SKU</th>
+                                                            <th class="text-center" style="width: 45px;">Qty</th>
+                                                            <th class="text-end" style="width: 75px;">Total</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @foreach($orderData['line_items'] as $it)
+                                                            <tr>
+                                                                <td>
+                                                                    <div class="fw-semibold text-truncate" style="max-width: 160px;" title="{{ $it['name'] }}">{{ $it['name'] }}</div>
+                                                                </td>
+                                                                <td class="font-monospace text-muted">{{ $it['resolved_sku'] ?: ($it['sku'] ?: '—') }}</td>
+                                                                <td class="text-center fw-bold">{{ $it['quantity'] ?? 1 }}</td>
+                                                                <td class="text-end font-monospace">{{ $orderData['currency_symbol'] }}{{ number_format($it['total'] ?? 0, 2) }}</td>
+                                                            </tr>
+                                                        @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            {{-- Grand Total --}}
+                                            <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                                                <span class="text-muted" style="font-size: 0.75rem;">Payment: <strong class="text-dark">{{ $orderData['payment_method'] }}</strong></span>
+                                                <div class="text-end">
+                                                    <span class="text-muted" style="font-size: 0.75rem;">Grand Total: </span>
+                                                    <strong class="text-primary font-monospace fs-6">{{ $orderData['currency_symbol'] }}{{ number_format($orderData['total'], 2) }}</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-
                     </div>
                 </form>
-
             </div>
-
-            {{-- Fixed Modal Footer (Always Visible at Bottom) --}}
-            <div class="modal-footer d-flex justify-content-between align-items-center">
-                <small class="text-muted">
-                    <i class="bi bi-shield-check text-success me-1"></i> Ready to send via SMTP (Aman Movement)
-                </small>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">
-                        Cancel
-                    </button>
-                    <button type="submit" form="sendSupplierEmailForm" id="btnSendEmailSubmit" class="btn btn-primary btn-sm rounded-pill px-4 shadow-sm fw-semibold">
-                        <span id="btnSendEmailSpinner" class="spinner-border spinner-border-sm me-1 d-none" role="status" aria-hidden="true"></span>
-                        <i class="bi bi-send-fill me-1" id="btnSendEmailIcon"></i> Send Email
-                    </button>
-                </div>
-            </div>
-
         </div>
     </div>
 </div>
 
 <script>
-    function setRecipientEmail(email) {
-        const input = document.getElementById('recipientEmail');
-        if (input) {
-            input.value = email;
-            input.focus();
-        }
-    }
+function setRecipientEmail(email) {
+    document.getElementById('recipientEmail').value = email;
+    updateEmailPreview();
+}
 
-    function updateLivePreview() {
-        const msg = document.getElementById('customMessage').value.trim();
-        const container = document.getElementById('previewCustomNoteContainer');
-        const text = document.getElementById('previewCustomNoteText');
-        
-        if (msg) {
-            text.innerHTML = msg.replace(/\n/g, '<br>');
-            container.classList.remove('d-none');
+function updateEmailPreview() {
+    const to = document.getElementById('recipientEmail')?.value || 'supplier@example.com';
+    const sub = document.getElementById('emailSubject')?.value || 'Order Details';
+    const note = (document.getElementById('customMessage')?.value || '').trim();
+
+    const prevTo = document.getElementById('previewToEmail');
+    const prevSub = document.getElementById('previewSubject');
+    const prevBanner = document.getElementById('previewNoteBanner');
+    const prevNoteText = document.getElementById('previewNoteText');
+
+    if (prevTo) prevTo.textContent = to;
+    if (prevSub) prevSub.textContent = sub;
+
+    if (prevBanner && prevNoteText) {
+        if (note.length > 0) {
+            prevNoteText.textContent = note;
+            prevBanner.classList.remove('d-none');
         } else {
-            container.classList.add('d-none');
+            prevBanner.classList.add('d-none');
         }
     }
+}
 
-    function handleSendEmail(e) {
-        e.preventDefault();
-        
-        const btn = document.getElementById('btnSendEmailSubmit');
-        const spinner = document.getElementById('btnSendEmailSpinner');
-        const icon = document.getElementById('btnSendEmailIcon');
-        const alertBox = document.getElementById('emailAlertContainer');
+// Dynamic shipping fields toggle based on selected status
+function toggleShippingFields() {
+    const statusSelect = document.getElementById('modalOrderStatus');
+    if (!statusSelect) return;
+    const status = statusSelect.value.toLowerCase().trim();
+    const shippingContainer = document.getElementById('shippingFieldsContainer');
 
-        const recipientEmail = document.getElementById('recipientEmail').value.trim();
-        const subject = document.getElementById('emailSubject').value.trim();
-        const customMessage = document.getElementById('customMessage').value.trim();
-
-        if (!recipientEmail) {
-            alert('Please enter a valid recipient email address.');
-            return;
-        }
-
-        // Disable button & show spinner
-        btn.disabled = true;
-        spinner.classList.remove('d-none');
-        icon.classList.add('d-none');
-        alertBox.className = 'd-none';
-
-        const token = document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '';
-
-        fetch(`{{ route('admin.website-orders.send-email', $orderData['record_id']) }}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': token
-            },
-            body: JSON.stringify({
-                recipient_email: recipientEmail,
-                subject: subject,
-                custom_message: customMessage
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            btn.disabled = false;
-            spinner.classList.add('d-none');
-            icon.classList.remove('d-none');
-
-            if (data.success) {
-                alertBox.className = 'alert alert-success alert-dismissible fade show rounded-3 p-3 mb-3';
-                alertBox.innerHTML = `
-                    <i class="bi bi-check-circle-fill me-1.5"></i> ${data.message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                `;
-            } else {
-                alertBox.className = 'alert alert-danger alert-dismissible fade show rounded-3 p-3 mb-3';
-                alertBox.innerHTML = `
-                    <i class="bi bi-exclamation-triangle-fill me-1.5"></i> ${data.message || 'Failed to send email.'}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                `;
-            }
-        })
-        .catch(err => {
-            console.error('Error sending email:', err);
-            btn.disabled = false;
-            spinner.classList.add('d-none');
-            icon.classList.remove('d-none');
-
-            alertBox.className = 'alert alert-danger alert-dismissible fade show rounded-3 p-3 mb-3';
-            alertBox.innerHTML = `
-                <i class="bi bi-exclamation-triangle-fill me-1.5"></i> An unexpected network error occurred. Please check mail server settings.
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            `;
-        });
+    if (shippingContainer) {
+        shippingContainer.style.display = (status === 'shipped') ? 'block' : 'none';
     }
+}
+
+document.getElementById('modalOrderStatus')?.addEventListener('change', toggleShippingFields);
+document.getElementById('updateStatusModal')?.addEventListener('show.bs.modal', toggleShippingFields);
+document.addEventListener('DOMContentLoaded', toggleShippingFields);
+
+function autoSuggestTrackingUrl() {
+    const courier = (document.getElementById('modalCourierName')?.value || '').toLowerCase().trim();
+    const trackingId = (document.getElementById('modalTrackingId')?.value || '').trim();
+    const urlInput = document.getElementById('modalTrackingUrl');
+
+    if (!trackingId || !urlInput) return;
+
+    if (courier.includes('delhivery')) {
+        urlInput.value = 'https://www.delhivery.com/track/package/' + encodeURIComponent(trackingId);
+    } else if (courier.includes('blue dart') || courier.includes('bluedart')) {
+        urlInput.value = 'https://www.bluedart.com/tracking';
+    } else if (courier.includes('dtdc')) {
+        urlInput.value = 'https://www.dtdc.in/tracking/tracking_results.asp?action=profile&strCnno=' + encodeURIComponent(trackingId);
+    } else if (courier.includes('india post') || courier.includes('speed post')) {
+        urlInput.value = 'https://www.indiapost.gov.in/_layouts/15/dpt.cpt.tracking/trackconsignment.aspx';
+    } else if (courier.includes('ekart')) {
+        urlInput.value = 'https://ekartlogistics.com/shipmenttrack/' + encodeURIComponent(trackingId);
+    } else if (courier.includes('shadowfax')) {
+        urlInput.value = 'https://tracker.shadowfax.in/#/track/' + encodeURIComponent(trackingId);
+    } else if (courier.includes('xpressbees')) {
+        urlInput.value = 'https://www.xpressbees.com/shipment/tracking?awb=' + encodeURIComponent(trackingId);
+    } else if (courier.includes('ecom express') || courier.includes('ecomexpress')) {
+        urlInput.value = 'https://ecomexpress.in/tracking/?awb_field=' + encodeURIComponent(trackingId);
+    } else if (courier.includes('shiprocket')) {
+        urlInput.value = 'https://shiprocket.co/tracking/' + encodeURIComponent(trackingId);
+    } else if (courier.includes('fedex')) {
+        urlInput.value = 'https://www.fedex.com/fedextrack/?trknbr=' + encodeURIComponent(trackingId);
+    } else if (courier.includes('dhl')) {
+        urlInput.value = 'https://www.dhl.com/en/express/tracking.html?AWB=' + encodeURIComponent(trackingId) + '&brand=DHL';
+    }
+}
+
+function handleSendEmail(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnSendEmail');
+    const spinner = document.getElementById('sendEmailSpinner');
+    const icon = document.getElementById('sendEmailIcon');
+    const alertBox = document.getElementById('emailAlertContainer');
+
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+    icon.classList.add('d-none');
+    alertBox.className = 'd-none';
+
+    const formData = new FormData(document.getElementById('sendSupplierEmailForm'));
+
+    fetch("{{ route('admin.website-orders.send-email', $orderData['record_id']) }}", {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        btn.disabled = false;
+        spinner.classList.add('d-none');
+        icon.classList.remove('d-none');
+
+        if (data.success) {
+            alertBox.className = 'alert alert-success alert-dismissible fade show rounded-2 p-2 mb-3 small';
+            alertBox.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i> ${data.message}`;
+        } else {
+            alertBox.className = 'alert alert-danger alert-dismissible fade show rounded-2 p-2 mb-3 small';
+            alertBox.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i> ${data.message || 'Failed to send email.'}`;
+        }
+    })
+    .catch(err => {
+        console.error('Error sending email:', err);
+        btn.disabled = false;
+        spinner.classList.add('d-none');
+        icon.classList.remove('d-none');
+
+        alertBox.className = 'alert alert-danger alert-dismissible fade show rounded-2 p-2 mb-3 small';
+        alertBox.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i> An unexpected network error occurred.`;
+    });
+}
 </script>
 @endsection

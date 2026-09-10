@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\OrderWebhookPayload;
+use App\Models\OrderHistory;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\SupplierOrderDetailsMail;
 
 class OrderWebhookController extends Controller
 {
@@ -26,8 +29,25 @@ class OrderWebhookController extends Controller
             $orderId = $payload['id'] ?? $payload['number'] ?? null;
             $orderNumber = $payload['number'] ?? $orderId;
             $orderKey = $payload['order_key'] ?? null;
-            $status = $payload['status'] ?? null;
+            $incomingStatus = strtolower(trim($payload['status'] ?? ''));
             $lineItems = $payload['line_items'] ?? [];
+
+            // Check if record already exists
+            $existingRecord = null;
+            if (!empty($orderId)) {
+                $existingRecord = OrderWebhookPayload::where('order_id', (string) $orderId)->first();
+            }
+
+            // Determine status: If already marked as Shipped or Delivered in PMS, keep it; otherwise set to "Order confirmed"
+            if ($existingRecord && in_array(strtolower(trim($existingRecord->status ?? '')), ['shipped', 'delivered'])) {
+                $status = $existingRecord->status;
+            } elseif (in_array($incomingStatus, ['cancelled', 'refunded', 'failed'])) {
+                $status = ucfirst($incomingStatus);
+            } else {
+                $status = 'Order confirmed';
+            }
+
+            $isNew = !$existingRecord;
 
             // Save or update payload in order_webhook_payloads table (prevents duplicate rows on order.created + order.updated)
             if (!empty($orderId)) {
@@ -54,6 +74,23 @@ class OrderWebhookController extends Controller
                     'payload' => $payload,
                     'headers' => $request->headers->all(),
                 ]);
+            }
+
+            // Record initial history if newly created
+            if ($isNew && $record) {
+                OrderHistory::create([
+                    'order_webhook_payload_id' => $record->id,
+                    'user_type' => 'system',
+                    'user_id' => null,
+                    'user_name' => 'Website Webhook',
+                    'action' => 'Order Confirmed',
+                    'from_status' => null,
+                    'to_status' => $status,
+                    'comment' => 'Order received from website and confirmed automatically.',
+                ]);
+
+                // Automatically send new order email to supplier company email
+                $this->sendAutomatedSupplierOrderEmail($record, $payload, $request->headers->all());
             }
 
             // Update vendor_stock rows (match item_id and barcode, set send_qty=1, avilable_qty=0)
@@ -221,6 +258,144 @@ class OrderWebhookController extends Controller
             }
         } catch (\Exception $e) {
             Log::error("Error in processVendorStock for Order #{$orderNumber}: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Send automated new order notification email to the supplier company email.
+     */
+    private function sendAutomatedSupplierOrderEmail($record, array $payload, array $headers)
+    {
+        try {
+            $allSuppliers = DB::table('suppliers')->get();
+            $sourceUrl = $headers['x-wc-webhook-source'][0] ?? ($headers['host'][0] ?? '');
+            $cleanSource = preg_replace('#^https?://#i', '', rtrim(trim($sourceUrl), '/'));
+
+            $sellingSupplier = null;
+            if (!empty($cleanSource)) {
+                foreach ($allSuppliers as $sup) {
+                    $cleanSupUrl = preg_replace('#^https?://#i', '', rtrim(trim($sup->store_url ?? ''), '/'));
+                    if (!empty($cleanSupUrl) && (str_contains($cleanSource, $cleanSupUrl) || str_contains($cleanSupUrl, $cleanSource))) {
+                        $sellingSupplier = $sup;
+                        break;
+                    }
+                }
+            }
+
+            // Identify recipient supplier company email(s)
+            $recipientEmails = [];
+            if ($sellingSupplier && !empty($sellingSupplier->email)) {
+                $recipientEmails[] = trim($sellingSupplier->email);
+            }
+
+            // Also check origin suppliers for line items
+            $lineItems = $payload['line_items'] ?? [];
+            $skus = [];
+            foreach ($lineItems as $item) {
+                if (!empty($item['sku'])) {
+                    $skus[] = trim($item['sku']);
+                }
+            }
+
+            if (!empty($skus)) {
+                $originSupplierIds = DB::table('auto_designer_specification_master')
+                    ->whereIn('sku', $skus)
+                    ->orWhereIn('sku_supplier', $skus)
+                    ->pluck('supplier_id')
+                    ->filter()
+                    ->unique();
+
+                foreach ($originSupplierIds as $sId) {
+                    $originSup = $allSuppliers->firstWhere('sno', $sId);
+                    if ($originSup && !empty($originSup->email)) {
+                        $recipientEmails[] = trim($originSup->email);
+                    }
+                }
+            }
+
+            $recipientEmails = array_unique(array_filter($recipientEmails));
+
+            if (empty($recipientEmails)) {
+                Log::info("No supplier company email found for auto order email notification.", [
+                    'order_id' => $record->order_id,
+                    'record_id' => $record->id,
+                ]);
+                return;
+            }
+
+            // Enrich line items with SKU / Spec details if available
+            $enrichedLineItems = [];
+            $specRows = !empty($skus) ? DB::table('auto_designer_specification_master')
+                ->whereIn('sku', $skus)
+                ->orWhereIn('sku_supplier', $skus)
+                ->get()
+                ->keyBy('sku') : collect();
+
+            foreach ($lineItems as $item) {
+                $sku = trim($item['sku'] ?? '');
+                $spec = $specRows[$sku] ?? null;
+                $enrichedLineItems[] = array_merge($item, [
+                    'resolved_sku' => !empty($sku) ? $sku : ($spec->sku ?? '—'),
+                    'spec_id' => $spec->sno ?? null,
+                    'colour' => $spec->colour ?? null,
+                    'size' => $spec->sizes ?? null,
+                ]);
+            }
+
+            // Prepare order data array for SupplierOrderDetailsMail
+            $orderNumber = $payload['number'] ?? $record->order_id ?? ('#' . $record->id);
+            $storeName = $sellingSupplier ? $sellingSupplier->name : (!empty($cleanSource) ? $cleanSource : 'Website Store');
+
+            $orderData = [
+                'record_id' => $record->id,
+                'order_id' => $record->order_id ?: $orderNumber,
+                'order_number' => $orderNumber,
+                'status' => $record->status ?? 'Order confirmed',
+                'date_created' => !empty($payload['date_created']) ? date('d M Y, h:i A', strtotime($payload['date_created'])) : date('d M Y, h:i A'),
+                'currency_symbol' => $payload['currency_symbol'] ?? '₹',
+                'currency' => $payload['currency'] ?? 'INR',
+                'total' => isset($payload['total']) ? (float) $payload['total'] : 0,
+                'subtotal' => isset($payload['subtotal']) ? (float) $payload['subtotal'] : (isset($payload['total']) ? (float) $payload['total'] : 0),
+                'discount_total' => isset($payload['discount_total']) ? (float) $payload['discount_total'] : 0,
+                'shipping_total' => isset($payload['shipping_total']) ? (float) $payload['shipping_total'] : 0,
+                'total_tax' => isset($payload['total_tax']) ? (float) $payload['total_tax'] : 0,
+                'payment_method' => $payload['payment_method_title'] ?? ($payload['payment_method'] ?? 'N/A'),
+                'customer_note' => $payload['customer_note'] ?? '',
+                'billing' => $payload['billing'] ?? [],
+                'shipping' => $payload['shipping'] ?? [],
+                'line_items' => $enrichedLineItems,
+                'shipping_lines' => $payload['shipping_lines'] ?? [],
+                'selling_supplier_name' => $storeName,
+                'selling_supplier_url' => $sellingSupplier ? ($sellingSupplier->store_url ?? null) : $sourceUrl,
+            ];
+
+            $subject = "New Order #{$orderNumber} Received - {$storeName}";
+            $customMessage = "A new customer order #{$orderNumber} has been received from your website and confirmed automatically.";
+
+            foreach ($recipientEmails as $email) {
+                Mail::to($email)->send(new SupplierOrderDetailsMail($orderData, $subject, $customMessage));
+
+                OrderHistory::create([
+                    'order_webhook_payload_id' => $record->id,
+                    'user_type' => 'system',
+                    'user_id' => null,
+                    'user_name' => 'System Auto-Mail',
+                    'action' => 'Email Sent to Supplier',
+                    'from_status' => null,
+                    'to_status' => $record->status,
+                    'comment' => "Automated new order notification email sent to supplier company email: {$email}",
+                ]);
+
+                Log::info("Automated order email sent to supplier company email.", [
+                    'recipient' => $email,
+                    'order_id' => $orderNumber,
+                    'record_id' => $record->id,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning("Failed to auto-send supplier order email: " . $e->getMessage(), [
+                'exception' => $e
+            ]);
         }
     }
 }

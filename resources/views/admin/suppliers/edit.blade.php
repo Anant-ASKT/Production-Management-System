@@ -60,6 +60,11 @@
                         </div>
                         
                         <div class="mb-3">
+                            <label class="form-label fw-bold">Company Email *</label>
+                            <input type="email" name="email" class="form-control" value="{{ old('email', $supplier->email) }}" placeholder="e.g. info@company.com" required>
+                        </div>
+
+                        <div class="mb-3">
                             <label class="form-label fw-bold">Company Phone</label>
                             <input type="text" name="phone" class="form-control" value="{{ old('phone', $supplier->phone) }}">
                         </div>
