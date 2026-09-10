@@ -1475,7 +1475,7 @@
 
     </div>
 
-</div>
+   </div>
 
 
 
@@ -14041,6 +14041,7 @@ if (allSection) {
                                     View
 
                                 </button>
+                                
 
 
                                 <button

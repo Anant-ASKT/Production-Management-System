@@ -12,6 +12,10 @@ use App\Http\Controllers\AllGarmentsController;
 use App\Http\Controllers\AdminPublishProductsController;
 use App\Http\Controllers\ProductSpecificationMasterController;
 
+use App\Http\Controllers\TraderSpecificationController;
+use App\Http\Controllers\TraderProductSpecificationMasterController;
+
+
 
 
 Route::get('/', function () {
@@ -466,6 +470,53 @@ Route::get(
         return view('make-all-masters.index');
     }
 )->name('make-all-masters.index');
+
+
+
+Route::prefix('admin/trader-specifications')->group(function () {
+
+    Route::get(
+        '/',
+        [TraderSpecificationController::class, 'index']
+    )->name('trader-specifications.index');
+
+    Route::get(
+        '/data',
+        [TraderSpecificationController::class, 'data']
+    )->name('trader-specifications.data');
+
+    Route::post(
+        '/',
+        [TraderSpecificationController::class, 'store']
+    )->name('trader-specifications.store');
+
+    Route::put(
+        '/{id}',
+        [TraderSpecificationController::class, 'update']
+    )->name('trader-specifications.update');
+
+    Route::get(
+        '/find-by-barcode',
+        [TraderSpecificationController::class, 'findByBarcode']
+    )->name('trader-specifications.find-by-barcode');
+
+    Route::get(
+        '/uploaded-images',
+        [TraderSpecificationController::class, 'uploadedImages']
+    )->name('trader-specifications.uploaded-images');
+});
+
+
+/*
+|--------------------------------------------------------------------------
+| Trader Product Specification Master
+|--------------------------------------------------------------------------
+*/
+
+Route::get(
+    '/admin/trader-product-specification-masters',
+    [TraderProductSpecificationMasterController::class, 'index']
+)->name('trader-product-specification-masters.index');
 
 /*
 |--------------------------------------------------------------------------

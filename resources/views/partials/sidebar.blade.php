@@ -151,6 +151,47 @@
 
     </div>
 
+   {{-- From Trader Buying --}}
+
+<div class="sidebar-section">
+
+    <div class="sidebar-section-title">
+        Trader Buying
+    </div>
+
+    <ul class="sidebar-menu">
+
+        {{-- Trader Design Specification Master --}}
+        <li class="nav-item">
+            <a href="{{ route('trader-specifications.index') }}"
+               class="nav-link {{ request()->routeIs('trader-specifications.*') ? 'active' : '' }}">
+
+                <i class="bi bi-palette2 nav-icon"></i>
+
+                <span>
+                    Trader Design Specification Master
+                </span>
+
+            </a>
+        </li>
+
+        {{-- Show All Traders Products Master --}}
+        <li class="nav-item">
+            <a href="{{ route('trader-product-specification-masters.index') }}"
+               class="nav-link {{ request()->routeIs('trader-product-specification-masters.*') ? 'active' : '' }}">
+
+                <i class="bi bi-box-seam nav-icon"></i>
+
+                <span>
+                    Show All Products Master of Traders
+                </span>
+
+            </a>
+        </li>
+
+    </ul>
+</div>
+
 
     {{-- PRODUCTION --}}
 
