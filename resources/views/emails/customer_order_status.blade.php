@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Order Details #{{ $orderData['order_number'] }}</title>
+    <title>Order #{{ $orderData['order_number'] }} Status Update</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -23,7 +23,7 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
         .header {
-            background-color: #2b5288;
+            background-color: #1e3a8a;
             color: #ffffff;
             padding: 24px;
             text-align: left;
@@ -38,16 +38,62 @@
             font-size: 13px;
             opacity: 0.9;
         }
+        .status-badge {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+        .status-delivered { background-color: #22c55e; color: #ffffff; }
+        .status-shipped { background-color: #0284c7; color: #ffffff; }
+        .status-confirmed { background-color: #f59e0b; color: #ffffff; }
+        .status-default { background-color: #64748b; color: #ffffff; }
+
         .content {
             padding: 24px;
         }
+        .welcome-text {
+            font-size: 15px;
+            color: #1e293b;
+            margin-bottom: 20px;
+        }
+        .tracking-card {
+            background-color: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+        .tracking-card h3 {
+            margin: 0 0 10px;
+            font-size: 14px;
+            color: #166534;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .track-btn {
+            display: inline-block;
+            background-color: #16a34a;
+            color: #ffffff !important;
+            padding: 8px 18px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
         .custom-note {
             background-color: #eff6ff;
-            border-left: 4px solid #2b5288;
+            border-left: 4px solid #1e3a8a;
             padding: 14px 16px;
             border-radius: 4px;
             margin-bottom: 24px;
-            font-size: 14px;
+            font-size: 13px;
         }
         .section-title {
             font-size: 13px;
@@ -108,12 +154,8 @@
             border-bottom: 1px solid #e2e8f0;
             vertical-align: middle;
         }
-        .text-right {
-            text-align: right;
-        }
-        .text-center {
-            text-align: center;
-        }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
         .totals-table {
             width: 250px;
             margin-left: auto;
@@ -126,7 +168,7 @@
         .grand-total td {
             font-size: 16px;
             font-weight: 700;
-            color: #2b5288;
+            color: #1e3a8a;
             border-top: 2px solid #cbd5e1;
             padding-top: 10px;
         }
@@ -151,104 +193,114 @@
     </style>
 </head>
 <body>
+    @php
+        $statusStr = strtolower(trim($orderData['status'] ?? ''));
+        $badgeClass = 'status-default';
+        if (str_contains($statusStr, 'deliver')) {
+            $badgeClass = 'status-delivered';
+        } elseif (str_contains($statusStr, 'ship')) {
+            $badgeClass = 'status-shipped';
+        } elseif (str_contains($statusStr, 'confirm') || str_contains($statusStr, 'process')) {
+            $badgeClass = 'status-confirmed';
+        }
+
+        $b = $orderData['billing'] ?? [];
+        $s = $orderData['shipping'] ?? [];
+        $custName = trim(($b['first_name'] ?? '') . ' ' . ($b['last_name'] ?? '')) 
+            ?: trim(($s['first_name'] ?? '') . ' ' . ($s['last_name'] ?? '')) 
+            ?: 'Valued Customer';
+        $shipName = trim(($s['first_name'] ?? '') . ' ' . ($s['last_name'] ?? '')) ?: $custName;
+        $address1 = $s['address_1'] ?? ($b['address_1'] ?? '');
+        $address2 = $s['address_2'] ?? ($b['address_2'] ?? '');
+        $city = $s['city'] ?? ($b['city'] ?? '');
+        $state = $s['state'] ?? ($b['state'] ?? '');
+        $postcode = $s['postcode'] ?? ($b['postcode'] ?? '');
+        $country = $s['country'] ?? ($b['country'] ?? '');
+    @endphp
+
     <div class="email-container">
         {{-- Header --}}
         <div class="header">
-            <h1>Order Notification: #{{ $orderData['order_number'] }}</h1>
-            <p>Store: {{ $orderData['selling_supplier_name'] }} | Date: {{ $orderData['date_created'] }}</p>
+            <h1>{{ $orderData['selling_supplier_name'] ?? 'Order Status Update' }}</h1>
+            <p>Order #{{ $orderData['order_number'] }}</p>
+            <span class="status-badge {{ $badgeClass }}">Status: {{ $orderData['status'] }}</span>
         </div>
 
         <div class="content">
+            {{-- Welcome / Intro --}}
+            <div class="welcome-text">
+                Hello <strong>{{ $custName }}</strong>,<br>
+                @if(str_contains($statusStr, 'deliver'))
+                    Your order <strong>#{{ $orderData['order_number'] }}</strong> has been delivered. Thank you for shopping with us!
+                @elseif(str_contains($statusStr, 'ship'))
+                    Great news! Your order <strong>#{{ $orderData['order_number'] }}</strong> has been dispatched and is on its way to you.
+                @else
+                    Your order <strong>#{{ $orderData['order_number'] }}</strong> status has been updated to <strong>{{ $orderData['status'] }}</strong>.
+                @endif
+            </div>
+
             {{-- Optional Admin Custom Note --}}
             @if(!empty($customMessage))
                 <div class="custom-note">
-                    <strong style="color: #2b5288;">Message from Admin:</strong>
+                    <strong style="color: #1e3a8a;">Update Note:</strong>
                     <div style="margin-top: 4px;">{{ nl2br(e($customMessage)) }}</div>
                 </div>
             @endif
 
-            {{-- Shipment & Tracking Details (if available) --}}
+            {{-- Shipping & Tracking Box (Only when courier or tracking ID is present) --}}
             @if(!empty($orderData['courier_name']) || !empty($orderData['tracking_id']))
-                <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 14px 16px; margin-bottom: 24px;">
-                    <div style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: #166534; margin-bottom: 8px;">
-                        🚚 Shipment & Tracking Details (Status: {{ $orderData['status'] ?? 'Updated' }})
-                    </div>
+                <div class="tracking-card">
+                    <h3><i style="font-style: normal;">🚚</i> Shipment & Tracking Details</h3>
                     @if(!empty($orderData['courier_name']))
-                        <div style="font-size: 13px; margin-bottom: 4px;"><strong>Courier / Partner:</strong> {{ $orderData['courier_name'] }}</div>
+                        <div style="margin-bottom: 4px;"><strong>Courier / Partner:</strong> {{ $orderData['courier_name'] }}</div>
                     @endif
                     @if(!empty($orderData['tracking_id']))
-                        <div style="font-size: 13px; margin-bottom: 4px;"><strong>Tracking ID / AWB:</strong> <span style="font-family: monospace; font-weight: 700;">{{ $orderData['tracking_id'] }}</span></div>
+                        <div style="margin-bottom: 4px;"><strong>Tracking ID / AWB:</strong> <span style="font-family: monospace; font-weight: 700;">{{ $orderData['tracking_id'] }}</span></div>
                     @endif
                     @if(!empty($orderData['shipped_at_formatted']) || !empty($orderData['shipped_at']))
-                        <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Dispatched On: {{ $orderData['shipped_at_formatted'] ?? $orderData['shipped_at'] }}</div>
+                        <div style="margin-bottom: 4px; color: #64748b; font-size: 12px;">Dispatched On: {{ $orderData['shipped_at_formatted'] ?? $orderData['shipped_at'] }}</div>
                     @endif
                     @if(!empty($orderData['shipping_notes']))
-                        <div style="font-size: 12px; color: #334155; margin-top: 4px;">Note: {{ $orderData['shipping_notes'] }}</div>
+                        <div style="margin-top: 4px; color: #334155; font-size: 12px;">Note: {{ $orderData['shipping_notes'] }}</div>
                     @endif
+
                     @if(!empty($orderData['tracking_url']))
-                        <div style="margin-top: 8px;">
-                            <a href="{{ $orderData['tracking_url'] }}" target="_blank" style="display: inline-block; background-color: #16a34a; color: #ffffff; padding: 6px 14px; border-radius: 4px; text-decoration: none; font-size: 12px; font-weight: 600;">Track Shipment &rarr;</a>
+                        <div>
+                            <a href="{{ $orderData['tracking_url'] }}" target="_blank" class="track-btn">Track Your Package &rarr;</a>
                         </div>
                     @endif
                 </div>
             @endif
 
-            {{-- Customer & Delivery Details --}}
-            @php
-                $b = $orderData['billing'] ?? [];
-                $s = $orderData['shipping'] ?? [];
-                $custName = trim(($b['first_name'] ?? '') . ' ' . ($b['last_name'] ?? '')) 
-                    ?: trim(($s['first_name'] ?? '') . ' ' . ($s['last_name'] ?? '')) 
-                    ?: 'Customer';
-                $phone = $b['phone'] ?? ($s['phone'] ?? '—');
-                $email = $b['email'] ?? '—';
-
-                $shipName = trim(($s['first_name'] ?? '') . ' ' . ($s['last_name'] ?? '')) ?: $custName;
-                $address1 = $s['address_1'] ?? ($b['address_1'] ?? '');
-                $address2 = $s['address_2'] ?? ($b['address_2'] ?? '');
-                $city = $s['city'] ?? ($b['city'] ?? '');
-                $state = $s['state'] ?? ($b['state'] ?? '');
-                $postcode = $s['postcode'] ?? ($b['postcode'] ?? '');
-                $country = $s['country'] ?? ($b['country'] ?? '');
-            @endphp
-
+            {{-- Delivery & Order Info --}}
             <div class="grid-row">
                 <div class="grid-col">
-                    <div class="section-title">Customer Information</div>
-                    <div class="info-box">
-                        <strong>{{ $custName }}</strong>
-                        <div>Email: {{ $email }}</div>
-                        <div>Phone: {{ $phone }}</div>
-                        <div>Payment: {{ $orderData['payment_method'] }}</div>
-                        @if(!empty($orderData['customer_note']))
-                            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e1; color: #b45309;">
-                                <strong>Customer Note:</strong> {{ $orderData['customer_note'] }}
-                            </div>
-                        @endif
-                    </div>
-                </div>
-
-                <div class="grid-col">
-                    <div class="section-title">Shipping Address</div>
+                    <div class="section-title">Delivery Address</div>
                     <div class="info-box">
                         <strong>{{ $shipName }}</strong>
                         @if(!empty($address1)) <div>{{ $address1 }}</div> @endif
                         @if(!empty($address2)) <div>{{ $address2 }}</div> @endif
                         <div>{{ $city }}@if(!empty($city) && !empty($state)), @endif{{ $state }} {{ $postcode }}</div>
                         <div>{{ $country ?: 'India' }}</div>
-                        <div style="margin-top: 6px; color: #64748b;">
-                            Method: {{ $orderData['shipping_lines'][0]['method_title'] ?? 'Standard Delivery' }}
-                        </div>
+                    </div>
+                </div>
+
+                <div class="grid-col">
+                    <div class="section-title">Order Information</div>
+                    <div class="info-box">
+                        <div><strong>Order Date:</strong> {{ $orderData['date_created'] }}</div>
+                        <div style="margin-top: 4px;"><strong>Payment Method:</strong> {{ $orderData['payment_method'] }}</div>
+                        <div style="margin-top: 4px;"><strong>Status:</strong> {{ $orderData['status'] }}</div>
                     </div>
                 </div>
             </div>
 
-            {{-- Order Items Table --}}
-            <div class="section-title">Ordered Items ({{ count($orderData['line_items']) }})</div>
+            {{-- Ordered Items Table --}}
+            <div class="section-title">Items in Your Order ({{ count($orderData['line_items']) }})</div>
             <table class="table">
                 <thead>
                     <tr>
-                        <th>Product & SKU</th>
+                        <th>Product</th>
                         <th class="text-center" style="width: 70px;">Price</th>
                         <th class="text-center" style="width: 50px;">Qty</th>
                         <th class="text-right" style="width: 90px;">Total</th>
@@ -263,9 +315,6 @@
                                     @if(!empty($item['resolved_sku']) && $item['resolved_sku'] !== '—')
                                         <span class="badge">SKU: {{ $item['resolved_sku'] }}</span>
                                     @endif
-                                    @if(!empty($item['spec_id']))
-                                        <span class="badge">Spec #{{ $item['spec_id'] }}</span>
-                                    @endif
                                     @if(!empty($item['colour']))
                                         <span class="badge">{{ $item['colour'] }}</span>
                                     @endif
@@ -277,7 +326,7 @@
                             <td class="text-center">
                                 {{ $orderData['currency_symbol'] }}{{ number_format($item['price'] ?? 0, 2) }}
                             </td>
-                            <td class="text-center font-weight-bold">
+                            <td class="text-center" style="font-weight: 700;">
                                 {{ $item['quantity'] ?? 1 }}
                             </td>
                             <td class="text-right" style="font-weight: 600;">
@@ -329,7 +378,8 @@
 
         {{-- Footer --}}
         <div class="footer">
-            This is an automated notification from Production Management System.
+            Thank you for your order! If you have any questions, please contact our support team.<br>
+            &copy; {{ date('Y') }} {{ $orderData['selling_supplier_name'] ?? 'Production Management System' }}. All rights reserved.
         </div>
     </div>
 </body>

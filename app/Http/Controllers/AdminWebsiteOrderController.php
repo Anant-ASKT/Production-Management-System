@@ -4,8 +4,14 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\OrderWebhookPayload;
+use App\Models\OrderHistory;
+use App\Mail\CustomerOrderStatusMail;
+use App\Mail\SupplierOrderDetailsMail;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class AdminWebsiteOrderController extends Controller
 {
@@ -20,20 +26,20 @@ class AdminWebsiteOrderController extends Controller
             return redirect()->route('login');
         }
 
-        // Summary counts
+        // Summary counts for the 3 core statuses
         $totalOrders = OrderWebhookPayload::count();
-        $processingOrders = OrderWebhookPayload::where('status', 'processing')->count();
-        $completedOrders = OrderWebhookPayload::where('status', 'completed')->count();
-        $pendingOrders = OrderWebhookPayload::whereIn('status', ['pending', 'on-hold'])->count();
+        $confirmedOrders = OrderWebhookPayload::whereIn('status', ['Order confirmed', 'order_confirmed', 'processing'])->count();
+        $shippedOrders = OrderWebhookPayload::whereIn('status', ['Shipped', 'shipped'])->count();
+        $deliveredOrders = OrderWebhookPayload::whereIn('status', ['Delivered', 'delivered', 'completed'])->count();
 
         // Suppliers list for filtering if needed
         $suppliers = DB::table('suppliers')->orderBy('name', 'asc')->get();
 
         return view('admin.website_orders.index', compact(
             'totalOrders',
-            'processingOrders',
-            'completedOrders',
-            'pendingOrders',
+            'confirmedOrders',
+            'shippedOrders',
+            'deliveredOrders',
             'suppliers'
         ));
     }
@@ -66,7 +72,52 @@ class AdminWebsiteOrderController extends Controller
 
         // Filter by Status
         if (!empty($status) && $status !== 'all') {
-            $query->where('status', $status);
+            $statusNormalized = strtolower(trim($status));
+            if (in_array($statusNormalized, ['order confirmed', 'order_confirmed', 'processing'])) {
+                $query->whereIn('status', ['Order confirmed', 'order_confirmed', 'processing']);
+            } elseif ($statusNormalized === 'shipped') {
+                $query->whereIn('status', ['Shipped', 'shipped']);
+            } elseif (in_array($statusNormalized, ['delivered', 'completed'])) {
+                $query->whereIn('status', ['Delivered', 'delivered', 'completed']);
+            } else {
+                $query->where('status', $status);
+            }
+        }
+
+        // Filter by Supplier (Selling store or Origin manufacturer)
+        $supplierId = $request->input('supplier_id');
+        if (!empty($supplierId) && $supplierId !== 'all') {
+            $selectedSupplier = DB::table('suppliers')->where('sno', $supplierId)->first();
+            if ($selectedSupplier) {
+                $cleanSupUrl = !empty($selectedSupplier->store_url) ? preg_replace('#^https?://#i', '', rtrim(trim($selectedSupplier->store_url), '/')) : '';
+
+                $supplierSkus = DB::table('auto_designer_specification_master')
+                    ->where('supplier_id', $supplierId)
+                    ->pluck('sku')
+                    ->filter()
+                    ->toArray();
+
+                $query->where(function ($q) use ($cleanSupUrl, $supplierSkus) {
+                    $hasCond = false;
+                    if (!empty($cleanSupUrl)) {
+                        $q->where('headers', 'like', "%{$cleanSupUrl}%");
+                        $hasCond = true;
+                    }
+                    if (!empty($supplierSkus)) {
+                        foreach ($supplierSkus as $sku) {
+                            if ($hasCond) {
+                                $q->orWhere('payload', 'like', "%{$sku}%");
+                            } else {
+                                $q->where('payload', 'like', "%{$sku}%");
+                                $hasCond = true;
+                            }
+                        }
+                    }
+                    if (!$hasCond) {
+                        $q->whereRaw('1 = 0');
+                    }
+                });
+            }
         }
 
         // Filter by Date Range
@@ -213,10 +264,9 @@ class AdminWebsiteOrderController extends Controller
         // Compute fresh overall statistics
         $stats = [
             'total_orders' => OrderWebhookPayload::count(),
-            'processing_orders' => OrderWebhookPayload::where('status', 'processing')->count(),
-            'completed_orders' => OrderWebhookPayload::where('status', 'completed')->count(),
-            'pending_orders' => OrderWebhookPayload::whereIn('status', ['pending', 'on-hold'])->count(),
-            'cancelled_orders' => OrderWebhookPayload::whereIn('status', ['cancelled', 'failed', 'refunded'])->count(),
+            'confirmed_orders' => OrderWebhookPayload::whereIn('status', ['Order confirmed', 'order_confirmed', 'processing'])->count(),
+            'shipped_orders' => OrderWebhookPayload::whereIn('status', ['Shipped', 'shipped'])->count(),
+            'delivered_orders' => OrderWebhookPayload::whereIn('status', ['Delivered', 'delivered', 'completed'])->count(),
         ];
 
         return response()->json([
@@ -250,6 +300,80 @@ class AdminWebsiteOrderController extends Controller
         }
 
         $record = OrderWebhookPayload::findOrFail($id);
+        $orderData = $this->buildOrderDataForRecord($record);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'data' => $orderData
+            ]);
+        }
+
+        return view('admin.website_orders.show', compact('orderData', 'record'));
+    }
+
+    /**
+     * Send order details email to supplier.
+     */
+    public function sendSupplierEmail(Request $request, $id)
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated.'
+            ], 401);
+        }
+
+        $request->validate([
+            'recipient_email' => 'required|email',
+            'subject' => 'required|string|max:255',
+            'custom_message' => 'nullable|string|max:2000',
+        ]);
+
+        $recipientEmail = trim($request->input('recipient_email'));
+        $subject = trim($request->input('subject'));
+        $customMessage = trim($request->input('custom_message', ''));
+
+        $record = OrderWebhookPayload::findOrFail($id);
+        $orderData = $this->buildOrderDataForRecord($record);
+
+        try {
+            Mail::to($recipientEmail)->send(new SupplierOrderDetailsMail($orderData, $subject, $customMessage));
+
+            // Log history
+            OrderHistory::create([
+                'order_webhook_payload_id' => $record->id,
+                'user_type' => 'admin',
+                'user_id' => $user->id,
+                'user_name' => ($user->name ?? 'Admin') . ' (Admin)',
+                'action' => 'Email Sent to Supplier',
+                'from_status' => $record->status,
+                'to_status' => $record->status,
+                'courier_name' => $record->courier_name,
+                'tracking_id' => $record->tracking_id,
+                'comment' => "Direct email sent to supplier ({$recipientEmail}) with subject: {$subject}",
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Order details email successfully sent to ' . $recipientEmail
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to send supplier order email: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send email: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Build standard enriched orderData array for views and email templates.
+     */
+    public function buildOrderDataForRecord(OrderWebhookPayload $record): array
+    {
         $payload = is_array($record->payload) ? $record->payload : (json_decode($record->payload, true) ?? []);
         $headers = is_array($record->headers) ? $record->headers : (json_decode($record->headers, true) ?? []);
 
@@ -306,7 +430,14 @@ class AdminWebsiteOrderController extends Controller
             'order_id' => $record->order_id ?: ($payload['number'] ?? ('#' . $record->id)),
             'order_number' => $payload['number'] ?? $record->order_id ?? ('#' . $record->id),
             'order_key' => $record->order_key ?: ($payload['order_key'] ?? '—'),
-            'status' => strtolower($record->status ?: ($payload['status'] ?? 'pending')),
+            'status' => $record->status ?: ($payload['status'] ?? 'Order confirmed'),
+            'courier_name' => $record->courier_name,
+            'tracking_id' => $record->tracking_id,
+            'tracking_url' => $record->tracking_url,
+            'shipped_at' => $record->shipped_at ? $record->shipped_at->format('Y-m-d\TH:i') : null,
+            'shipped_at_formatted' => $record->shipped_at ? $record->shipped_at->format('d M Y, h:i A') : null,
+            'shipping_notes' => $record->shipping_notes,
+            'histories' => $record->histories,
             'created_at' => $record->created_at ? $record->created_at->format('d M Y, h:i A') : '—',
             'date_created' => !empty($payload['date_created']) ? date('d M Y, h:i A', strtotime($payload['date_created'])) : '—',
             'date_paid' => !empty($payload['date_paid']) ? date('d M Y, h:i A', strtotime($payload['date_paid'])) : '—',
@@ -362,118 +493,7 @@ class AdminWebsiteOrderController extends Controller
         $orderData['default_supplier_email'] = $defaultSupplierEmail;
         $orderData['candidate_suppliers'] = $candidateSuppliers;
 
-        if ($request->wantsJson() || $request->ajax()) {
-            return response()->json([
-                'success' => true,
-                'data' => $orderData
-            ]);
-        }
-
-        return view('admin.website_orders.show', compact('orderData', 'record'));
-    }
-
-    /**
-     * Send order details email to supplier.
-     */
-    public function sendSupplierEmail(Request $request, $id)
-    {
-        $user = Auth::user();
-
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthenticated.'
-            ], 401);
-        }
-
-        $request->validate([
-            'recipient_email' => 'required|email',
-            'subject' => 'required|string|max:255',
-            'custom_message' => 'nullable|string|max:2000',
-        ]);
-
-        $recipientEmail = trim($request->input('recipient_email'));
-        $subject = trim($request->input('subject'));
-        $customMessage = trim($request->input('custom_message', ''));
-
-        $record = OrderWebhookPayload::findOrFail($id);
-        $payload = is_array($record->payload) ? $record->payload : (json_decode($record->payload, true) ?? []);
-        $headers = is_array($record->headers) ? $record->headers : (json_decode($record->headers, true) ?? []);
-
-        $allSuppliers = DB::table('suppliers')->get();
-        $storeInfo = $this->resolveSellingSupplier($headers, $allSuppliers);
-
-        $lineItems = $payload['line_items'] ?? [];
-        $skus = [];
-        $wcProductIds = [];
-
-        foreach ($lineItems as $item) {
-            if (!empty($item['sku'])) $skus[] = trim($item['sku']);
-            if (!empty($item['product_id'])) $wcProductIds[] = (int) $item['product_id'];
-        }
-
-        $specLookup = $this->buildSpecificationLookup(array_unique($skus), array_unique($wcProductIds));
-
-        $enrichedLineItems = [];
-        foreach ($lineItems as $item) {
-            $sku = trim($item['sku'] ?? '');
-            $wcPid = (int) ($item['product_id'] ?? 0);
-            $specData = $specLookup['by_sku'][$sku] ?? ($specLookup['by_wc_id'][$wcPid] ?? null);
-
-            $imgSrc = $specData['enhanced_image'] ?? ($item['image']['src'] ?? null);
-
-            $enrichedLineItems[] = array_merge($item, [
-                'resolved_sku' => !empty($sku) ? $sku : ($specData['sku'] ?? '—'),
-                'resolved_image' => $imgSrc,
-                'is_matched' => !empty($specData),
-                'spec_id' => $specData['spec_id'] ?? null,
-                'barcode' => $specData['barcode'] ?? null,
-                'origin_supplier_id' => $specData['origin_supplier_id'] ?? null,
-                'origin_supplier_name' => $specData['origin_supplier_name'] ?? '—',
-                'product_type' => $specData['product_type'] ?? null,
-                'colour' => $specData['colour'] ?? null,
-                'size' => $specData['size'] ?? null,
-                'composition' => $specData['composition'] ?? null,
-            ]);
-        }
-
-        $orderData = [
-            'record_id' => $record->id,
-            'order_id' => $record->order_id ?: ($payload['number'] ?? ('#' . $record->id)),
-            'order_number' => $payload['number'] ?? $record->order_id ?? ('#' . $record->id),
-            'status' => strtolower($record->status ?: ($payload['status'] ?? 'pending')),
-            'date_created' => !empty($payload['date_created']) ? date('d M Y, h:i A', strtotime($payload['date_created'])) : '—',
-            'currency_symbol' => $payload['currency_symbol'] ?? '₹',
-            'currency' => $payload['currency'] ?? 'INR',
-            'total' => isset($payload['total']) ? (float) $payload['total'] : 0,
-            'subtotal' => isset($payload['subtotal']) ? (float) $payload['subtotal'] : (isset($payload['total']) ? (float) $payload['total'] : 0),
-            'discount_total' => isset($payload['discount_total']) ? (float) $payload['discount_total'] : 0,
-            'shipping_total' => isset($payload['shipping_total']) ? (float) $payload['shipping_total'] : 0,
-            'total_tax' => isset($payload['total_tax']) ? (float) $payload['total_tax'] : 0,
-            'payment_method' => $payload['payment_method_title'] ?? ($payload['payment_method'] ?? 'N/A'),
-            'customer_note' => $payload['customer_note'] ?? '',
-            'billing' => $payload['billing'] ?? [],
-            'shipping' => $payload['shipping'] ?? [],
-            'line_items' => $enrichedLineItems,
-            'shipping_lines' => $payload['shipping_lines'] ?? [],
-            'selling_supplier_name' => $storeInfo['name'],
-            'selling_supplier_url' => $storeInfo['store_url'],
-        ];
-
-        try {
-            \Illuminate\Support\Facades\Mail::to($recipientEmail)->send(new \App\Mail\SupplierOrderDetailsMail($orderData, $subject, $customMessage));
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Order details email successfully sent to ' . $recipientEmail
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('Failed to send supplier order email: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to send email: ' . $e->getMessage()
-            ], 500);
-        }
+        return $orderData;
     }
 
     /**
@@ -680,5 +700,261 @@ class AdminWebsiteOrderController extends Controller
         }
 
         return ['by_sku' => $bySku, 'by_wc_id' => $byWcId];
+    }
+
+    /**
+     * Update order status, courier/tracking ID, and shipping details with audit trail history (Admin).
+     */
+    public function updateStatusAndShipping(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        $record = OrderWebhookPayload::findOrFail($id);
+
+        $request->validate([
+            'status' => 'required|string',
+            'courier_name' => 'nullable|string|max:100',
+            'tracking_id' => 'nullable|string|max:100',
+            'tracking_url' => 'nullable|string|max:500',
+            'shipped_at' => 'nullable|date',
+            'shipping_notes' => 'nullable|string|max:1000',
+            'comment' => 'nullable|string|max:1000',
+        ]);
+
+        // Normalize status to the 3 main statuses
+        $statusInput = trim($request->status);
+        $statusLower = strtolower($statusInput);
+        if (in_array($statusLower, ['order confirmed', 'order_confirmed', 'processing'])) {
+            $newStatus = 'Order confirmed';
+        } elseif ($statusLower === 'shipped') {
+            $newStatus = 'Shipped';
+        } elseif (in_array($statusLower, ['delivered', 'completed'])) {
+            $newStatus = 'Delivered';
+        } else {
+            $newStatus = ucfirst($statusInput);
+        }
+
+        $oldStatus = $record->status ?: 'Order confirmed';
+        $statusChanged = (strtolower($oldStatus) !== strtolower($newStatus));
+
+        $courierName = trim($request->courier_name ?? '');
+        $trackingId = trim($request->tracking_id ?? '');
+        $trackingUrl = trim($request->tracking_url ?? '');
+
+        // If status is Delivered, preserve existing tracking details if not provided
+        $isDelivered = (strtolower($newStatus) === 'delivered');
+        if ($isDelivered) {
+            if (empty($courierName) && !empty($record->courier_name)) {
+                $courierName = $record->courier_name;
+            }
+            if (empty($trackingId) && !empty($record->tracking_id)) {
+                $trackingId = $record->tracking_id;
+            }
+            if (empty($trackingUrl) && !empty($record->tracking_url)) {
+                $trackingUrl = $record->tracking_url;
+            }
+            if (empty($request->shipping_notes) && !empty($record->shipping_notes)) {
+                $shippingNotes = $record->shipping_notes;
+            } else {
+                $shippingNotes = $request->shipping_notes ?: null;
+            }
+        } else {
+            $shippingNotes = $request->shipping_notes ?: null;
+        }
+
+        if (empty($trackingUrl) && !empty($courierName) && !empty($trackingId)) {
+            $trackingUrl = $this->generateTrackingUrl($courierName, $trackingId) ?? '';
+        }
+
+        $shippedAt = $request->filled('shipped_at') ? Carbon::parse($request->shipped_at) : $record->shipped_at;
+        if (in_array(strtolower($newStatus), ['shipped', 'delivered']) && empty($shippedAt)) {
+            $shippedAt = now();
+        }
+
+        $shippingChanged = ($record->courier_name !== ($courierName ?: null))
+            || ($record->tracking_id !== ($trackingId ?: null))
+            || ($record->tracking_url !== ($trackingUrl ?: null))
+            || ($record->shipping_notes !== ($shippingNotes ?: null));
+
+        // Update database record
+        $record->status = $newStatus;
+        $record->courier_name = $courierName ?: null;
+        $record->tracking_id = $trackingId ?: null;
+        $record->tracking_url = $trackingUrl ?: null;
+        $record->shipped_at = $shippedAt;
+        $record->shipping_notes = $shippingNotes;
+
+        $payload = is_array($record->payload) ? $record->payload : (json_decode($record->payload, true) ?? []);
+        $payload['status'] = $newStatus;
+        $record->payload = $payload;
+        $record->save();
+
+        // Determine action name for audit log
+        $action = 'Order Updated';
+        if ($statusChanged && $shippingChanged) {
+            $action = 'Status & Shipping Updated';
+        } elseif ($statusChanged) {
+            $action = 'Status Changed to ' . $newStatus;
+        } elseif ($shippingChanged) {
+            $action = !empty($trackingId) ? 'Tracking Added' : 'Shipping Details Updated';
+        } elseif ($request->filled('comment')) {
+            $action = 'Note Added';
+        }
+
+        // Build structured comment
+        $commentParts = [];
+        if ($statusChanged) {
+            $commentParts[] = "Status changed from {$oldStatus} to {$newStatus}";
+        }
+        if (!empty($courierName) && !empty($trackingId)) {
+            $commentParts[] = "Dispatched via {$courierName} (AWB / Tracking: {$trackingId})";
+        } elseif (!empty($trackingId)) {
+            $commentParts[] = "Tracking AWB: {$trackingId}";
+        }
+        if (!empty($shippingNotes)) {
+            $commentParts[] = "Shipping Note: " . trim($shippingNotes);
+        }
+        if ($request->filled('comment')) {
+            $commentParts[] = "Remark: " . trim($request->comment);
+        }
+
+        OrderHistory::create([
+            'order_webhook_payload_id' => $record->id,
+            'user_type' => 'admin',
+            'user_id' => $user->id,
+            'user_name' => ($user->name ?? 'Admin') . ' (Admin)',
+            'action' => $action,
+            'from_status' => $oldStatus,
+            'to_status' => $newStatus,
+            'courier_name' => $courierName ?: null,
+            'tracking_id' => $trackingId ?: null,
+            'comment' => !empty($commentParts) ? implode(' | ', $commentParts) : 'Order status and shipping details updated by Admin',
+        ]);
+
+        $notifiedRecipients = [];
+
+        // 1. Dispatch Email to Customer if enabled
+        if ($request->boolean('notify_customer')) {
+            $customerEmail = trim($payload['billing']['email'] ?? ($payload['shipping']['email'] ?? ''));
+            if (!empty($customerEmail) && filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+                try {
+                    $orderData = $this->buildOrderDataForRecord($record);
+                    $orderNumber = $orderData['order_number'];
+                    $custSubject = "Order #{$orderNumber} Update: {$newStatus}";
+                    $custMessage = !empty($request->comment) ? trim($request->comment) : null;
+
+                    Mail::to($customerEmail)->send(new CustomerOrderStatusMail($orderData, $custSubject, $custMessage));
+
+                    OrderHistory::create([
+                        'order_webhook_payload_id' => $record->id,
+                        'user_type' => 'admin',
+                        'user_id' => $user->id,
+                        'user_name' => ($user->name ?? 'Admin') . ' (Admin)',
+                        'action' => 'Email Sent to Customer',
+                        'from_status' => $oldStatus,
+                        'to_status' => $newStatus,
+                        'courier_name' => $record->courier_name,
+                        'tracking_id' => $record->tracking_id,
+                        'comment' => "Order status update email sent to customer ({$customerEmail}) - Status: {$newStatus}",
+                    ]);
+
+                    $notifiedRecipients[] = "Customer ({$customerEmail})";
+                } catch (\Throwable $e) {
+                    Log::warning("Failed to send customer order status email: " . $e->getMessage());
+                }
+            }
+        }
+
+        // 2. Dispatch Email to Supplier if enabled
+        if ($request->boolean('notify_supplier')) {
+            $orderData = $this->buildOrderDataForRecord($record);
+            $supplierEmail = $orderData['default_supplier_email'] ?? null;
+
+            if (!empty($supplierEmail) && filter_var($supplierEmail, FILTER_VALIDATE_EMAIL)) {
+                try {
+                    $orderNumber = $orderData['order_number'];
+                    $supSubject = "Order #{$orderNumber} Status Updated: {$newStatus}";
+                    $supMessage = "Order #{$orderNumber} status has been updated to {$newStatus} by Admin." . (!empty($request->comment) ? (" Note: " . trim($request->comment)) : '');
+
+                    Mail::to($supplierEmail)->send(new SupplierOrderDetailsMail($orderData, $supSubject, $supMessage));
+
+                    OrderHistory::create([
+                        'order_webhook_payload_id' => $record->id,
+                        'user_type' => 'admin',
+                        'user_id' => $user->id,
+                        'user_name' => ($user->name ?? 'Admin') . ' (Admin)',
+                        'action' => 'Email Sent to Supplier',
+                        'from_status' => $oldStatus,
+                        'to_status' => $newStatus,
+                        'courier_name' => $record->courier_name,
+                        'tracking_id' => $record->tracking_id,
+                        'comment' => "Order status update email sent to supplier ({$supplierEmail}) - Status: {$newStatus}",
+                    ]);
+
+                    $notifiedRecipients[] = "Supplier ({$supplierEmail})";
+                } catch (\Throwable $e) {
+                    Log::warning("Failed to send supplier order status email: " . $e->getMessage());
+                }
+            }
+        }
+
+        $flashMsg = "Order status updated to '{$newStatus}'.";
+        if (!empty($notifiedRecipients)) {
+            $flashMsg .= " Email notification sent to: " . implode(', ', $notifiedRecipients) . ".";
+        }
+
+        return redirect()->route('admin.website-orders.show', $record->id)->with('success', $flashMsg);
+    }
+
+    /**
+     * Auto-generate tracking URL for major courier partners.
+     */
+    private function generateTrackingUrl(?string $courier, ?string $trackingId): ?string
+    {
+        if (empty($courier) || empty($trackingId)) {
+            return null;
+        }
+
+        $c = strtolower(trim($courier));
+        $t = urlencode(trim($trackingId));
+
+        if (str_contains($c, 'delhivery')) {
+            return "https://www.delhivery.com/track/package/{$t}";
+        }
+        if (str_contains($c, 'blue dart') || str_contains($c, 'bluedart')) {
+            return "https://www.bluedart.com/tracking";
+        }
+        if (str_contains($c, 'dtdc')) {
+            return "https://www.dtdc.in/tracking/tracking_results.asp?action=profile&strCnno={$t}";
+        }
+        if (str_contains($c, 'india post') || str_contains($c, 'speed post')) {
+            return "https://www.indiapost.gov.in/_layouts/15/dpt.cpt.tracking/trackconsignment.aspx";
+        }
+        if (str_contains($c, 'ekart')) {
+            return "https://ekartlogistics.com/shipmenttrack/{$t}";
+        }
+        if (str_contains($c, 'shadowfax')) {
+            return "https://tracker.shadowfax.in/#/track/{$t}";
+        }
+        if (str_contains($c, 'xpressbees')) {
+            return "https://www.xpressbees.com/shipment/tracking?awb={$t}";
+        }
+        if (str_contains($c, 'ecom express') || str_contains($c, 'ecomexpress')) {
+            return "https://ecomexpress.in/tracking/?awb_field={$t}";
+        }
+        if (str_contains($c, 'shiprocket')) {
+            return "https://shiprocket.co/tracking/{$t}";
+        }
+        if (str_contains($c, 'fedex')) {
+            return "https://www.fedex.com/fedextrack/?trknbr={$t}";
+        }
+        if (str_contains($c, 'dhl')) {
+            return "https://www.dhl.com/en/express/tracking.html?AWB={$t}&brand=DHL";
+        }
+
+        return null;
     }
 }

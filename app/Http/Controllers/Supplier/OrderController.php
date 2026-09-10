@@ -35,15 +35,15 @@ class OrderController extends Controller
         });
 
         $totalOrders = $supplierOrders->count();
-        $processingOrders = $supplierOrders->where('status', 'processing')->count();
-        $completedOrders = $supplierOrders->where('status', 'completed')->count();
-        $pendingOrders = $supplierOrders->filter(fn($o) => in_array($o->status, ['pending', 'on-hold']))->count();
+        $confirmedOrders = $supplierOrders->filter(fn($o) => in_array(strtolower(trim($o->status ?? '')), ['order confirmed', 'order_confirmed', 'processing']))->count();
+        $shippedOrders = $supplierOrders->filter(fn($o) => strtolower(trim($o->status ?? '')) === 'shipped')->count();
+        $deliveredOrders = $supplierOrders->filter(fn($o) => in_array(strtolower(trim($o->status ?? '')), ['delivered', 'completed']))->count();
 
         return view('supplier.orders.index', compact(
             'totalOrders',
-            'processingOrders',
-            'completedOrders',
-            'pendingOrders'
+            'confirmedOrders',
+            'shippedOrders',
+            'deliveredOrders'
         ));
     }
 
@@ -85,7 +85,16 @@ class OrderController extends Controller
         $query = OrderWebhookPayload::whereNotNull('order_id');
 
         if (!empty($status) && $status !== 'all') {
-            $query->where('status', $status);
+            $statusNormalized = strtolower(trim($status));
+            if (in_array($statusNormalized, ['order confirmed', 'order_confirmed', 'processing'])) {
+                $query->whereIn('status', ['Order confirmed', 'order_confirmed', 'processing']);
+            } elseif ($statusNormalized === 'shipped') {
+                $query->whereIn('status', ['Shipped', 'shipped']);
+            } elseif (in_array($statusNormalized, ['delivered', 'completed'])) {
+                $query->whereIn('status', ['Delivered', 'delivered', 'completed']);
+            } else {
+                $query->where('status', $status);
+            }
         }
 
         if (!empty($dateFrom)) {
@@ -319,7 +328,7 @@ class OrderController extends Controller
             'record_id' => $record->id,
             'order_number' => $payload['number'] ?? $record->order_id ?? ('#' . $record->id),
             'order_key' => $record->order_key ?: ($payload['order_key'] ?? '—'),
-            'status' => strtolower($record->status ?: ($payload['status'] ?? 'pending')),
+            'status' => $record->status ?: ($payload['status'] ?? 'Order confirmed'),
             'courier_name' => $record->courier_name,
             'tracking_id' => $record->tracking_id,
             'tracking_url' => $record->tracking_url,

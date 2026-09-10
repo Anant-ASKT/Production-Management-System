@@ -805,6 +805,11 @@ Route::middleware('auth')->group(function () {
         '/admin/website-orders/{id}/send-email',
         [AdminWebsiteOrderController::class, 'sendSupplierEmail']
     )->name('admin.website-orders.send-email');
+
+    Route::post(
+        '/admin/website-orders/{id}/update-status',
+        [AdminWebsiteOrderController::class, 'updateStatusAndShipping']
+    )->name('admin.website-orders.update-status');
 });
 
 /*

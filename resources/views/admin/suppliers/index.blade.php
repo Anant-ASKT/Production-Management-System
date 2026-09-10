@@ -33,6 +33,7 @@
                             <th style="width: 70px;">S.No</th>
                             <th>Supplier Name</th>
                             <th>Nick Name</th>
+                            <th>Email</th>
                             <th>Users</th>
                             <th>Phone</th>
                             <th>Address</th>
@@ -49,6 +50,7 @@
                                         {{ $supplier->nickname ?? '-' }}
                                     </span>
                                 </td>
+                                <td>{{ $supplier->email ?? '-' }}</td>
                                 <td>
                                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
                                         <i class="bi bi-people-fill me-1"></i> {{ $supplier->users_count }} {{ Str::plural('User', $supplier->users_count) }}
@@ -64,7 +66,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center py-4 text-muted">No suppliers found.</td>
+                                <td colspan="8" class="text-center py-4 text-muted">No suppliers found.</td>
                             </tr>
                         @endforelse
                     </tbody>
