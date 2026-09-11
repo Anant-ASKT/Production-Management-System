@@ -699,6 +699,13 @@ public function data(Request $request)
         )
 
         ->leftJoin(
+            'auto_traders_designer_specification_buying as buying',
+            'buying.trader_specification_id',
+            '=',
+            'dsm.id'
+        )
+
+        ->leftJoin(
                 'AI_product_description as ai',
                 'ai.product_id',
                 '=',
@@ -890,7 +897,7 @@ public function data(Request $request)
             )
 
             ->orWhere(
-                'dsm.purchase_bill_no',
+                'buying.purchase_bill_no',
                 'like',
                 '%' . $search . '%'
             );
@@ -922,18 +929,22 @@ public function data(Request $request)
             'trader.name as trader_name_text',
             'trader.code as trader_code_text',
             'dsm.trader_sku',
-            'dsm.purchase_bill_no',
-            'dsm.purchase_date',
-            'dsm.trader_quantity',
+
+            // Buying information is stored in the related buying table.
+            'buying.purchase_bill_no',
+            'buying.purchase_date',
+            'buying.trader_quantity',
+            'buying.trader_gst_percent',
+            'buying.trader_discount',
+            'buying.trader_payment_terms',
+            'buying.trader_reference',
+            'buying.trader_notes',
+
+            // Trader pricing is stored in the main specification table.
             'dsm.trader_buying_price',
             'dsm.trader_selling_price',
             'dsm.trader_mrp',
             'dsm.trader_min_selling_price',
-            'dsm.trader_gst_percent',
-            'dsm.trader_discount',
-            'dsm.trader_payment_terms',
-            'dsm.trader_reference',
-            'dsm.trader_notes',
             'dsm.colour',
             'dsm.sizes',
 
@@ -979,10 +990,6 @@ public function data(Request $request)
             'dsm.craftsman_code',
             'dsm.manufecture',
             'dsm.client',
-
-            'dsm.buying_price',
-            'dsm.sale_price',
-            'dsm.min_price',
 
             // Optional specification names
             'embellishment.embellishmentname as embellishment_text',
@@ -3944,14 +3951,11 @@ private function generateProductSku(
 
             'trader_name' =>
                 $validated['trader_name'],
+
             'trader_sku' =>
                 $validated['trader_sku'] ?? null,
-            'purchase_bill_no' =>
-                $validated['purchase_bill_no'] ?? null,
-            'purchase_date' =>
-                $validated['purchase_date'] ?? null,
-            'trader_quantity' =>
-                $validated['trader_quantity'],
+
+            // Trader pricing belongs to the main specification table.
             'trader_buying_price' =>
                 $validated['trader_buying_price'],
             'trader_selling_price' =>
@@ -3960,16 +3964,6 @@ private function generateProductSku(
                 $validated['trader_mrp'] ?? null,
             'trader_min_selling_price' =>
                 $validated['trader_min_selling_price'] ?? null,
-            'trader_gst_percent' =>
-                $validated['trader_gst_percent'] ?? null,
-            'trader_discount' =>
-                $validated['trader_discount'] ?? null,
-            'trader_payment_terms' =>
-                $validated['trader_payment_terms'] ?? null,
-            'trader_reference' =>
-                $validated['trader_reference'] ?? null,
-            'trader_notes' =>
-                $validated['trader_notes'] ?? null,
 
             'manufacturing_process' =>
                 $validated['manufacturing_process'] ?? 0,

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\File;
 use App\Models\CompanyMaster;
 use App\Models\CompanySubMaster;
 use App\Models\ProjectMaster;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Mockery\Matcher\AndAnyOtherArgs;
 
@@ -392,6 +393,7 @@ public function supplierProducts(Request $request)
             'sp.price',
             'sp.sale_price',
             'sp.min_price',
+            'sp.product_sku',
 
             'sp.created_at',
             'sp.updated_at'
@@ -402,8 +404,8 @@ public function supplierProducts(Request $request)
             'active'
         )
         ->where(function ($q) {
-            $q->whereNull('sp.product_sku')
-            ->orWhere('sp.product_sku', '');
+            $q->whereNull('sp.status_done')
+            ->orWhere('sp.status_done', '');
         });
 
 
@@ -499,6 +501,345 @@ public function supplierProducts(Request $request)
         ], 500);
 
     }
+}
+
+    public function findBySupplierSku(Request $request)
+{
+    $user = Auth::user();
+
+    if (!$user) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Unauthenticated.'
+        ], 401);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | CURRENT LOGIN CONTEXT
+    |--------------------------------------------------------------------------
+    */
+
+    $companyId = (int) $user->company_id;
+    $subCompanyId = (int) $user->sub_company_id;
+    $projectId = (int) $user->project_id;
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SUPPLIER SKU
+    |--------------------------------------------------------------------------
+    */
+
+    $supplierSku = trim(
+        (string) $request->input('sku', '')
+    );
+
+    if ($supplierSku === '') {
+        return response()->json([
+            'success' => false,
+            'message' => 'Supplier SKU is empty.'
+        ], 422);
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | FIND SPECIFICATION
+    |--------------------------------------------------------------------------
+    |
+    | IMPORTANT:
+    |
+    | supplier SKU is stored in:
+    |
+    |     sku_supplier
+    |
+    | NOT in the internally generated "sku".
+    |
+    */
+
+    $specification = DB::table(
+        'auto_designer_specification_master as dsm'
+    )
+
+        /*
+        |--------------------------------------------------------------------------
+        | MASTER TABLES
+        |--------------------------------------------------------------------------
+        */
+
+        ->leftJoin(
+            'auto_designer_master as designer',
+            'designer.id',
+            '=',
+            'dsm.designer_name'
+        )
+
+        ->leftJoin(
+            'auto_itemtype_master as itemtype',
+            'itemtype.id',
+            '=',
+            'dsm.item_type'
+        )
+
+        ->leftJoin(
+            'auto_gender_master as gender',
+            'gender.id',
+            '=',
+            'dsm.gender'
+        )
+
+        ->leftJoin(
+            'auto_itemname_master as itemname',
+            'itemname.id',
+            '=',
+            'dsm.item_name'
+        )
+
+        ->leftJoin(
+            'auto_composition_master_stock as composition',
+            'composition.id',
+            '=',
+            'dsm.composition'
+        )
+
+        ->leftJoin(
+            'auto_yarn_master as yarn',
+            'yarn.id',
+            '=',
+            'dsm.yarn'
+        )
+
+        ->leftJoin(
+            'auto_colour_master as colour',
+            'colour.id',
+            '=',
+            'dsm.colour'
+        )
+
+        ->leftJoin(
+            'auto_size_master as size',
+            'size.id',
+            '=',
+            'dsm.sizes'
+        )
+
+        ->leftJoin(
+            'auto_embellishment_master as embellishment',
+            'embellishment.id',
+            '=',
+            'dsm.embellishment'
+        )
+
+        ->leftJoin(
+            'auto_manufacturing_process_master as manufacturing',
+            'manufacturing.id',
+            '=',
+            'dsm.manufacturing_process'
+        )
+
+        ->leftJoin(
+            'auto_craftsman_master as craftsman',
+            'craftsman.id',
+            '=',
+            'dsm.craftsman'
+        )
+
+        ->leftJoin(
+            'auto_manufacture_master as manufacture',
+            'manufacture.id',
+            '=',
+            'dsm.manufecture'
+        )
+
+        ->leftJoin(
+            'auto_client_master as client',
+            'client.id',
+            '=',
+            'dsm.client'
+        )
+
+        ->leftJoin(
+            'AI_product_description as ai',
+            'ai.product_id',
+            '=',
+            'dsm.id'
+        )
+
+        /*
+        |--------------------------------------------------------------------------
+        | FIND BY SUPPLIER SKU
+        |--------------------------------------------------------------------------
+        */
+
+        ->where(
+            'dsm.sku',
+            $supplierSku
+        )
+
+        /*
+        |--------------------------------------------------------------------------
+        | CURRENT COMPANY / SUB COMPANY / PROJECT
+        |--------------------------------------------------------------------------
+        */
+
+        ->where(
+            'dsm.companyid',
+            $companyId
+        )
+
+        ->where(
+            'dsm.subcompanyid',
+            $subCompanyId
+        )
+
+        ->where(
+            'dsm.projectid',
+            $projectId
+        )
+
+        /*
+        |--------------------------------------------------------------------------
+        | CURRENT VERSION ONLY
+        |--------------------------------------------------------------------------
+        */
+
+        ->where(function ($query) {
+            $query
+                ->whereNull('dsm.tedit')
+                ->orWhere('dsm.tedit', '');
+        })
+
+        ->where(function ($query) {
+            $query
+                ->whereNull('dsm.status')
+                ->orWhere('dsm.status', '')
+                ->orWhere('dsm.status', 'done');
+        })
+
+        /*
+        |--------------------------------------------------------------------------
+        | SELECT COMPLETE SPECIFICATION
+        |--------------------------------------------------------------------------
+        */
+
+        ->select([
+
+            /*
+            |--------------------------------------------------------------------------
+            | IDs
+            |--------------------------------------------------------------------------
+            */
+
+            'dsm.sno',
+            'dsm.id',
+
+            'dsm.designer_name',
+            'dsm.item_type',
+            'dsm.gender',
+            'dsm.item_name',
+            'dsm.composition',
+            'dsm.yarn',
+            'dsm.colour',
+            'dsm.sizes',
+
+            'dsm.embellishment',
+            'dsm.manufacturing_process',
+            'dsm.craftsman',
+            'dsm.craftsman_code',
+            'dsm.manufecture',
+            'dsm.client',
+
+            /*
+            |--------------------------------------------------------------------------
+            | DISPLAY NAMES
+            |--------------------------------------------------------------------------
+            */
+
+            'designer.designername as designer_name_text',
+            'itemtype.itemtype as item_type_text',
+            'gender.name as gender_text',
+            'itemname.itemname as item_name_text',
+            'composition.composition_details as composition_text',
+            'yarn.yarnname as yarn_text',
+            'colour.colourname as colour_text',
+            'size.size as size_text',
+
+            'embellishment.embellishmentname as embellishment_text',
+            'manufacturing.manufacturing_process as manufacturing_process_text',
+            'craftsman.name as craftsman_text',
+            'manufacture.name as manufacture_text',
+            'client.name as client_text',
+
+            /*
+            |--------------------------------------------------------------------------
+            | PRODUCT DATA
+            |--------------------------------------------------------------------------
+            */
+
+            'dsm.barcode',
+            'dsm.sku',
+            'dsm.sku_supplier',
+
+            'dsm.clientreference',
+
+            'dsm.price',
+            'dsm.sale_price',
+            'dsm.min_price',
+
+            'dsm.img_path',
+            'dsm.subimg_path',
+
+            'dsm.edatetime',
+            'dsm.status',
+
+            /*
+            |--------------------------------------------------------------------------
+            | AI DATA
+            |--------------------------------------------------------------------------
+            */
+
+            'ai.AI_product_name',
+            'ai.AI_product_description',
+            'ai.AI_Metatitle',
+            'ai.AI_Metakeywards',
+            'ai.AI_Metadescription',
+            'ai.AI_Producttag',
+            'ai.AI_Imagealttext'
+        ])
+
+        ->orderByDesc('dsm.sno')
+        ->first();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | NOT FOUND
+    |--------------------------------------------------------------------------
+    */
+
+    if (!$specification) {
+
+        return response()->json([
+            'success' => true,
+            'found' => false,
+            'message' =>
+                'No Design Specification found for this Supplier SKU.'
+        ]);
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | RESPONSE
+    |--------------------------------------------------------------------------
+    */
+
+    return response()->json([
+        'success' => true,
+        'found' => true,
+        'data' => $specification
+    ]);
 }
 
 
@@ -2161,7 +2502,7 @@ private function generateProductSku(
     /**
      * Save new Design Specification.
      */
-   public function store(Request $request)
+     public function store(Request $request)
 {
     $user = Auth::user();
 
@@ -2187,67 +2528,1017 @@ private function generateProductSku(
 
     /*
     |--------------------------------------------------------------------------
+    | SUPPLIER SKU STOCK-ONLY CHECK
+    |--------------------------------------------------------------------------
+    |
+    | IMPORTANT:
+    |
+    | This check happens BEFORE normal validation.
+    |
+    | Reason:
+    | The normal validation has:
+    |
+    | Rule::unique(
+    |     'auto_designer_specification_master',
+    |     'sku'
+    | )
+    |
+    | So an existing SKU would otherwise fail validation.
+    |
+    |
+    | LOGIC:
+    |
+    | 1. supplier_id exists
+    | 2. sku exists
+    | 3. SKU already exists in Design Specification Master
+    |
+    | Then:
+    |
+    | - DO NOT create another master record
+    | - DO NOT generate barcode
+    | - DO NOT upload images
+    | - DO NOT generate another SKU
+    | - ONLY insert stock into vendor_stock_web
+    |
+    |--------------------------------------------------------------------------
+    */
+
+    $incomingSupplierId = $request->input('supplier_id');
+
+    // Normalize every supplier-id field used by the supplier-product UI.
+    if (empty($incomingSupplierId)) {
+        $incomingSupplierId = $request->input('login_supplier_id');
+    }
+    if (empty($incomingSupplierId)) {
+        $incomingSupplierId = $request->input('loginsupplerid');
+    }
+    if (empty($incomingSupplierId)) {
+        $incomingSupplierId = $request->input('supplier_id_selected');
+    }
+
+    $supplierProductId = $request->input('supplier_product_id');
+    $supplierProduct = null;
+
+    // If the Save request does not contain supplier_id, recover it from the
+    // selected supplier_products row. This is important because the UI
+    // already sends supplier_product_id when a supplier product is selected.
+    if (!empty($supplierProductId)) {
+        $supplierProduct = DB::table('supplier_products')
+            ->where('sno', $supplierProductId)
+            ->first([
+                'supplier_id',
+                'product_sku',
+                'stock',
+                'price',
+                'sale_price',
+                'min_price'
+            ]);
+
+        if (empty($incomingSupplierId) && $supplierProduct) {
+            $incomingSupplierId = $supplierProduct->supplier_id ?? null;
+        }
+    }
+
+    // The supplier SKU may be posted under different names depending on
+    // which supplier-product control populated the form.
+    $incomingSku = trim((string) $request->input('sku'));
+
+    if ($incomingSku === '') {
+        $incomingSku = trim((string) $request->input('supplier_sku'));
+    }
+    if ($incomingSku === '') {
+        $incomingSku = trim((string) $request->input('supplierSku'));
+    }
+    if ($incomingSku === '') {
+        $incomingSku = trim((string) $request->input('sku_supplier'));
+    }
+    if ($incomingSku === '' && $supplierProduct) {
+        $incomingSku = trim((string) ($supplierProduct->product_sku ?? ''));
+    }
+
+    logger()->info('STORE SUPPLIER SKU CHECK', [
+        'supplier_id' => $incomingSupplierId,
+        'sku' => $incomingSku,
+        'stock_qty' => $request->input('stock_qty'),
+        'login_supplier_stock' => $request->input('login_supplier_stock'),
+        'supplier_product_stock' => $supplierProduct->stock ?? null,
+        'supplier_product_id' => $supplierProductId,
+    ]);
+
+    $hasActualSupplier = !empty($incomingSupplierId);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ONLY CHECK EXISTING SKU WHEN SUPPLIER IS SELECTED
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        $hasActualSupplier &&
+        $incomingSku !== ''
+    ) {
+
+        /*
+        |--------------------------------------------------------------------------
+        | Find Existing Design Specification Master
+        |--------------------------------------------------------------------------
+        */
+
+        // IMPORTANT: For the supplier-existing-SKU path, search the
+        // Design Specification Master by SKU ONLY.  Do not add the
+        // current company/sub-company/project filters here because the
+        // selected supplier product is already the source of the SKU.
+        $existingSpecification =
+            DB::table(
+                'auto_designer_specification_master'
+            )
+            ->where(function ($query) use ($incomingSku) {
+                $query->whereRaw('TRIM(sku) = ?', [$incomingSku])
+                      ->orWhereRaw('TRIM(sku_supplier) = ?', [$incomingSku]);
+            })
+            ->orderByDesc('sno')
+            ->first();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | EXISTING SKU FOUND
+        |--------------------------------------------------------------------------
+        |
+        | This is the important new path.
+        |
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $existingSpecification
+        ) {
+
+            /*
+            |--------------------------------------------------------------------------
+            | Stock Qty
+            |--------------------------------------------------------------------------
+            |
+            | First use the new Stock Qty field.
+            |
+            | Fallback to login_supplier_stock so existing frontend
+            | code continues to work.
+            |
+            |--------------------------------------------------------------------------
+            */
+
+            $stockQty =
+                $request->input(
+                    'stock_qty'
+                );
+
+
+            if (
+                $stockQty === null ||
+                $stockQty === ''
+            ) {
+
+                $stockQty =
+                    $request->input(
+                        'login_supplier_stock'
+                    );
+            }
+
+            if (
+                ($stockQty === null || $stockQty === '') &&
+                $supplierProduct
+            ) {
+                $stockQty = $supplierProduct->stock ?? null;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Validate Stock Qty
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                $stockQty === null ||
+                $stockQty === '' ||
+                !is_numeric($stockQty)
+            ) {
+
+                return response()->json([
+
+                    'success' => false,
+
+                    'stock_only' => true,
+
+                    'message' =>
+                        'Please enter a valid Stock Qty.'
+
+                ], 422);
+            }
+
+
+            $stockQty =
+                (int) $stockQty;
+
+
+            if (
+                $stockQty <= 0
+            ) {
+
+                return response()->json([
+
+                    'success' => false,
+
+                    'stock_only' => true,
+
+                    'message' =>
+                        'Stock Qty must be greater than 0.'
+
+                ], 422);
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | EXISTING MASTER ITEM ID
+            |--------------------------------------------------------------------------
+            */
+
+            $masterItemId =
+                (int) (
+                    $existingSpecification->id
+                    ?? $existingSpecification->sno
+                    ?? 0
+                );
+
+
+            if (
+                $masterItemId <= 0
+            ) {
+
+                return response()->json([
+
+                    'success' => false,
+
+                    'stock_only' => true,
+
+                    'message' =>
+                        'Existing Design Specification has no valid item ID.'
+
+                ], 422);
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | EXISTING MASTER BARCODE
+            |--------------------------------------------------------------------------
+            */
+
+            $masterBarcode =
+                trim(
+                    (string) (
+                        $existingSpecification->barcode
+                        ?? ''
+                    )
+                );
+
+
+            if (
+                $masterBarcode === ''
+            ) {
+
+                return response()->json([
+
+                    'success' => false,
+
+                    'stock_only' => true,
+
+                    'message' =>
+                        'Existing Design Specification has no barcode.'
+
+                ], 422);
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | STOCK DATE
+            |--------------------------------------------------------------------------
+            */
+
+            $createatDate =
+                $request->input(
+                    'login_createatdate'
+                );
+
+
+            if (
+                empty($createatDate)
+            ) {
+
+                $createatDate =
+                    now();
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Convert Stock Date
+            |--------------------------------------------------------------------------
+            */
+
+            try {
+
+                $stockDate =
+                    \Carbon\Carbon::parse(
+                        $createatDate
+                    );
+
+            } catch (
+                \Throwable $e
+            ) {
+
+                $stockDate =
+                    now();
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PRICE
+            |--------------------------------------------------------------------------
+            */
+
+            /*
+            | Supplier price if supplied from selected product.
+            | Otherwise use existing DSM price.
+            */
+
+            $purchasePrice =
+                $request->input(
+                    'price'
+                );
+
+
+            if (
+                ($purchasePrice === null || $purchasePrice === '') &&
+                $supplierProduct
+            ) {
+                $purchasePrice = $supplierProduct->price ?? null;
+            }
+
+            if (
+                $purchasePrice === null ||
+                $purchasePrice === ''
+            ) {
+
+                $purchasePrice =
+                    $existingSpecification->price
+                    ?? 0;
+            }
+
+
+            if (
+                !is_numeric($purchasePrice)
+            ) {
+
+                $purchasePrice =
+                    0;
+            }
+
+
+            $purchasePrice =
+                (float) $purchasePrice;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SALE PRICE
+            |--------------------------------------------------------------------------
+            */
+
+            $salePrice =
+                $request->input(
+                    'saleprice'
+                );
+
+
+            if (
+                ($salePrice === null || $salePrice === '') &&
+                $supplierProduct
+            ) {
+                $salePrice = $supplierProduct->sale_price ?? null;
+            }
+
+            if (
+                $salePrice === null ||
+                $salePrice === ''
+            ) {
+
+                $salePrice =
+                    $existingSpecification->sale_price
+                    ?? 0;
+            }
+
+
+            if (
+                !is_numeric($salePrice)
+            ) {
+
+                $salePrice =
+                    0;
+            }
+
+
+            $salePrice =
+                (float) $salePrice;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Generate vendor_stock_web IDs
+            |--------------------------------------------------------------------------
+            |
+            | vendor_stock_web.id is UNIQUE but is NOT AUTO_INCREMENT.
+            |
+            |--------------------------------------------------------------------------
+            */
+
+            $nextVendorStockWebId =
+                (
+                    (int)
+                    DB::table(
+                        'vendor_stock_web'
+                    )->max('id')
+                ) + 1;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | INSERT STOCK
+            |--------------------------------------------------------------------------
+            |
+            | Example:
+            |
+            | stock_qty = 5
+            |
+            | Creates:
+            |
+            | row 1 -> quantity_received = 1
+            | row 2 -> quantity_received = 1
+            | row 3 -> quantity_received = 1
+            | row 4 -> quantity_received = 1
+            | row 5 -> quantity_received = 1
+            |
+            |--------------------------------------------------------------------------
+            */
+
+            try {
+
+                $createdStockRows =
+                    DB::transaction(
+                        function () use (
+                            $companyId,
+                            $subCompanyId,
+                            $projectId,
+                            $incomingSupplierId,
+                            $masterItemId,
+                            $masterBarcode,
+                            $incomingSku,
+                            $stockQty,
+                            $purchasePrice,
+                            $salePrice,
+                            $stockDate,
+                            &$nextVendorStockWebId
+                        ) {
+
+                            $rows =
+                                [];
+
+
+                            for (
+                                $stockIndex = 0;
+                                $stockIndex < $stockQty;
+                                $stockIndex++
+                            ) {
+
+                                $rows[] = [
+
+                                    /*
+                                    |--------------------------------------------------------------------------
+                                    | UNIQUE ID
+                                    |--------------------------------------------------------------------------
+                                    */
+
+                                    'id' =>
+                                        $nextVendorStockWebId++,
+
+                                    /*
+                                    |--------------------------------------------------------------------------
+                                    | COMPANY
+                                    |--------------------------------------------------------------------------
+                                    */
+
+                                    'companyid' =>
+                                        $companyId,
+
+                                    'subcompanyid' =>
+                                        $subCompanyId,
+
+                                    'projectid' =>
+                                        $projectId,
+
+                                    /*
+                                    |--------------------------------------------------------------------------
+                                    | SUPPLIER
+                                    |--------------------------------------------------------------------------
+                                    */
+
+                                    'vendor_id' =>
+                                        (int) $incomingSupplierId,
+
+                                    /*
+                                    |--------------------------------------------------------------------------
+                                    | EXISTING DSM ITEM
+                                    |--------------------------------------------------------------------------
+                                    */
+
+                                    'item_id' =>
+                                        $masterItemId,
+
+                                    /*
+                                    |--------------------------------------------------------------------------
+                                    | SKU
+                                    |--------------------------------------------------------------------------
+                                    |
+                                    | vendor_stock_web does not have a SKU column.
+                                    |
+                                    | Therefore SKU is stored in batch_no.
+                                    |
+                                    |--------------------------------------------------------------------------
+                                    */
+
+                                    'batch_no' =>
+                                        $incomingSku,
+
+                                    /*
+                                    |--------------------------------------------------------------------------
+                                    | STOCK DATE
+                                    |--------------------------------------------------------------------------
+                                    */
+
+                                    'stock_date' =>
+                                        $stockDate->toDateString(),
+
+                                    /*
+                                    |--------------------------------------------------------------------------
+                                    | ONE ROW = ONE STOCK ITEM
+                                    |--------------------------------------------------------------------------
+                                    */
+
+                                    'quantity_received' =>
+                                        1,
+
+                                    'send_qty' =>
+                                        0,
+
+                                    /*
+                                    |--------------------------------------------------------------------------
+                                    | PRICES
+                                    |--------------------------------------------------------------------------
+                                    */
+
+                                    'sale_price' =>
+                                        $salePrice,
+
+                                    'purchase_price' =>
+                                        $purchasePrice,
+
+                                    'total_cost' =>
+                                        $purchasePrice,
+
+                                    /*
+                                    |--------------------------------------------------------------------------
+                                    | OTHER STOCK FIELDS
+                                    |--------------------------------------------------------------------------
+                                    */
+
+                                    'warehouse_id' =>
+                                        null,
+
+                                    'warehouse_location' =>
+                                        null,
+
+                                    /*
+                                    |--------------------------------------------------------------------------
+                                    | KEEP SKU INFORMATION
+                                    |--------------------------------------------------------------------------
+                                    */
+
+                                    'remarks' =>
+                                        'Supplier SKU: ' .
+                                        $incomingSku .
+                                        ' | Existing DSM Item ID: ' .
+                                        $masterItemId .
+                                        ' | Existing DSM Barcode: ' .
+                                        $masterBarcode,
+
+                                    'boxid' =>
+                                        null,
+
+                                    'stock_transfer' =>
+                                        null,
+
+                                    /*
+                                    |--------------------------------------------------------------------------
+                                    | DSM REFERENCE
+                                    |--------------------------------------------------------------------------
+                                    */
+
+                                    'g_id' =>
+                                        $masterItemId,
+
+                                    'barcode' =>
+                                        $masterBarcode,
+
+                                    /*
+                                    |--------------------------------------------------------------------------
+                                    | STOCK ENTRY DATE
+                                    |--------------------------------------------------------------------------
+                                    */
+
+                                    'stockentrydate' =>
+                                        $stockDate->toDateString(),
+
+                                    /*
+                                    |--------------------------------------------------------------------------
+                                    | RECEIVED FROM SUPPLIER
+                                    |--------------------------------------------------------------------------
+                                    */
+
+                                    'receivedfromid' =>
+                                        (int) $incomingSupplierId,
+
+                                    /*
+                                    |--------------------------------------------------------------------------
+                                    | REMAINING FIELDS
+                                    |--------------------------------------------------------------------------
+                                    */
+
+                                    'measurementunit_id' =>
+                                        null,
+
+                                    'inputcost_measurementunit_id' =>
+                                        null,
+
+                                    'quantityreceived_id' =>
+                                        null,
+
+                                    'location_id' =>
+                                        null,
+
+                                    'stockremovaldate' =>
+                                        null,
+
+                                    'giventi_id' =>
+                                        null,
+
+                                    'quantity_given' =>
+                                        null,
+
+                                    'outputcost_measurementunit_id' =>
+                                        null,
+
+                                    'tedit' =>
+                                        null,
+
+                                    'flag_sendtointernal' =>
+                                        null,
+
+                                    'trolley_no' =>
+                                        null,
+
+                                    'trolley_remarks' =>
+                                        null,
+
+                                    'orderno' =>
+                                        null,
+
+                                    'orderid' =>
+                                        null,
+
+                                    'shipmentno' =>
+                                        null,
+
+                                    'shipmentreparks' =>
+                                        null,
+
+                                    'orderstatus' =>
+                                        null,
+
+                                    /*
+                                    |--------------------------------------------------------------------------
+                                    | CATEGORY
+                                    |--------------------------------------------------------------------------
+                                    */
+
+                                    'update_category' =>
+                                        'SUPPLIER_SKU_STOCK',
+
+                                    /*
+                                    |--------------------------------------------------------------------------
+                                    | DATE/TIME
+                                    |--------------------------------------------------------------------------
+                                    */
+
+                                    'createat_date' =>
+                                        $stockDate,
+
+                                    'created_at' =>
+                                        now(),
+
+                                    'updated_at' =>
+                                        now(),
+                                ];
+                            }
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | INSERT ALL STOCK ROWS
+                            |--------------------------------------------------------------------------
+                            */
+
+                            if (
+                                !empty($rows)
+                            ) {
+
+                                DB::table(
+                                    'vendor_stock_web'
+                                )->insert(
+                                    $rows
+                                );
+                            }
+
+
+                            return count(
+                                $rows
+                            );
+                        }
+                    );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | STOCK-ONLY SUCCESS
+                |--------------------------------------------------------------------------
+                */
+
+                return response()->json([
+
+                    'success' =>
+                        true,
+
+                    'stock_only' =>
+                        true,
+
+                    'message' =>
+                        'Supplier stock saved successfully. Existing Design Specification was not duplicated.',
+
+                    'sku' =>
+                        $incomingSku,
+
+                    'item_id' =>
+                        $masterItemId,
+
+                    'barcode' =>
+                        $masterBarcode,
+
+                    'quantity' =>
+                        $stockQty,
+
+                    'rows_created' =>
+                        $createdStockRows
+
+                ]);
+
+
+            } catch (
+                \Throwable $e
+            ) {
+
+                logger()->error(
+                    'SUPPLIER EXISTING SKU STOCK SAVE ERROR',
+                    [
+                        'message' => $e->getMessage(),
+
+                        'supplier_id' => $incomingSupplierId,
+
+                        'sku' => $incomingSku,
+
+                        'item_id' => $masterItemId,
+
+                        'barcode' => $masterBarcode,
+
+                        'stock_qty' => $stockQty
+                    ]
+                );
+
+
+                return response()->json([
+
+                    'success' =>
+                        false,
+
+                    'stock_only' =>
+                        true,
+
+                    'message' =>
+                        'Unable to save supplier stock: ' .
+                        $e->getMessage()
+
+                ], 500);
+            }
+        }
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | NORMAL EXISTING PROCESS STARTS HERE
+    |--------------------------------------------------------------------------
+    |
+    | IMPORTANT:
+    |
+    | If supplier_id is empty:
+    |     normal process
+    |
+    | If supplier_id exists but SKU does NOT exist in DSM:
+    |     normal process
+    |
+    | Therefore your existing new-product functionality is preserved.
+    |--------------------------------------------------------------------------
+    */
+
+
+    /*
+    |--------------------------------------------------------------------------
     | Validation
     |--------------------------------------------------------------------------
     */
 
+    if (!empty($incomingSupplierId)) {
+        $request->merge(['supplier_id' => $incomingSupplierId]);
+    }
+    if ($incomingSku !== '') {
+        $request->merge(['sku' => $incomingSku]);
+    }
+
     $validated = $request->validate([
-        'item_name' => 'required',
-        'item_type' => 'required',
-        'designer_name' => 'required',
-        'gender' => 'required',
-        'composition' => 'required',
-        'colour' => 'required',
-        'sizes' => 'required',
 
-        'item_name_code' => 'nullable|string|max:100',
-        'item_type_code' => 'nullable|string|max:100',
-        'designer_code' => 'nullable|string|max:100',
-        'gender_code' => 'nullable|string|max:100',
-        'composition_code' => 'nullable|string|max:100',
-        'colour_code' => 'nullable|string|max:100',
-        'size_code' => 'nullable|string|max:100',
-        'embellishment_code' => 'nullable|string|max:100',
-        'manufacturing_process_code' => 'nullable|string|max:100',
-        'craftsman_code' => 'nullable|string|max:100',
-        'manufacture_code' => 'nullable|string|max:100',
-        'client_code' => 'nullable|string|max:100',
+        'item_name' =>
+            'required',
 
-        'supplier_id' => 'nullable|integer',
-        'supplier_user_id' => 'nullable|integer',
-        'supplier_nickname' => 'nullable|string|max:10',
-        'supplier_product_id' => 'nullable|integer',
+        'item_type' =>
+            'required',
 
-        'embellishment' => 'nullable',
-        'yarn' => 'nullable',
-        'manufacturing_process' => 'nullable',
-        'craftsman' => 'nullable',
+        'designer_name' =>
+            'required',
 
-        'manufecture' => 'nullable',
-        'client' => 'nullable',
+        'gender' =>
+            'required',
+
+        'composition' =>
+            'required',
+
+        'colour' =>
+            'required',
+
+        'sizes' =>
+            'required',
+
+
+        'item_name_code' =>
+            'nullable|string|max:100',
+
+        'item_type_code' =>
+            'nullable|string|max:100',
+
+        'designer_code' =>
+            'nullable|string|max:100',
+
+        'gender_code' =>
+            'nullable|string|max:100',
+
+        'composition_code' =>
+            'nullable|string|max:100',
+
+        'colour_code' =>
+            'nullable|string|max:100',
+
+        'size_code' =>
+            'nullable|string|max:100',
+
+        'embellishment_code' =>
+            'nullable|string|max:100',
+
+        'manufacturing_process_code' =>
+            'nullable|string|max:100',
+
+        'craftsman_code' =>
+            'nullable|string|max:100',
+
+        'manufacture_code' =>
+            'nullable|string|max:100',
+
+        'client_code' =>
+            'nullable|string|max:100',
+
+
+        'supplier_id' =>
+            'nullable|integer',
+
+        'supplier_user_id' =>
+            'nullable|integer',
+
+        'supplier_nickname' =>
+            'nullable|string|max:10',
+
+        'supplier_product_id' =>
+            'nullable|integer',
+
+
+        'embellishment' =>
+            'nullable',
+
+        'yarn' =>
+            'nullable',
+
+        'manufacturing_process' =>
+            'nullable',
+
+        'craftsman' =>
+            'nullable',
+
+        'manufecture' =>
+            'nullable',
+
+        'client' =>
+            'nullable',
+
 
         'sku' => [
+
             'nullable',
+
             'string',
+
             'max:1000',
+
             Rule::unique(
                 'auto_designer_specification_master',
                 'sku'
             ),
+
         ],
 
-        'clientreference' => 'nullable|string',
-        'price' => 'nullable|string',
-        'minprice' => 'nullable|string',
-        'saleprice' => 'nullable|string',
 
-        'AI_product_name' => 'nullable|string',
-        'AI_product_description' => 'nullable|string',
-        'AI_Metatitle' => 'nullable|string',
-        'AI_Metakeywards' => 'nullable|string',
-        'AI_Metadescription' => 'nullable|string',
-        'AI_Producttag' => 'nullable|string',
-        'AI_Imagealttext' => 'nullable|string',
+        'clientreference' =>
+            'nullable|string',
+
+        'price' =>
+            'nullable|string',
+
+        'minprice' =>
+            'nullable|string',
+
+        'saleprice' =>
+            'nullable|string',
+
+
+        'AI_product_name' =>
+            'nullable|string',
+
+        'AI_product_description' =>
+            'nullable|string',
+
+        'AI_Metatitle' =>
+            'nullable|string',
+
+        'AI_Metakeywards' =>
+            'nullable|string',
+
+        'AI_Metadescription' =>
+            'nullable|string',
+
+        'AI_Producttag' =>
+            'nullable|string',
+
+        'AI_Imagealttext' =>
+            'nullable|string',
+
     ]);
 
 
@@ -2326,7 +3617,9 @@ private function generateProductSku(
     |--------------------------------------------------------------------------
     */
 
-    if (!empty($validated['embellishment'])) {
+    if (
+        !empty($validated['embellishment'])
+    ) {
 
         $this->validateMasterRecord(
             'auto_embellishment_master',
@@ -2338,7 +3631,9 @@ private function generateProductSku(
     }
 
 
-    if (!empty($validated['manufacturing_process'])) {
+    if (
+        !empty($validated['manufacturing_process'])
+    ) {
 
         $this->validateMasterRecord(
             'auto_manufacturing_process_master',
@@ -2350,7 +3645,9 @@ private function generateProductSku(
     }
 
 
-    if (!empty($validated['craftsman'])) {
+    if (
+        !empty($validated['craftsman'])
+    ) {
 
         $this->validateMasterRecord(
             'auto_craftsman_master',
@@ -2362,7 +3659,9 @@ private function generateProductSku(
     }
 
 
-    if (!empty($validated['manufecture'])) {
+    if (
+        !empty($validated['manufecture'])
+    ) {
 
         $this->validateMasterRecord(
             'auto_manufacture_master',
@@ -2374,7 +3673,9 @@ private function generateProductSku(
     }
 
 
-    if (!empty($validated['client'])) {
+    if (
+        !empty($validated['client'])
+    ) {
 
         $this->validateMasterRecord(
             'auto_client_master',
@@ -2396,20 +3697,38 @@ private function generateProductSku(
         $validated['craftsman_code'] ?? null;
 
 
-    if (!empty($validated['craftsman'])) {
+    if (
+        !empty($validated['craftsman'])
+    ) {
 
         $craftsman =
-            DB::table('auto_craftsman_master')
-                ->where('sno', $validated['craftsman'])
-                ->where('companyid', $companyId)
-                ->where('subcompanyid', $subCompanyId)
-                ->where('projectid', $projectId)
-                ->first([
-                    'code'
-                ]);
+            DB::table(
+                'auto_craftsman_master'
+            )
+            ->where(
+                'sno',
+                $validated['craftsman']
+            )
+            ->where(
+                'companyid',
+                $companyId
+            )
+            ->where(
+                'subcompanyid',
+                $subCompanyId
+            )
+            ->where(
+                'projectid',
+                $projectId
+            )
+            ->first([
+                'code'
+            ]);
 
 
-        if ($craftsman) {
+        if (
+            $craftsman
+        ) {
 
             $craftsmanCode =
                 $craftsman->code;
@@ -2420,26 +3739,6 @@ private function generateProductSku(
     /*
     |--------------------------------------------------------------------------
     | Generate Barcode
-    |--------------------------------------------------------------------------
-    |
-    | Existing data uses the company/sub-company/project
-    | context followed by the selected specification IDs.
-    |
-    */
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | NEW OR EDIT
-    |--------------------------------------------------------------------------
-    */
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Generate Barcode
-    |--------------------------------------------------------------------------
-    | NEW RECORD ONLY
     |--------------------------------------------------------------------------
     */
 
@@ -2453,9 +3752,12 @@ private function generateProductSku(
 
 
     $nextId =
-        ((int) DB::table(
-            'auto_designer_specification_master'
-        )->max('id')) + 1;
+        (
+            (int)
+            DB::table(
+                'auto_designer_specification_master'
+            )->max('id')
+        ) + 1;
 
 
     /*
@@ -2480,16 +3782,29 @@ private function generateProductSku(
         !empty($supplierId);
 
 
-    $supplierNickname = '';
+    $supplierNickname =
+        '';
 
 
-    if (empty($supplierId)) {
+    if (
+        empty($supplierId)
+    ) {
 
-        $supplierId = $projectId;
+        $supplierId =
+            $projectId;
 
-        $projectMaster = DB::table('tbl_project_master')
-            ->where('projectid', $projectId)
-            ->first(['projectname']);
+
+        $projectMaster =
+            DB::table(
+                'tbl_project_master'
+            )
+            ->where(
+                'projectid',
+                $projectId
+            )
+            ->first([
+                'projectname'
+            ]);
 
 
         if (
@@ -2533,8 +3848,10 @@ private function generateProductSku(
 
 
     $generatedSku =
-        $itemTypeCode . '-' .
-        $supplierNickname . '-' .
+        $itemTypeCode .
+        '-' .
+        $supplierNickname .
+        '-' .
         $nextId;
 
 
@@ -2542,10 +3859,6 @@ private function generateProductSku(
     |--------------------------------------------------------------------------
     | Supplier SKU
     |--------------------------------------------------------------------------
-    |
-    | The SKU entered by user from frontend is now treated as
-    | supplier SKU.
-    |
     */
 
     $supplierSku =
@@ -2558,24 +3871,28 @@ private function generateProductSku(
     |--------------------------------------------------------------------------
     | Check Duplicate Barcode
     |--------------------------------------------------------------------------
-    |
-    | If barcode already exists in either master or vendor stock,
-    | do not save anything.
-    |
     */
 
     $barcodeExistsInMaster =
         DB::table(
             'auto_designer_specification_master'
         )
-        ->where('barcode', $barcode)
+        ->where(
+            'barcode',
+            $barcode
+        )
         ->exists();
 
 
     $barcodeExistsInStock =
-        DB::table('vendor_stock')
-            ->where('barcode', $barcode)
-            ->exists();
+        DB::table(
+            'vendor_stock'
+        )
+        ->where(
+            'barcode',
+            $barcode
+        )
+        ->exists();
 
 
     if (
@@ -2584,9 +3901,13 @@ private function generateProductSku(
     ) {
 
         return response()->json([
-            'success' => false,
+
+            'success' =>
+                false,
+
             'message' =>
                 'This barcode already exists. Data was not saved.'
+
         ], 422);
     }
 
@@ -2597,13 +3918,17 @@ private function generateProductSku(
     |--------------------------------------------------------------------------
     */
 
-    $imgPath = null;
+    $imgPath =
+        null;
+
 
     $price =
         $validated['price'] ?? 0;
 
+
     $minprice =
         $validated['minprice'] ?? 0;
+
 
     $saleprice =
         $validated['saleprice'] ?? 0;
@@ -2618,7 +3943,8 @@ private function generateProductSku(
     $insertId =
         DB::table(
             'auto_designer_specification_master'
-        )->insertGetId([
+        )
+        ->insertGetId([
 
             'designer_name' =>
                 $validated['designer_name'],
@@ -2672,10 +3998,14 @@ private function generateProductSku(
                 $projectId,
 
             'supplier_person_id' =>
-                $request->input('supplier_user_id') ?: null,
+                $request->input(
+                    'supplier_user_id'
+                ) ?: null,
 
             'supplier_product_id' =>
-                $request->input('supplier_product_id') ?: null,
+                $request->input(
+                    'supplier_product_id'
+                ) ?: null,
 
             'supplier_id' =>
                 $supplierId,
@@ -2739,6 +4069,7 @@ private function generateProductSku(
 
             'yarn' =>
                 $validated['yarn'] ?? null,
+
         ]);
 
 
@@ -2751,9 +4082,14 @@ private function generateProductSku(
     |
     | public/ItemsDesigner_Masterwithbarcode/{barcode}/
     |
+    |--------------------------------------------------------------------------
     */
 
-    if ($request->hasFile('design_images')) {
+    if (
+        $request->hasFile(
+            'design_images'
+        )
+    ) {
 
         /*
          * Main product directory
@@ -2770,7 +4106,11 @@ private function generateProductSku(
          * Create directory if it doesn't exist
          */
 
-        if (!is_dir($imageDirectory)) {
+        if (
+            !is_dir(
+                $imageDirectory
+            )
+        ) {
 
             mkdir(
                 $imageDirectory,
@@ -2784,12 +4124,14 @@ private function generateProductSku(
          * Store relative paths for database
          */
 
-        $uploadedPaths = [];
+        $uploadedPaths =
+            [];
 
 
         foreach (
-            $request->file('design_images')
-            as $image
+            $request->file(
+                'design_images'
+            ) as $image
         ) {
 
             /*
@@ -2797,7 +4139,11 @@ private function generateProductSku(
              */
 
             $fileName =
-                \Illuminate\Support\Str::random(40) .
+                $generatedSku .
+                '-' .
+                \Illuminate\Support\Str::random(
+                    10
+                ) .
                 '.' .
                 strtolower(
                     $image->getClientOriginalExtension()
@@ -2832,7 +4178,9 @@ private function generateProductSku(
          * Save paths in img_path
          */
 
-        if (!empty($uploadedPaths)) {
+        if (
+            !empty($uploadedPaths)
+        ) {
 
             $imgPath =
                 json_encode(
@@ -2849,7 +4197,8 @@ private function generateProductSku(
                 $insertId
             )
             ->update([
-                'img_path' => $imgPath
+                'img_path' =>
+                    $imgPath
             ]);
         }
     }
@@ -2866,11 +4215,11 @@ private function generateProductSku(
     |   ItemsDesigner_Masterwithbarcode/
     |       {barcode}/
     |           SubImgs/
-    |
     |--------------------------------------------------------------------------
     */
 
-    $subImagePaths = [];
+    $subImagePaths =
+        [];
 
 
     /*
@@ -2879,10 +4228,16 @@ private function generateProductSku(
     |--------------------------------------------------------------------------
     */
 
-    if ($request->hasFile('sub_images')) {
+    if (
+        $request->hasFile(
+            'sub_images'
+        )
+    ) {
 
         $subImages =
-            $request->file('sub_images');
+            $request->file(
+                'sub_images'
+            );
 
 
         /*
@@ -2891,7 +4246,11 @@ private function generateProductSku(
         |--------------------------------------------------------------------------
         */
 
-        if (!is_array($subImages)) {
+        if (
+            !is_array(
+                $subImages
+            )
+        ) {
 
             $subImages = [
                 $subImages
@@ -2919,7 +4278,11 @@ private function generateProductSku(
         |--------------------------------------------------------------------------
         */
 
-        if (!is_dir($subImageDirectory)) {
+        if (
+            !is_dir(
+                $subImageDirectory
+            )
+        ) {
 
             mkdir(
                 $subImageDirectory,
@@ -2936,8 +4299,7 @@ private function generateProductSku(
         */
 
         foreach (
-            $subImages
-            as $subImage
+            $subImages as $subImage
         ) {
 
             /*
@@ -2969,7 +4331,11 @@ private function generateProductSku(
 
 
             $fileName =
-                \Illuminate\Support\Str::random(40) .
+                $generatedSku .
+                '-' .
+                \Illuminate\Support\Str::random(
+                    10
+                ) .
                 '.' .
                 $extension;
 
@@ -3035,36 +4401,57 @@ private function generateProductSku(
     */
 
     $aiFields = [
+
         'AI_product_name',
+
         'AI_product_description',
+
         'AI_Metatitle',
+
         'AI_Metakeywards',
+
         'AI_Metadescription',
+
         'AI_Producttag',
+
         'AI_Imagealttext',
+
     ];
 
 
-    $hasAiDetails = false;
+    $hasAiDetails =
+        false;
 
 
-    foreach ($aiFields as $field) {
+    foreach (
+        $aiFields as $field
+    ) {
 
         if (
-            isset($validated[$field]) &&
-            trim((string) $validated[$field]) !== ''
+            isset(
+                $validated[$field]
+            ) &&
+            trim(
+                (string)
+                $validated[$field]
+            ) !== ''
         ) {
 
-            $hasAiDetails = true;
+            $hasAiDetails =
+                true;
 
             break;
         }
     }
 
 
-    if ($hasAiDetails) {
+    if (
+        $hasAiDetails
+    ) {
 
-        DB::table('AI_product_description')->insert([
+        DB::table(
+            'AI_product_description'
+        )->insert([
 
             'product_id' =>
                 $insertId,
@@ -3098,6 +4485,7 @@ private function generateProductSku(
 
             'projectid' =>
                 $projectId,
+
         ]);
     }
 
@@ -3109,7 +4497,9 @@ private function generateProductSku(
     */
 
     $supplierProductId =
-        $request->input('supplier_product_id');
+        $request->input(
+            'supplier_product_id'
+        );
 
 
     if (
@@ -3117,11 +4507,17 @@ private function generateProductSku(
         $supplierProductId !== ''
     ) {
 
-        DB::table('supplier_products')
-            ->where('sno', $supplierProductId)
-            ->update([
-                'product_sku' => $generatedSku,
-            ]);
+        DB::table(
+            'supplier_products'
+        )
+        ->where(
+            'sno',
+            $supplierProductId
+        )
+        ->update([
+            'status_done' =>
+                $generatedSku,
+        ]);
     }
 
 
@@ -3130,23 +4526,28 @@ private function generateProductSku(
     | Supplier Vendor Stock
     |--------------------------------------------------------------------------
     |
-    | IMPORTANT:
-    | Only create vendor_stock when an actual supplier_id
-    | was provided.
+    | EXISTING NORMAL FUNCTIONALITY
     |
-    | If supplier_id is null/empty:
-    |   - Master record IS saved
-    |   - supplierId may use projectId for existing master/SKU logic
-    |   - vendor_stock IS NOT created
+    | This section is intentionally unchanged.
     |
     |--------------------------------------------------------------------------
     */
 
-    if ($hasSupplier) {
+    if (
+        $hasSupplier
+    ) {
 
         $supplierStock =
-            $request->input('login_supplier_stock');
+            $request->input(
+                'login_supplier_stock'
+            );
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | Stock Qty fallback
+        |--------------------------------------------------------------------------
+        */
 
         if (
             $supplierStock === null ||
@@ -3155,21 +4556,28 @@ private function generateProductSku(
             (int) $supplierStock <= 0
         ) {
 
-            $supplierStock = 1;
+            $supplierStock =
+                1;
 
         } else {
 
-            $supplierStock = (int) $supplierStock;
+            $supplierStock =
+                (int) $supplierStock;
         }
 
 
         $createatDate =
-            $request->input('login_createatdate');
+            $request->input(
+                'login_createatdate'
+            );
 
 
-        if (empty($createatDate)) {
+        if (
+            empty($createatDate)
+        ) {
 
-            $createatDate = now();
+            $createatDate =
+                now();
         }
 
 
@@ -3180,7 +4588,12 @@ private function generateProductSku(
         */
 
         $nextVendorStockId =
-            ((int) DB::table('vendor_stock')->max('id')) + 1;
+            (
+                (int)
+                DB::table(
+                    'vendor_stock'
+                )->max('id')
+            ) + 1;
 
 
         /*
@@ -3199,7 +4612,9 @@ private function generateProductSku(
             $stockIndex++
         ) {
 
-            DB::table('vendor_stock')->insert([
+            DB::table(
+                'vendor_stock'
+            )->insert([
 
                 'id' =>
                     $nextVendorStockId++,
@@ -3236,6 +4651,7 @@ private function generateProductSku(
 
                 'createat_date' =>
                     $createatDate,
+
             ]);
         }
     }
@@ -3249,7 +4665,8 @@ private function generateProductSku(
 
     return response()->json([
 
-        'success' => true,
+        'success' =>
+            true,
 
         'message' =>
             'Design specification saved successfully.',
@@ -3259,8 +4676,32 @@ private function generateProductSku(
 
         'barcode' =>
             $barcode,
+
     ]);
 }
+
+    
+        /**
+         * Update existing Design Specification.
+         *
+         * IMPORTANT:
+         * Barcode is NEVER regenerated during update.
+         * Existing barcode remains unchanged.
+         */
+    /**
+     * Update an existing Design Specification.
+     *
+     * IMPORTANT:
+     * - Barcode is NEVER regenerated.
+     * - The old row is kept as history.
+     * - A NEW row is inserted with the SAME barcode.
+     * - The old row is marked "history".
+     * - The new row is marked "done".
+     * - Images continue to use the SAME barcode folder.
+     */
+   
+
+
 
     
         /**
@@ -3693,6 +5134,33 @@ private function generateProductSku(
 
         /*
         |--------------------------------------------------------------------------
+        | Generate New Internal SKU
+        |--------------------------------------------------------------------------
+        |
+        | Generate this before image upload because the SKU is part of the
+        | uploaded filename. The same generated SKU is used for the new row.
+        |
+        */
+
+        $nextId =
+            ((int) DB::table(
+                'auto_designer_specification_master'
+            )->max('id')) + 1;
+
+        $itemNameCode =
+            $validated['item_name_code']
+            ?? '';
+
+        $generatedSku =
+            $itemNameCode .
+            '-' .
+            $supplierNickname .
+            '-' .
+            $nextId;
+
+
+        /*
+        |--------------------------------------------------------------------------
         | Existing Main Images
         |--------------------------------------------------------------------------
         */
@@ -3777,7 +5245,8 @@ private function generateProductSku(
 
 
                 $fileName =
-                    \Illuminate\Support\Str::random(40) .
+                    $generatedSku . '-' .
+                    \Illuminate\Support\Str::random(10) .
                     '.' .
                     strtolower(
                         $image->getClientOriginalExtension()
@@ -3907,7 +5376,8 @@ private function generateProductSku(
 
 
                 $fileName =
-                    \Illuminate\Support\Str::random(40) .
+                    $generatedSku . '-' .
+                    \Illuminate\Support\Str::random(10) .
                     '.' .
                     $extension;
 
@@ -4345,7 +5815,7 @@ private function generateProductSku(
                         $supplierProductId
                     )
                     ->update([
-                        'product_sku' =>
+                        'status_done' =>
                             $specification->sku
                     ]);
             }
@@ -4456,29 +5926,6 @@ private function generateProductSku(
 
         /*
         |--------------------------------------------------------------------------
-        | New Product ID
-        |--------------------------------------------------------------------------
-        */
-
-        $nextId =
-            ((int) DB::table(
-                'auto_designer_specification_master'
-            )->max('id')) + 1;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Generate New Internal SKU
-        |--------------------------------------------------------------------------
-        */
-
-        $itemNameCode =
-            $validated['item_name_code']
-            ?? '';
-
-
-        /*
-        |--------------------------------------------------------------------------
         | Supplier Nickname
         |--------------------------------------------------------------------------
         */
@@ -4533,20 +5980,6 @@ private function generateProductSku(
                 }
             }
         }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Generate Internal SKU
-        |--------------------------------------------------------------------------
-        */
-
-        $generatedSku =
-            $itemNameCode .
-            '-' .
-            $supplierNickname .
-            '-' .
-            $nextId;
 
 
         /*
@@ -4998,7 +6431,7 @@ private function generateProductSku(
                     $supplierProductId
                 )
                 ->update([
-                    'product_sku' =>
+                    'status_done' =>
                         $generatedSku
                 ]);
         }
