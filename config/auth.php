@@ -50,6 +50,10 @@ return [
             'driver' => 'session',
             'provider' => 'ai_photo_enhancers',
         ],
+        'sampling' => [
+            'driver' => 'session',
+            'provider' => 'sampling_users',
+        ],
     ],
 
     /*
@@ -81,6 +85,10 @@ return [
         'ai_photo_enhancers' => [
             'driver' => 'eloquent',
             'model' => App\Models\AiPhotoEnhancer::class,
+        ],
+        'sampling_users' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Sampling\SamplingUser::class,
         ],
     ],
 

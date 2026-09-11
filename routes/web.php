@@ -605,6 +605,7 @@ Route::get(
 
 use App\Http\Controllers\AdminSupplierController;
 use App\Http\Controllers\AdminCategoryController;
+use App\Http\Controllers\AdminSamplingCompanyController;
 
 Route::middleware('auth')->group(function () {
     Route::resource('admin/suppliers', AdminSupplierController::class)->names('admin.suppliers')->except(['show', 'destroy']);
@@ -612,6 +613,12 @@ Route::middleware('auth')->group(function () {
     Route::put('admin/suppliers/{supplier}/users/{user}', [AdminSupplierController::class, 'updateUser'])->name('admin.suppliers.users.update');
     Route::delete('admin/suppliers/{supplier}/users/{user}', [AdminSupplierController::class, 'deleteUser'])->name('admin.suppliers.users.destroy');
     Route::resource('admin/categories', AdminCategoryController::class)->names('admin.categories');
+
+    // Sampling Companies Admin Routes
+    Route::resource('admin/sampling-companies', AdminSamplingCompanyController::class)->names('admin.sampling-companies')->except(['show', 'destroy']);
+    Route::post('admin/sampling-companies/{company}/users', [AdminSamplingCompanyController::class, 'addUser'])->name('admin.sampling-companies.users.store');
+    Route::put('admin/sampling-companies/{company}/users/{user}', [AdminSamplingCompanyController::class, 'updateUser'])->name('admin.sampling-companies.users.update');
+    Route::delete('admin/sampling-companies/{company}/users/{user}', [AdminSamplingCompanyController::class, 'deleteUser'])->name('admin.sampling-companies.users.destroy');
 });
 
 
@@ -637,6 +644,134 @@ Route::prefix('supplier')->name('supplier.')->group(function () {
         Route::get('orders/data', [\App\Http\Controllers\Supplier\OrderController::class, 'data'])->name('orders.data');
         Route::get('orders/{id}', [\App\Http\Controllers\Supplier\OrderController::class, 'show'])->name('orders.show');
         Route::post('orders/{id}/update-status', [\App\Http\Controllers\Supplier\OrderController::class, 'updateStatusAndShipping'])->name('orders.update-status');
+    });
+});
+
+use App\Http\Controllers\Sampling\Auth\LoginController as SamplingLoginController;
+use App\Http\Controllers\Sampling\DashboardController as SamplingDashboardController;
+use App\Http\Controllers\Sampling\SamplingProjectController;
+use App\Http\Controllers\Sampling\SamplingSampleController;
+use App\Http\Controllers\Sampling\SamplingMasterController;
+use App\Http\Controllers\Sampling\SamplingStorageController;
+use App\Http\Controllers\Sampling\SamplingUserController;
+
+Route::prefix('sampling')->name('sampling.')->group(function () {
+    Route::get('login', [SamplingLoginController::class, 'showLoginForm'])->name('login');
+    Route::post('login', [SamplingLoginController::class, 'login'])->name('login.submit');
+
+    Route::middleware('auth:sampling')->group(function () {
+        Route::get('dashboard', [SamplingDashboardController::class, 'index'])->name('dashboard');
+        Route::post('logout', [SamplingLoginController::class, 'logout'])->name('logout');
+
+        // Team & User Management
+        Route::resource('users', SamplingUserController::class)->except(['show']);
+
+        // Projects & Batches
+        Route::resource('projects', SamplingProjectController::class)->except(['destroy']);
+        Route::post('projects/{project}/batches', [SamplingProjectController::class, 'storeBatch'])->name('projects.batches.store');
+
+        // Samples 360 Workspace & Tabs
+        Route::resource('samples', SamplingSampleController::class)->except(['destroy']);
+        Route::put('samples/{id}/overview', [SamplingSampleController::class, 'updateOverview'])->name('samples.update-overview');
+        Route::post('samples/{id}/references', [SamplingSampleController::class, 'storeReference'])->name('samples.references');
+        Route::post('samples/{id}/attempts', [SamplingSampleController::class, 'storeAttempt'])->name('samples.attempts');
+        Route::post('samples/{id}/approval', [SamplingSampleController::class, 'submitApproval'])->name('samples.approval');
+        Route::post('samples/{id}/bom', [SamplingSampleController::class, 'storeBom'])->name('samples.bom');
+        Route::delete('samples/{sampleId}/bom/{bomId}', [SamplingSampleController::class, 'deleteBom'])->name('samples.bom.delete');
+        Route::post('samples/{id}/operations', [SamplingSampleController::class, 'storeOperation'])->name('samples.operations');
+        Route::delete('samples/{sampleId}/operations/{opId}', [SamplingSampleController::class, 'deleteOperation'])->name('samples.operations.delete');
+        Route::post('samples/{id}/specs', [SamplingSampleController::class, 'storeSpec'])->name('samples.specs');
+        Route::delete('samples/{sampleId}/specs/{specId}', [SamplingSampleController::class, 'deleteSpec'])->name('samples.specs.delete');
+        Route::post('samples/{id}/measurements', [SamplingSampleController::class, 'storeMeasurement'])->name('samples.measurements');
+        Route::delete('samples/{sampleId}/measurements/{measurementId}', [SamplingSampleController::class, 'deleteMeasurement'])->name('samples.measurements.delete');
+        Route::post('samples/{id}/patterns', [SamplingSampleController::class, 'storePattern'])->name('samples.patterns');
+        Route::delete('samples/{sampleId}/patterns/{patternId}', [SamplingSampleController::class, 'deletePattern'])->name('samples.patterns.delete');
+        Route::post('samples/{id}/photos', [SamplingSampleController::class, 'storeFinalImage'])->name('samples.photos');
+        Route::delete('samples/{sampleId}/photos/{photoId}', [SamplingSampleController::class, 'deleteFinalImage'])->name('samples.photos.delete');
+        Route::post('samples/{id}/notes', [SamplingSampleController::class, 'storeProductionNote'])->name('samples.notes');
+        Route::delete('samples/{sampleId}/notes/{noteId}', [SamplingSampleController::class, 'deleteProductionNote'])->name('samples.notes.delete');
+        Route::post('samples/{id}/costing', [SamplingSampleController::class, 'updateCosting'])->name('samples.costing');
+        Route::post('samples/{id}/storage', [SamplingSampleController::class, 'updateStorage'])->name('samples.storage');
+        Route::post('samples/{id}/freeze', [SamplingSampleController::class, 'freeze'])->name('samples.freeze');
+        Route::post('samples/{id}/create-revision', [SamplingSampleController::class, 'createRevision'])->name('samples.create-revision');
+        Route::post('samples/{id}/learning-note', [SamplingSampleController::class, 'storeLearningNote'])->name('samples.learning-note');
+
+        // Masters Hub CRUD - Separate Pages
+        Route::get('masters', [SamplingMasterController::class, 'index'])->name('masters.index');
+        
+        // Departments (Divisions)
+        Route::get('masters/departments', [SamplingMasterController::class, 'departmentsIndex'])->name('masters.departments.index');
+        Route::post('masters/departments', [SamplingMasterController::class, 'storeDepartment'])->name('masters.departments');
+        Route::put('masters/departments/{id}', [SamplingMasterController::class, 'updateDepartment'])->name('masters.departments.update');
+        Route::delete('masters/departments/{id}', [SamplingMasterController::class, 'destroyDepartment'])->name('masters.departments.destroy');
+
+        // Divisions (backward-compatible aliases)
+        Route::get('masters/divisions', [SamplingMasterController::class, 'divisionsIndex'])->name('masters.divisions.index');
+        Route::post('masters/divisions', [SamplingMasterController::class, 'storeDivision'])->name('masters.divisions');
+        Route::put('masters/divisions/{id}', [SamplingMasterController::class, 'updateDivision'])->name('masters.divisions.update');
+        Route::delete('masters/divisions/{id}', [SamplingMasterController::class, 'destroyDivision'])->name('masters.divisions.destroy');
+
+        // Skill Levels
+        Route::get('masters/skill-levels', [SamplingMasterController::class, 'skillLevelsIndex'])->name('masters.skill-levels.index');
+        Route::post('masters/skill-levels', [SamplingMasterController::class, 'storeSkillLevel'])->name('masters.skill-levels');
+        Route::put('masters/skill-levels/{id}', [SamplingMasterController::class, 'updateSkillLevel'])->name('masters.skill-levels.update');
+        Route::delete('masters/skill-levels/{id}', [SamplingMasterController::class, 'destroySkillLevel'])->name('masters.skill-levels.destroy');
+
+        // Measurement Points
+        Route::get('masters/measurement-points', [SamplingMasterController::class, 'measurementPointsIndex'])->name('masters.measurement-points.index');
+        Route::post('masters/measurement-points', [SamplingMasterController::class, 'storeMeasurementPoint'])->name('masters.measurement-points');
+        Route::put('masters/measurement-points/{id}', [SamplingMasterController::class, 'updateMeasurementPoint'])->name('masters.measurement-points.update');
+        Route::delete('masters/measurement-points/{id}', [SamplingMasterController::class, 'destroyMeasurementPoint'])->name('masters.measurement-points.destroy');
+
+        // Storage Locations
+        Route::get('masters/locations', [SamplingMasterController::class, 'storageLocationsIndex'])->name('masters.locations.index');
+        Route::post('masters/locations', [SamplingMasterController::class, 'storeStorageLocation'])->name('masters.locations');
+        Route::put('masters/locations/{id}', [SamplingMasterController::class, 'updateStorageLocation'])->name('masters.locations.update');
+        Route::delete('masters/locations/{id}', [SamplingMasterController::class, 'destroyStorageLocation'])->name('masters.locations.destroy');
+
+        // Operations
+        Route::get('masters/operations', [SamplingMasterController::class, 'operationsIndex'])->name('masters.operations.index');
+        Route::post('masters/operations', [SamplingMasterController::class, 'storeOperation'])->name('masters.operations');
+        Route::put('masters/operations/{id}', [SamplingMasterController::class, 'updateOperation'])->name('masters.operations.update');
+        Route::delete('masters/operations/{id}', [SamplingMasterController::class, 'destroyOperation'])->name('masters.operations.destroy');
+
+        // Materials
+        Route::get('masters/materials', [SamplingMasterController::class, 'materialsIndex'])->name('masters.materials.index');
+        Route::post('masters/materials', [SamplingMasterController::class, 'storeMaterial'])->name('masters.materials');
+        Route::put('masters/materials/{id}', [SamplingMasterController::class, 'updateMaterial'])->name('masters.materials.update');
+        Route::delete('masters/materials/{id}', [SamplingMasterController::class, 'destroyMaterial'])->name('masters.materials.destroy');
+
+        // UOMs
+        Route::get('masters/uoms', [SamplingMasterController::class, 'uomsIndex'])->name('masters.uoms.index');
+        Route::post('masters/uoms', [SamplingMasterController::class, 'storeUom'])->name('masters.uoms');
+        Route::put('masters/uoms/{id}', [SamplingMasterController::class, 'updateUom'])->name('masters.uoms.update');
+        Route::delete('masters/uoms/{id}', [SamplingMasterController::class, 'destroyUom'])->name('masters.uoms.destroy');
+
+        // Designers
+        Route::get('masters/designers', [SamplingMasterController::class, 'designersIndex'])->name('masters.designers.index');
+        Route::post('masters/designers', [SamplingMasterController::class, 'storeDesigner'])->name('masters.designers');
+        Route::put('masters/designers/{id}', [SamplingMasterController::class, 'updateDesigner'])->name('masters.designers.update');
+        Route::delete('masters/designers/{id}', [SamplingMasterController::class, 'destroyDesigner'])->name('masters.designers.destroy');
+
+        // Collections
+        Route::get('masters/collections', [SamplingMasterController::class, 'collectionsIndex'])->name('masters.collections.index');
+        Route::post('masters/collections', [SamplingMasterController::class, 'storeCollection'])->name('masters.collections');
+        Route::put('masters/collections/{id}', [SamplingMasterController::class, 'updateCollection'])->name('masters.collections.update');
+        Route::delete('masters/collections/{id}', [SamplingMasterController::class, 'destroyCollection'])->name('masters.collections.destroy');
+
+        // Technical Spec Attributes
+        Route::get('masters/specs', [SamplingMasterController::class, 'specsIndex'])->name('masters.specs.index');
+        Route::post('masters/specs', [SamplingMasterController::class, 'storeSpecAttribute'])->name('masters.specs');
+        Route::put('masters/specs/{id}', [SamplingMasterController::class, 'updateSpecAttribute'])->name('masters.specs.update');
+        Route::delete('masters/specs/{id}', [SamplingMasterController::class, 'destroySpecAttribute'])->name('masters.specs.destroy');
+
+        // Sketch & Swatch Types Master
+        Route::get('masters/reference-types', [SamplingMasterController::class, 'referenceTypesIndex'])->name('masters.reference-types.index');
+        Route::post('masters/reference-types', [SamplingMasterController::class, 'storeReferenceType'])->name('masters.reference-types');
+        Route::put('masters/reference-types/{id}', [SamplingMasterController::class, 'updateReferenceType'])->name('masters.reference-types.update');
+        Route::delete('masters/reference-types/{id}', [SamplingMasterController::class, 'destroyReferenceType'])->name('masters.reference-types.destroy');
+
+        Route::get('storage', [SamplingStorageController::class, 'index'])->name('storage.index');
     });
 });
 

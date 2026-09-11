@@ -18,6 +18,10 @@ class Supplier extends Authenticatable
         'remember_token',
     ];
 
+    protected $casts = [
+        'is_integrated' => 'boolean',
+    ];
+
     /**
      * Get the users belonging to this supplier.
      */

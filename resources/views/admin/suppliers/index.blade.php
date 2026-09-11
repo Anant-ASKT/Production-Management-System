@@ -34,6 +34,7 @@
                             <th>Supplier Name</th>
                             <th>Nick Name</th>
                             <th>Email</th>
+                            <th>Integration</th>
                             <th>Users</th>
                             <th>Phone</th>
                             <th>Address</th>
@@ -52,12 +53,23 @@
                                 </td>
                                 <td>{{ $supplier->email ?? '-' }}</td>
                                 <td>
+                                    @if($supplier->is_integrated)
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                            <i class="bi bi-link-45deg me-1"></i> Yes
+                                        </span>
+                                    @else
+                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1">
+                                            <i class="bi bi-dash-circle me-1"></i> No
+                                        </span>
+                                    @endif
+                                </td>
+                                <td>
                                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
                                         <i class="bi bi-people-fill me-1"></i> {{ $supplier->users_count }} {{ Str::plural('User', $supplier->users_count) }}
                                     </span>
                                 </td>
                                 <td>{{ $supplier->phone ?? '-' }}</td>
-                                <td>{{ Str::limit($supplier->address, 40) ?: '-' }}</td>
+                                <td>{{ Str::limit($supplier->address ?? '', 40) ?: '-' }}</td>
                                 <td>
                                     <a href="{{ route('admin.suppliers.edit', $supplier->sno) }}" class="btn btn-sm btn-outline-primary">
                                         <i class="bi bi-pencil-square me-1"></i> Edit & Users
@@ -66,7 +78,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="text-center py-4 text-muted">No suppliers found.</td>
+                                <td colspan="9" class="text-center py-4 text-muted">No suppliers found.</td>
                             </tr>
                         @endforelse
                     </tbody>

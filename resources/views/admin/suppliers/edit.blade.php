@@ -8,7 +8,18 @@
 
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h4 class="m-0">{{ $supplier->name }}</h4>
+            <div class="d-flex align-items-center gap-2">
+                <h4 class="m-0">{{ $supplier->name }}</h4>
+                @if($supplier->is_integrated)
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                        <i class="bi bi-link-45deg me-1"></i> Integrated
+                    </span>
+                @else
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1">
+                        <i class="bi bi-dash-circle me-1"></i> Not Integrated
+                    </span>
+                @endif
+            </div>
             <small class="text-muted">Manage supplier organization details and login user accounts</small>
         </div>
         <a href="{{ route('admin.suppliers.index') }}" class="btn btn-outline-secondary">
@@ -67,6 +78,15 @@
                         <div class="mb-3">
                             <label class="form-label fw-bold">Company Phone</label>
                             <input type="text" name="phone" class="form-control" value="{{ old('phone', $supplier->phone) }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Is Integrated? *</label>
+                            <select name="is_integrated" id="is_integrated" class="form-select" required>
+                                <option value="0" {{ old('is_integrated', (int)$supplier->is_integrated) == 0 ? 'selected' : '' }}>No (Not Integrated)</option>
+                                <option value="1" {{ old('is_integrated', (int)$supplier->is_integrated) == 1 ? 'selected' : '' }}>Yes (Integrated)</option>
+                            </select>
+                            <small class="text-muted">Select whether this supplier is integrated or not</small>
                         </div>
 
                         <div class="mb-3">

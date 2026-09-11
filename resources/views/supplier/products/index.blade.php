@@ -53,6 +53,7 @@
                         <th>Image</th>
                         <th>Name</th>
                         <th>Item Type</th>
+                        <th>Source</th>
                         <th>Price</th>
                         <th>Stock</th>
                         <th>Created Date</th>
@@ -71,6 +72,17 @@
                             </td>
                             <td class="fw-bold">{{ $product->name }}</td>
                             <td>{{ $product->item_type ?? '-' }}</td>
+                            <td>
+                                @if($product->is_integrated)
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                        <i class="bi bi-link-45deg me-1"></i> Integrated
+                                    </span>
+                                @else
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1">
+                                        Manual
+                                    </span>
+                                @endif
+                            </td>
                             <td>{{ $product->price ? '₹' . number_format($product->price, 2) : '-' }}</td>
                             <td>{{ $product->stock ?? 0 }}</td>
                             <td>
@@ -95,7 +107,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center py-4 text-muted">No products found.</td>
+                            <td colspan="8" class="text-center py-4 text-muted">No products found.</td>
                         </tr>
                     @endforelse
                 </tbody>
