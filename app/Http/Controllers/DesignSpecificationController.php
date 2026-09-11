@@ -362,6 +362,7 @@ public function supplierProducts(Request $request)
             'su.status as supplier_user_status',
 
             'sp.name',
+            'sp.item_name',
             'sp.description',
 
             'sp.main_image',
@@ -379,6 +380,7 @@ public function supplierProducts(Request $request)
             'sp.gender',
             'sp.composition',
             'sp.colour',
+            'sp.yarn',
             'sp.size',
 
             'sp.embellishment',
@@ -388,6 +390,7 @@ public function supplierProducts(Request $request)
             'sp.collection',
 
             'sp.status',
+            'sp.is_integrated',
             'sp.stock',
             'sp.price',
             'sp.sale_price',
