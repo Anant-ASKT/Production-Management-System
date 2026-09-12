@@ -39,7 +39,7 @@
 
                 <i class="bi bi-plus-lg me-1"></i>
 
-                New Specification
+                New Specification Master
 
             </button>
 
