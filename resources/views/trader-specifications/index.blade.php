@@ -1186,6 +1186,9 @@
 
 
 
+    </div>
+
+
     {{-- =========================================================
          ALL SPECIFICATIONS SECTION
     ========================================================== --}}
@@ -1220,6 +1223,18 @@
 
 
             <div class="list-header-actions">
+
+                <div class="form-group mb-0" style="min-width:260px;">
+                    <select class="form-select select2-master" id="allTraderFilter">
+                        <option value="">Select Trader / Buying From</option>
+                        @foreach($traders as $trader)
+                            <option value="{{ $trader->id }}" data-code="{{ $trader->code ?? '' }}">
+                                {{ $trader->name }}
+                                @if(!empty($trader->code)) ({{ $trader->code }}) @endif
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
 
                 <div class="search-box">
 
@@ -10754,6 +10769,11 @@ document.addEventListener(
                         'specificationSearch'
                     );
 
+                const allTraderFilter =
+                    document.getElementById(
+                        'allTraderFilter'
+                    );
+
 
                 const cardsContainer =
                     document.getElementById(
@@ -11577,6 +11597,7 @@ document.addEventListener(
                 let currentPage = 1;
                 let currentPerPage = 20;
                 let currentSearch = '';
+                let currentTraderId = '';
                 let searchTimer = null;
 
                 const pagination =
@@ -11627,11 +11648,33 @@ document.addEventListener(
                 function showAllSpecificationSection() {
 
                     newSection.style.display = 'none';
-
                     allSection.style.display = '';
 
-                    loadSpecifications();
+                    currentTraderId = '';
+                    currentSearch = '';
+                    currentPage = 1;
 
+                    if (allTraderFilter) {
+                        allTraderFilter.value = '';
+                        if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
+                            jQuery(allTraderFilter).val('').trigger('change.select2');
+                        }
+                    }
+
+                    if (search) search.value = '';
+                    if (pagination) pagination.style.display = 'none';
+                    if (loading) loading.style.display = 'none';
+                    if (empty) empty.style.display = 'none';
+
+                    if (cardsContainer) {
+                        cardsContainer.innerHTML = `
+                            <div class="empty-state" style="grid-column:1/-1;">
+                                <div class="empty-icon"><i class="bi bi-person-badge"></i></div>
+                                <h6>Select Trader / Buying From</h6>
+                                <p>Please select a trader to view that trader's products.</p>
+                            </div>
+                        `;
+                    }
                 }
 
 
@@ -11689,12 +11732,49 @@ document.addEventListener(
 
 
                 if (btnRefresh) {
-
                     btnRefresh.addEventListener(
                         'click',
-                        loadSpecifications
+                        function () {
+                            loadSpecifications(1);
+                        }
                     );
+                }
 
+                /* =====================================================
+                TRADER FILTER CHANGE
+                ====================================================== */
+
+                if (allTraderFilter) {
+
+                    const applyTraderFilter = function (value) {
+                        currentTraderId = value || '';
+                        currentPage = 1;
+                        currentSearch = '';
+
+                        if (search) {
+                            search.value = '';
+                        }
+
+                        loadSpecifications(1);
+                    };
+
+                    /*
+                     * Select2 triggers a jQuery change event.
+                     * Listen through jQuery so the selected trader
+                     * is always picked up correctly.
+                     */
+                    if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
+                        jQuery(allTraderFilter).on('change.traderFilter', function () {
+                            applyTraderFilter(jQuery(this).val());
+                        });
+                    } else {
+                        allTraderFilter.addEventListener(
+                            'change',
+                            function () {
+                                applyTraderFilter(this.value);
+                            }
+                        );
+                    }
                 }
 
 
@@ -12227,10 +12307,23 @@ document.addEventListener(
                         pagination.style.display = 'none';
                     }
 
-                    const params = new URLSearchParams();
+                    if (!currentTraderId) {
+                        loading.style.display = 'none';
+                        if (pagination) pagination.style.display = 'none';
+                        cardsContainer.innerHTML = `
+                            <div class="empty-state" style="grid-column:1/-1;">
+                                <div class="empty-icon"><i class="bi bi-person-badge"></i></div>
+                                <h6>Select Trader / Buying From</h6>
+                                <p>Please select a trader to view that trader's products.</p>
+                            </div>
+                        `;
+                        return;
+                    }
 
+                    const params = new URLSearchParams();
                     params.set('page', currentPage);
                     params.set('per_page', currentPerPage);
+                    params.set('trader_id', currentTraderId);
 
                     if (currentSearch) {
                         params.set('search', currentSearch);
@@ -17281,3 +17374,4 @@ function removeSubImage(index) {
 
 
 </script>
+@endsection

@@ -471,7 +471,13 @@ Route::get(
     }
 )->name('make-all-masters.index');
 
-
+Route::get(
+    '/admin/design-specifications/find-by-supplier-sku',
+    [
+        \App\Http\Controllers\DesignSpecificationController::class,
+        'findBySupplierSku'
+    ]
+)->name('design-specifications.find-by-supplier-sku');
 
 Route::prefix('admin/trader-specifications')->group(function () {
 

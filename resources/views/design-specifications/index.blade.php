@@ -1098,6 +1098,25 @@
                         
                     </div>
 
+                    <div class="form-field">
+                        <label for="minprice" class="form-label">
+                            Stock Qty
+                            
+                        </label>
+
+                        <input
+                            type="number"
+                            id="stock_qty"
+                            name="stock_qty"
+                            class="form-control"
+                            min-value='0'
+                            placeholder="Enter Stock Qty if available"
+                            autocomplete="off"
+                        >
+
+                        
+                    </div>
+
 
 
                     {{-- Client Reference --}}
@@ -3311,6 +3330,10 @@
                                 </th>
 
                                 <th>
+                                    Sku
+                                </th>
+
+                                <th>
                                     Product
                                 </th>
 
@@ -3336,6 +3359,9 @@
 
                                 <th>
                                     Size
+                                </th>
+                                <th>
+                                    Stock
                                 </th>
                                 <th>
                                     Createdat
@@ -7432,6 +7458,7 @@ body {
 
     let existingSubImages = [];
     let selectedSupplierProduct = null;
+    let existingSupplierSkuStockOnly = false;
     /*
     |--------------------------------------------------------------------------
     | GET COLLECTION VALUE
@@ -8031,7 +8058,7 @@ body {
             }
         );
 
-        document.addEventListener(
+       document.addEventListener(
             'click',
             async function (event) {
 
@@ -8052,6 +8079,22 @@ body {
                     finalButton.dataset.mode ===
                     'edit';
 
+                 existingSupplierSkuStockOnly =
+                    !isEdit &&
+                    selectedSupplierProduct &&
+                    selectedSupplierProduct.matched_specification &&
+                    String(
+                        selectedSupplierProduct.matched_specification.sku ||
+                        selectedSupplierProduct.matched_specification.sku_supplier ||
+                        ''
+                    ).trim() !== '';
+
+
+                console.log(
+                    'EXISTING SUPPLIER SKU STOCK ONLY:',
+                    existingSupplierSkuStockOnly
+                );
+
 
                 /*
                 |--------------------------------------------------------------------------
@@ -8070,22 +8113,35 @@ body {
                                 : 'info',
 
                         title:
-                            isEdit
-                                ? 'Update Specification?'
-                                : 'Save Specification?',
+                                existingSupplierSkuStockOnly
+                                    ? 'Add Supplier Stock?'
+                                    : (
+                                        isEdit
+                                            ? 'Update Specification?'
+                                            : 'Save Specification?'
+                                    ),
 
-                        text:
-                            isEdit
-                                ? 'Are you sure you want to update this specification? The existing barcode will remain unchanged.'
-                                : 'Are you sure you want to save this new specification?',
+                            text:
+                                existingSupplierSkuStockOnly
+                                    ? (
+                                        'This SKU already exists in Design Specification Master. ' +
+                                        'The existing specification will NOT be saved again. ' +
+                                        'Only the supplier stock will be added to vendor_stock_web.'
+                                    )
+                                    : (
+                                        isEdit
+                                            ? 'Are you sure you want to update this specification? The existing barcode will remain unchanged.'
+                                            : 'Are you sure you want to save this new specification?'
+                                    ),
 
-                        showCancelButton:
-                            true,
-
-                        confirmButtonText:
-                            isEdit
-                                ? 'Yes, Update'
-                                : 'Yes, Save',
+                            confirmButtonText:
+                                existingSupplierSkuStockOnly
+                                    ? 'Yes, Add Stock'
+                                    : (
+                                        isEdit
+                                            ? 'Yes, Update'
+                                            : 'Yes, Save'
+                                    ),
 
                         cancelButtonText:
                             'Back',
@@ -8670,6 +8726,23 @@ body {
                     formData.append(
                         'login_supplier_stock',
                         supplierStock
+                    );
+
+                    const stockQtyField =
+                        document.getElementById(
+                            'stock_qty'
+                        );
+
+                    const stockQty =
+                        stockQtyField &&
+                        stockQtyField.value !== ''
+                            ? stockQtyField.value
+                            : supplierStock;
+
+
+                    formData.append(
+                        'stock_qty',
+                        stockQty
                     );
                 }
 
@@ -12551,39 +12624,39 @@ document.addEventListener(
             return;
         }
 
-        // Show New Specification after selecting supplier product
-const newSection =
-    document.getElementById('newSpecificationSection');
+            // Show New Specification after selecting supplier product
+            const newSection =
+                document.getElementById('newSpecificationSection');
 
-const allSection =
-    document.getElementById('allSpecificationsSection');
+            const allSection =
+                document.getElementById('allSpecificationsSection');
 
-if (newSection) {
-    newSection.style.display = '';
-}
+            if (newSection) {
+                newSection.style.display = '';
+            }
 
-if (allSection) {
-    allSection.style.display = 'none';
-}
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | DEBUG
-        |--------------------------------------------------------------------------
-        */
-
-        console.log(
-            'Selected Supplier Product:',
-            product
-        );
+            if (allSection) {
+                allSection.style.display = 'none';
+            }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | SELECT SUPPLIER PRODUCT
-        |--------------------------------------------------------------------------
-        */
+            /*
+            |--------------------------------------------------------------------------
+            | DEBUG
+            |--------------------------------------------------------------------------
+            */
+
+            console.log(
+                'Selected Supplier Product:',
+                product
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SELECT SUPPLIER PRODUCT
+            |--------------------------------------------------------------------------
+            */
 
         selectSupplierProduct(
             product,
@@ -14775,59 +14848,59 @@ if (
                                 EDIT
                                 ================================================= */
 
-                            const editButton =
-                                card.querySelector(
-                                    '.btn-edit-spec'
-                                );
+                                const editButton =
+                                    card.querySelector(
+                                        '.btn-edit-spec'
+                                    );
 
 
-                            if (editButton) {
+                                if (editButton) {
 
-                                editButton.addEventListener(
-                                    'click',
-                                    function () {
+                                    editButton.addEventListener(
+                                        'click',
+                                        function () {
 
-                                        const id =
-                                            this.dataset.id;
+                                            const id =
+                                                this.dataset.id;
 
 
-                                        const specification =
-                                            allSpecifications.find(
-                                                function (item) {
+                                            const specification =
+                                                allSpecifications.find(
+                                                    function (item) {
 
-                                                    return String(
-                                                        item.sno ||
-                                                        item.id ||
-                                                        ''
-                                                    ) === String(id);
+                                                        return String(
+                                                            item.sno ||
+                                                            item.id ||
+                                                            ''
+                                                        ) === String(id);
 
-                                                }
+                                                    }
+                                                );
+
+
+                                            if (!specification) {
+
+                                                alert(
+                                                    'Unable to find specification.'
+                                                );
+
+                                                return;
+
+                                            }
+
+
+                                            editSpecification(
+                                                specification
                                             );
-
-
-                                        if (!specification) {
-
-                                            alert(
-                                                'Unable to find specification.'
-                                            );
-
-                                            return;
 
                                         }
+                                    );
 
+                                }
 
-                                        editSpecification(
-                                            specification
-                                        );
-
-                                    }
-                                );
-
-                            }
-
-                                /* =================================================
-                                BARCODE
-                                ================================================== */
+                                    /* =================================================
+                                    BARCODE
+                                    ================================================== */
 
                                 const barcodeButton =
                                     card.querySelector(
@@ -15269,7 +15342,7 @@ if (
         |--------------------------------------------------------------------------
         */
 
-    function getExistingSpecificationImages(
+    function getExistingSpecificationImagesXXXX(
         specification
     ) {
 
@@ -15385,6 +15458,164 @@ if (
             : [];
 
     }
+
+    function getExistingSpecificationImages(
+    specification
+) {
+
+    /*
+    |--------------------------------------------------------------------------
+    | 1. FIRST USE CONTROLLER GENERATED image_url
+    |--------------------------------------------------------------------------
+    |
+    | This handles:
+    |
+    | ../../ItemsDesigner_Masterwithbarcode/147922232111/
+    |
+    | The controller searches that folder and returns the actual
+    | image filename as image_url.
+    |
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        specification &&
+        specification.image_url &&
+        typeof specification.image_url === 'string' &&
+        specification.image_url.trim() !== ''
+    ) {
+
+        console.log(
+            'EDIT - USING CONTROLLER IMAGE URL:',
+            specification.image_url
+        );
+
+        return [
+            specification.image_url.trim()
+        ];
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 2. FALLBACK TO img_path
+    |--------------------------------------------------------------------------
+    |
+    | This handles:
+    |
+    | ["ItemsDesigner_Masterwithbarcode/93827231221412/
+    |    1J0-IDI-2045-cwzfurrQhE.png"]
+    |
+    |--------------------------------------------------------------------------
+    */
+
+    let imageData =
+        specification &&
+        specification.img_path
+            ? specification.img_path
+            : '';
+
+
+    if (!imageData) {
+
+        return [];
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Already an array
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        Array.isArray(imageData)
+    ) {
+
+        return imageData
+            .map(
+                function (image) {
+
+                    return getSpecificationImageFromPath(
+                        image
+                    );
+
+                }
+            )
+            .filter(Boolean);
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | JSON string
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        typeof imageData === 'string'
+    ) {
+
+        imageData =
+            imageData.trim();
+
+
+        if (
+            imageData.startsWith('[')
+        ) {
+
+            try {
+
+                const parsed =
+                    JSON.parse(
+                        imageData
+                    );
+
+
+                if (
+                    Array.isArray(parsed)
+                ) {
+
+                    return parsed
+                        .map(
+                            function (image) {
+
+                                return getSpecificationImageFromPath(
+                                    image
+                                );
+
+                            }
+                        )
+                        .filter(Boolean);
+                }
+
+            } catch (error) {
+
+                console.warn(
+                    'Unable to parse existing images:',
+                    error
+                );
+            }
+        }
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Single image / fallback
+    |--------------------------------------------------------------------------
+    */
+
+    const singleImage =
+        getSpecificationImageFromPath(
+            imageData
+        );
+
+
+    return singleImage
+        ? [singleImage]
+        : [];
+}
 
     function getExistingSpecificationSubImages(
       specification
@@ -19454,6 +19685,12 @@ function appendSupplierProductRow(
     const productName =
         product.name || '-';
 
+    const productSku =
+        product.product_sku || '-';
+
+    const productStock=
+        product.stock || '-';
+
 
     const supplierName =
         product.supplier_name || '-';
@@ -19522,6 +19759,12 @@ function appendSupplierProductRow(
                 ${serialNo}
             </td>
 
+            <td>
+                <strong>
+                    ${escapeHtml(productSku)}
+                </strong>
+            </td>
+
 
             <td>
                 <strong>
@@ -19557,6 +19800,10 @@ function appendSupplierProductRow(
 
             <td>
                 ${escapeHtml(size)}
+            </td>
+
+            <td>
+                ${escapeHtml(productStock)}
             </td>
 
             <td>
@@ -19623,9 +19870,15 @@ function appendSupplierProductRow(
 
 
 
-async function selectSupplierProduct(product,productId = '',
-    loginSupplierId = '',supplierUserId = '',createdatdate='')
-{
+
+async function selectSupplierProduct(
+    product,
+    productId = '',
+    loginSupplierId = '',
+    supplierUserId = '',
+    createdatdate = ''
+) {
+
     /*
     |--------------------------------------------------------------------------
     | CHECK PRODUCT
@@ -19644,22 +19897,65 @@ async function selectSupplierProduct(product,productId = '',
     }
 
 
-        showSupplierProductInfo(product,productId,
-    loginSupplierId,createdatdate);
+    /*
+    |--------------------------------------------------------------------------
+    | SHOW NEW SPECIFICATION
+    |--------------------------------------------------------------------------
+    */
 
-        selectedSupplierProduct = {
-            ...product,
-            product_id: productId,
-            supplier_id: loginSupplierId,
-            supplier_user_id: supplierUserId,
-            login_supplier_id: supplierUserId,
-            login_createatdate: createdatdate,
-        };
+    const newSection =
+        document.getElementById(
+            'newSpecificationSection'
+        );
+
+    const allSection =
+        document.getElementById(
+            'allSpecificationsSection'
+        );
+
+    if (newSection) {
+        newSection.style.display = '';
+    }
+
+    if (allSection) {
+        allSection.style.display = 'none';
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | STORE SELECTED SUPPLIER PRODUCT
+    |--------------------------------------------------------------------------
+    */
+
+    selectedSupplierProduct = {
+
+        ...product,
+
+        product_id:
+            productId,
+
+        supplier_id:
+            loginSupplierId ||
+            product.supplier_id ||
+            '',
+
+        supplier_user_id:
+            supplierUserId ||
+            product.supplier_user_id ||
+            '',
+
+        login_supplier_id:
+            supplierUserId || '',
+
+        login_createatdate:
+            createdatdate || ''
+    };
 
 
     console.log(
         'SELECTED SUPPLIER PRODUCT:',
-        product
+        selectedSupplierProduct
     );
 
 
@@ -19672,8 +19968,8 @@ async function selectSupplierProduct(product,productId = '',
     const supplierId =
         product.supplier_id ||
         product.supplierid ||
+        loginSupplierId ||
         '';
-
 
     const supplierName =
         product.supplier_name ||
@@ -19696,7 +19992,6 @@ async function selectSupplierProduct(product,productId = '',
 
         supplierContextName.textContent =
             supplierName || '-';
-
     }
 
 
@@ -19709,13 +20004,12 @@ async function selectSupplierProduct(product,productId = '',
 
         supplierContextId.value =
             supplierId;
-
     }
 
 
     /*
     |--------------------------------------------------------------------------
-    | HELPER - SET SELECT VALUE
+    | HELPERS
     |--------------------------------------------------------------------------
     */
 
@@ -19745,15 +20039,11 @@ async function selectSupplierProduct(product,productId = '',
             value;
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | SELECT2
-        |--------------------------------------------------------------------------
-        */
-
         if (
             typeof $ !== 'undefined' &&
-            $(element).hasClass('select2-hidden-accessible')
+            $(element).hasClass(
+                'select2-hidden-accessible'
+            )
         ) {
 
             $(element)
@@ -19770,17 +20060,9 @@ async function selectSupplierProduct(product,productId = '',
                     }
                 )
             );
-
         }
-
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | HELPER - SET INPUT
-    |--------------------------------------------------------------------------
-    */
 
     function setInputValue(
         selector,
@@ -19802,29 +20084,35 @@ async function selectSupplierProduct(product,productId = '',
             value === undefined
                 ? ''
                 : value;
-
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | 1. GET PRODUCT DETAILS
-    |--------------------------------------------------------------------------
-    |
-    | IMPORTANT:
-    |
-    | The supplier-products endpoint should return the IDs
-    | of master values.
-    |
-    | If it already returns those IDs, use them here.
-    |
-    |--------------------------------------------------------------------------
-    */
+    const supplierStockQty =
+    product.stock ??
+    product.stock_qty ??
+    product.stock_quantity ??
+    product.qty ??
+    '';
 
 
+setInputValue(
+    '#stock_qty',
+    supplierStockQty
+);
+
+
+console.log(
+    'SUPPLIER STOCK QTY APPENDED:',
+    supplierStockQty
+);
+
     /*
     |--------------------------------------------------------------------------
-    | ITEM NAME
+    | FIRST:
+    | LOAD SUPPLIER PRODUCT VALUES
+    |--------------------------------------------------------------------------
+    |
+    | EXISTING FUNCTIONALITY - UNCHANGED
     |--------------------------------------------------------------------------
     */
 
@@ -19838,12 +20126,6 @@ async function selectSupplierProduct(product,productId = '',
     );
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | ITEM TYPE
-    |--------------------------------------------------------------------------
-    */
-
     setSelectValue(
         '#item_type',
         product.item_type_id ||
@@ -19854,12 +20136,6 @@ async function selectSupplierProduct(product,productId = '',
     );
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | DESIGNER
-    |--------------------------------------------------------------------------
-    */
-
     setSelectValue(
         '#designer_name',
         product.designer_id ||
@@ -19869,12 +20145,6 @@ async function selectSupplierProduct(product,productId = '',
     );
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | GENDER
-    |--------------------------------------------------------------------------
-    */
-
     setSelectValue(
         '#gender_type',
         product.gender_id ||
@@ -19882,12 +20152,6 @@ async function selectSupplierProduct(product,productId = '',
         ''
     );
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | COMPOSITION
-    |--------------------------------------------------------------------------
-    */
 
     setSelectValue(
         '#composition',
@@ -19897,12 +20161,6 @@ async function selectSupplierProduct(product,productId = '',
     );
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | COLOUR
-    |--------------------------------------------------------------------------
-    */
-
     setSelectValue(
         '#colour',
         product.colour_id ||
@@ -19910,26 +20168,6 @@ async function selectSupplierProduct(product,productId = '',
         ''
     );
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | YARN
-    |--------------------------------------------------------------------------
-    */
-
-    setSelectValue(
-        '#yarn',
-        product.yarn_id ||
-        product.yarn ||
-        ''
-    );
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | SIZE
-    |--------------------------------------------------------------------------
-    */
 
     setSelectValue(
         '#sizes',
@@ -19940,12 +20178,6 @@ async function selectSupplierProduct(product,productId = '',
     );
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | EMBELLISHMENT
-    |--------------------------------------------------------------------------
-    */
-
     setSelectValue(
         '#embellishment',
         product.embellishment_id ||
@@ -19953,12 +20185,6 @@ async function selectSupplierProduct(product,productId = '',
         ''
     );
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | MANUFACTURING PROCESS
-    |--------------------------------------------------------------------------
-    */
 
     setSelectValue(
         '#manufacturing_process',
@@ -19968,12 +20194,6 @@ async function selectSupplierProduct(product,productId = '',
     );
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | CRAFTSMAN
-    |--------------------------------------------------------------------------
-    */
-
     setSelectValue(
         '#mcraftsman',
         product.craftsman_id ||
@@ -19982,24 +20202,12 @@ async function selectSupplierProduct(product,productId = '',
     );
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | CRAFTSMAN CODE
-    |--------------------------------------------------------------------------
-    */
-
     setInputValue(
         '#craftsman_code',
         product.craftsman_code ||
         ''
     );
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | MANUFACTURE
-    |--------------------------------------------------------------------------
-    */
 
     setSelectValue(
         '#cmbmanufacture',
@@ -20011,12 +20219,6 @@ async function selectSupplierProduct(product,productId = '',
     );
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | CLIENT / COLLECTION
-    |--------------------------------------------------------------------------
-    */
-
     setSelectValue(
         '#cmbclient',
         product.client_id ||
@@ -20027,20 +20229,27 @@ async function selectSupplierProduct(product,productId = '',
 
     /*
     |--------------------------------------------------------------------------
-    | SKU
+    | SUPPLIER SKU
     |--------------------------------------------------------------------------
     */
 
+    const supplierSku =
+        String(
+            product.product_sku ||
+            product.sku ||
+            ''
+        ).trim();
+
+
     setInputValue(
         '#sku',
-        product.sku ||
-        ''
+        supplierSku
     );
 
 
     /*
     |--------------------------------------------------------------------------
-    | CLIENT REFERENCE
+    | OTHER SUPPLIER VALUES
     |--------------------------------------------------------------------------
     */
 
@@ -20048,27 +20257,448 @@ async function selectSupplierProduct(product,productId = '',
         '#txt_clientreference',
         product.clientreference ||
         product.client_reference ||
+        product.description ||
+        ''
+    );
+
+
+    setInputValue(
+        '#price',
+        product.price ||
+        ''
+    );
+
+
+    setInputValue(
+        '#saleprice',
+        product.sale_price ||
+        ''
+    );
+
+
+    setInputValue(
+        '#minprice',
+        product.min_price ||
         ''
     );
 
 
     /*
     |--------------------------------------------------------------------------
-    | SUPPLIER PRODUCT NAME
-    |--------------------------------------------------------------------------
-    |
-    | If supplier endpoint gives a product name but not item-name ID,
-    | don't put the text into the select.
-    |
-    | The master ID should be used for #item_name.
-    |
+    | SEARCH EXISTING DESIGN SPECIFICATION BY SUPPLIER SKU
     |--------------------------------------------------------------------------
     */
+
+    if (supplierSku !== '') {
+
+        console.log(
+            'Searching Design Specification by Supplier SKU:',
+            supplierSku
+        );
+
+
+        try {
+
+            const url =
+                "{{ route('design-specifications.find-by-supplier-sku') }}" +
+                '?sku=' +
+                encodeURIComponent(
+                    supplierSku
+                );
+
+
+            const response =
+                await fetch(
+                    url,
+                    {
+                        method: 'GET',
+
+                        headers: {
+                            'Accept':
+                                'application/json'
+                        }
+                    }
+                );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    'Unable to search Design Specification. HTTP ' +
+                    response.status
+                );
+            }
+
+
+            const result =
+                await response.json();
+
+
+            console.log(
+                'Supplier SKU Specification Response:',
+                result
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SPECIFICATION FOUND
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                result.success &&
+                result.found &&
+                result.data
+            ) {
+
+                const specification =
+                    result.data;
+
+
+                console.log(
+                    'MATCHED DESIGN SPECIFICATION:',
+                    specification
+                );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | EXISTING DSM DATA OVERRIDES SUPPLIER VALUES
+                |--------------------------------------------------------------------------
+                */
+
+                setSelectValue(
+                    '#item_name',
+                    specification.item_name
+                );
+
+
+                setSelectValue(
+                    '#item_type',
+                    specification.item_type
+                );
+
+
+                setSelectValue(
+                    '#designer_name',
+                    specification.designer_name
+                );
+
+
+                setSelectValue(
+                    '#gender_type',
+                    specification.gender
+                );
+
+
+                setSelectValue(
+                    '#composition',
+                    specification.composition
+                );
+
+
+                setSelectValue(
+                    '#colour',
+                    specification.colour
+                );
+
+
+                setSelectValue(
+                    '#sizes',
+                    specification.sizes
+                );
+
+
+                setSelectValue(
+                    '#yarn',
+                    specification.yarn
+                );
+
+
+                setSelectValue(
+                    '#embellishment',
+                    specification.embellishment
+                );
+
+
+                setSelectValue(
+                    '#manufacturing_process',
+                    specification.manufacturing_process
+                );
+
+
+                setSelectValue(
+                    '#mcraftsman',
+                    specification.craftsman
+                );
+
+
+                setInputValue(
+                    '#craftsman_code',
+                    specification.craftsman_code ||
+                    ''
+                );
+
+
+                setSelectValue(
+                    '#cmbmanufacture',
+                    specification.manufecture
+                );
+
+
+                setSelectValue(
+                    '#cmbclient',
+                    specification.client
+                );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | KEEP SUPPLIER SKU
+                |--------------------------------------------------------------------------
+                */
+
+                setInputValue(
+                    '#sku',
+                    specification.sku_supplier ||
+                    supplierSku
+                );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | CLIENT REFERENCE
+                |--------------------------------------------------------------------------
+                */
+
+                setInputValue(
+                    '#txt_clientreference',
+                    specification.clientreference ||
+                    ''
+                );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | PRICES
+                |--------------------------------------------------------------------------
+                */
+
+                setInputValue(
+                    '#price',
+                    specification.price ||
+                    ''
+                );
+
+
+                setInputValue(
+                    '#saleprice',
+                    specification.sale_price ||
+                    ''
+                );
+
+
+                setInputValue(
+                    '#minprice',
+                    specification.min_price ||
+                    ''
+                );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | STORE MATCHED SPECIFICATION
+                |--------------------------------------------------------------------------
+                */
+
+                selectedSupplierProduct = {
+
+                    ...selectedSupplierProduct,
+
+                    matched_specification_id:
+                        specification.sno,
+
+                    matched_specification:
+                        specification,
+
+                    matched_internal_sku:
+                        specification.sku,
+
+                    matched_barcode:
+                        specification.barcode
+                };
+
+
+                console.log(
+                    'Specification fields populated from SKU:',
+                    supplierSku
+                );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | AI FIELDS
+                |--------------------------------------------------------------------------
+                */
+
+                const aiProductName =
+                    document.getElementById(
+                        'txt_productName'
+                    );
+
+                if (aiProductName) {
+
+                    aiProductName.value =
+                        specification.AI_product_name ||
+                        '';
+                }
+
+
+                const aiDescription =
+                    document.getElementById(
+                        'txt_productDescription'
+                    );
+
+                if (aiDescription) {
+
+                    aiDescription.value =
+                        specification.AI_product_description ||
+                        '';
+                }
+
+
+                const aiMetaTitle =
+                    document.getElementById(
+                        'txt_metaTitle'
+                    );
+
+                if (aiMetaTitle) {
+
+                    aiMetaTitle.value =
+                        specification.AI_Metatitle ||
+                        '';
+                }
+
+
+                const aiKeywords =
+                    document.getElementById(
+                        'txt_metaKeywords'
+                    );
+
+                if (aiKeywords) {
+
+                    aiKeywords.value =
+                        specification.AI_Metakeywards ||
+                        '';
+                }
+
+
+                const aiMetaDescription =
+                    document.getElementById(
+                        'txt_metaDescription'
+                    );
+
+                if (aiMetaDescription) {
+
+                    aiMetaDescription.value =
+                        specification.AI_Metadescription ||
+                        '';
+                }
+
+
+                const aiTags =
+                    document.getElementById(
+                        'txt_productTags'
+                    );
+
+                if (aiTags) {
+
+                    aiTags.value =
+                        specification.AI_Producttag ||
+                        '';
+                }
+
+
+                const aiAltText =
+                    document.getElementById(
+                        'txt_image_alt_text'
+                    );
+
+                if (aiAltText) {
+
+                    aiAltText.value =
+                        specification.AI_Imagealttext ||
+                        '';
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | USER MESSAGE
+                |--------------------------------------------------------------------------
+                */
+
+                Swal.fire({
+
+                    icon: 'success',
+
+                    title:
+                        'Existing Specification Found',
+
+                    html:
+                        'Supplier SKU <strong>' +
+                        escapeHtml(supplierSku) +
+                        '</strong> matched an existing Design Specification.<br>' +
+                        'All matching specification fields have been loaded.',
+
+                    timer:
+                        1800,
+
+                    showConfirmButton:
+                        false
+                });
+
+
+            } else {
+
+                console.log(
+                    'No existing Design Specification found for SKU:',
+                    supplierSku
+                );
+            }
+
+
+        } catch (error) {
+
+            console.error(
+                'SUPPLIER SKU SPECIFICATION SEARCH ERROR:',
+                error
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | DO NOT STOP SUPPLIER PRODUCT SELECTION
+            |--------------------------------------------------------------------------
+            */
+        }
+    }
 
 
     /*
     |--------------------------------------------------------------------------
-    | SHOW LOADING
+    | NOW LOAD IMAGES
+    |--------------------------------------------------------------------------
+    |
+    | THIS IS THE ONLY FUNCTIONAL CHANGE.
+    |
+    | SKU EXISTS + DSM FOUND:
+    |     USE DSM img_path
+    |     USE DSM subimg_path
+    |
+    | NO SKU:
+    |     USE EXISTING supplier images
+    |
     |--------------------------------------------------------------------------
     */
 
@@ -20078,7 +20708,9 @@ async function selectSupplierProduct(product,productId = '',
             'Loading Supplier Product',
 
         text:
-            'Loading product images...',
+            supplierSku !== ''
+                ? 'Loading product images and matching specification...'
+                : 'Loading product images...',
 
         allowOutsideClick:
             false,
@@ -20090,23 +20722,19 @@ async function selectSupplierProduct(product,productId = '',
             function () {
 
                 Swal.showLoading();
-
             }
-
     });
 
 
     try {
 
-
         /*
         |--------------------------------------------------------------------------
-        | NORMALIZE IMAGE PATH
+        | IMAGE PATH NORMALIZER
         |--------------------------------------------------------------------------
         */
 
-        function normalizeImagePath(path)
-        {
+        function normalizeImagePath(path) {
 
             if (!path) {
                 return '';
@@ -20114,12 +20742,77 @@ async function selectSupplierProduct(product,productId = '',
 
 
             path =
+                String(path).trim();
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | HANDLE JSON ARRAY
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                path.startsWith('[') &&
+                path.endsWith(']')
+            ) {
+
+                try {
+
+                    const parsed =
+                        JSON.parse(path);
+
+
+                    if (
+                        Array.isArray(parsed) &&
+                        parsed.length > 0
+                    ) {
+
+                        path =
+                            parsed[0];
+                    }
+
+                } catch (error) {
+
+                    console.warn(
+                        'Image path JSON parse failed:',
+                        path
+                    );
+                }
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | REMOVE QUOTES
+            |--------------------------------------------------------------------------
+            */
+
+            path =
                 String(path)
+                    .replace(
+                        /^["']|["']$/g,
+                        ''
+                    )
                     .trim();
 
 
             /*
-            | Already URL
+            |--------------------------------------------------------------------------
+            | WINDOWS SLASHES
+            |--------------------------------------------------------------------------
+            */
+
+            path =
+                path.replace(
+                    /\\/g,
+                    '/'
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | ALREADY FULL URL
+            |--------------------------------------------------------------------------
             */
 
             if (
@@ -20138,23 +20831,13 @@ async function selectSupplierProduct(product,productId = '',
             ) {
 
                 return path;
-
             }
 
 
             /*
-            | Remove quotes
-            */
-
-            path =
-                path.replace(
-                    /^["']|["']$/g,
-                    ''
-                );
-
-
-            /*
-            | Remove old ../../ path
+            |--------------------------------------------------------------------------
+            | DESIGN SPECIFICATION MASTER
+            |--------------------------------------------------------------------------
             */
 
             const marker =
@@ -20171,16 +20854,41 @@ async function selectSupplierProduct(product,productId = '',
                 markerPosition !== -1
             ) {
 
-                return '/' +
+                const publicPath =
                     path.substring(
                         markerPosition
                     );
 
+
+                /*
+                |--------------------------------------------------------------------------
+                | IMPORTANT
+                |--------------------------------------------------------------------------
+                |
+                | Physical location:
+                |
+                | public/
+                |   ItemsDesigner_Masterwithbarcode/
+                |
+                | Browser URL:
+                |
+                | /ItemsDesigner_Masterwithbarcode/...
+                |
+                |--------------------------------------------------------------------------
+                */
+
+                return (
+                    window.location.origin +
+                    '/' +
+                    publicPath
+                );
             }
 
 
             /*
-            | Storage
+            |--------------------------------------------------------------------------
+            | EXISTING STORAGE PATH
+            |--------------------------------------------------------------------------
             */
 
             if (
@@ -20189,8 +20897,10 @@ async function selectSupplierProduct(product,productId = '',
                 )
             ) {
 
-                return path;
-
+                return (
+                    window.location.origin +
+                    path
+                );
             }
 
 
@@ -20200,61 +20910,417 @@ async function selectSupplierProduct(product,productId = '',
                 )
             ) {
 
-                return '/' + path;
-
+                return (
+                    window.location.origin +
+                    '/' +
+                    path
+                );
             }
 
 
             /*
-            | Normal path
+            |--------------------------------------------------------------------------
+            | EXISTING SUPPLIER RAW PRODUCT PATH
+            |--------------------------------------------------------------------------
+            |
+            | This remains unchanged for products WITHOUT SKU.
+            |--------------------------------------------------------------------------
             */
 
-            path =
+            return (
+                window.location.origin +
+                '/' +
                 path.replace(
                     /^\/+/,
                     ''
-                );
-
-
-            return '/' + path;
-
+                )
+            );
         }
 
 
         /*
         |--------------------------------------------------------------------------
-        | 2. MAIN IMAGE
+        | IMAGE VARIABLES
+        |--------------------------------------------------------------------------
+        */
+
+        let mainImagePath =
+            '';
+
+        let subImagePaths =
+            [];
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | IMPORTANT:
+        |
+        | CHECK WHETHER SKU MATCHED DSM
+        |--------------------------------------------------------------------------
+        */
+
+        const matchedSpecification =
+            selectedSupplierProduct &&
+            selectedSupplierProduct.matched_specification
+                ? selectedSupplierProduct.matched_specification
+                : null;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CASE 1:
+        |
+        | SKU EXISTS
         |--------------------------------------------------------------------------
         */
 
         if (
-            product.main_image
+            supplierSku !== ''
         ) {
 
-            const mainUrl =
-                normalizeImagePath(
-                    product.main_image
+            console.log(
+                'Supplier product has SKU:',
+                supplierSku
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | DSM FOUND
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                matchedSpecification
+            ) {
+
+                console.log(
+                    'USING DESIGN SPECIFICATION MASTER IMAGES'
                 );
 
 
+                /*
+                |--------------------------------------------------------------------------
+                | DSM MAIN IMAGE
+                |--------------------------------------------------------------------------
+                */
+
+                let dsmMainImage =
+                    matchedSpecification.img_path ||
+                    '';
+
+
+                if (
+                    typeof dsmMainImage ===
+                    'string'
+                ) {
+
+                    try {
+
+                        const parsed =
+                            JSON.parse(
+                                dsmMainImage
+                            );
+
+
+                        if (
+                            Array.isArray(parsed)
+                        ) {
+
+                            dsmMainImage =
+                                parsed[0] ||
+                                '';
+                        }
+
+                    } catch (error) {
+
+                        /*
+                        | Not JSON.
+                        | Use as normal string.
+                        */
+                    }
+                }
+
+
+                mainImagePath =
+                    normalizeImagePath(
+                        dsmMainImage
+                    );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | DSM SUB IMAGES
+                |--------------------------------------------------------------------------
+                */
+
+                let dsmSubImages =
+                    matchedSpecification.subimg_path ||
+                    [];
+
+
+                if (
+                    typeof dsmSubImages ===
+                    'string'
+                ) {
+
+                    try {
+
+                        dsmSubImages =
+                            JSON.parse(
+                                dsmSubImages
+                            );
+
+                    } catch (error) {
+
+                        console.warn(
+                            'DSM subimg_path JSON parse failed:',
+                            error
+                        );
+
+                        dsmSubImages =
+                            [];
+                    }
+                }
+
+
+                if (
+                    !Array.isArray(
+                        dsmSubImages
+                    )
+                ) {
+
+                    dsmSubImages =
+                        [];
+                }
+
+
+                subImagePaths =
+                    dsmSubImages
+                        .filter(
+                            image => image
+                        )
+                        .map(
+                            image =>
+                                normalizeImagePath(
+                                    image
+                                )
+                        )
+                        .filter(
+                            image =>
+                                image !== ''
+                        );
+
+
+                console.log(
+                    'DSM img_path:',
+                    matchedSpecification.img_path
+                );
+
+
+                console.log(
+                    'DSM subimg_path:',
+                    matchedSpecification.subimg_path
+                );
+
+
+                console.log(
+                    'FINAL DSM MAIN IMAGE:',
+                    mainImagePath
+                );
+
+
+                console.log(
+                    'FINAL DSM SUB IMAGES:',
+                    subImagePaths
+                );
+
+
+            } else {
+
+                /*
+                |--------------------------------------------------------------------------
+                | SKU EXISTS BUT DSM NOT FOUND
+                |--------------------------------------------------------------------------
+                |
+                | VERY IMPORTANT:
+                |
+                | DO NOT USE product.main_image.
+                |
+                |--------------------------------------------------------------------------
+                */
+
+                console.warn(
+                    'SKU exists but no Design Specification was found:',
+                    supplierSku
+                );
+
+
+                mainImagePath =
+                    '';
+
+                subImagePaths =
+                    [];
+            }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CASE 2:
+        |
+        | NO SKU
+        |--------------------------------------------------------------------------
+        */
+
+        } else {
+
             console.log(
-                'Supplier Main Image:',
-                mainUrl
+                'Supplier product has NO SKU.'
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | EXISTING SUPPLIER MAIN IMAGE
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                product.main_image
+            ) {
+
+                mainImagePath =
+                    normalizeImagePath(
+                        product.main_image
+                    );
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | EXISTING SUPPLIER SUB IMAGES
+            |--------------------------------------------------------------------------
+            */
+
+            let supplierSubImages =
+                product.sub_images ||
+                product.subimg_path ||
+                [];
+
+
+            if (
+                typeof supplierSubImages ===
+                'string'
+            ) {
+
+                try {
+
+                    supplierSubImages =
+                        JSON.parse(
+                            supplierSubImages
+                        );
+
+                } catch (error) {
+
+                    console.warn(
+                        'Supplier sub images JSON error:',
+                        error
+                    );
+
+                    supplierSubImages =
+                        [];
+                }
+            }
+
+
+            if (
+                !Array.isArray(
+                    supplierSubImages
+                )
+            ) {
+
+                supplierSubImages =
+                    [];
+            }
+
+
+            subImagePaths =
+                supplierSubImages
+                    .filter(
+                        image => image
+                    )
+                    .map(
+                        image =>
+                            normalizeImagePath(
+                                image
+                            )
+                    )
+                    .filter(
+                        image =>
+                            image !== ''
+                    );
+
+
+            console.log(
+                'USING EXISTING SUPPLIER IMAGES'
+            );
+
+
+            console.log(
+                'SUPPLIER MAIN IMAGE:',
+                mainImagePath
+            );
+
+
+            console.log(
+                'SUPPLIER SUB IMAGES:',
+                subImagePaths
+            );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | RESET SELECTED SUB IMAGES
+        |--------------------------------------------------------------------------
+        */
+
+        selectedSubImages =
+            [];
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | LOAD MAIN IMAGE
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            mainImagePath
+        ) {
+
+            console.log(
+                'LOADING MAIN IMAGE:',
+                mainImagePath
             );
 
 
             const response =
                 await fetch(
-                    mainUrl
+                    mainImagePath
                 );
 
 
-            if (!response.ok) {
+            if (
+                !response.ok
+            ) {
 
                 throw new Error(
-                    'Unable to load supplier main image.'
+                    'Unable to load main image. HTTP ' +
+                    response.status +
+                    ' - ' +
+                    mainImagePath
                 );
-
             }
 
 
@@ -20263,19 +21329,18 @@ async function selectSupplierProduct(product,productId = '',
 
 
             let fileName =
-                String(
-                    product.main_image
-                )
-                .split('/')
-                .pop()
-                .split('?')[0];
+                mainImagePath
+                    .split('/')
+                    .pop()
+                    .split('?')[0];
 
 
-            if (!fileName) {
+            if (
+                !fileName
+            ) {
 
                 fileName =
                     'supplier-main-image.jpg';
-
             }
 
 
@@ -20294,19 +21359,15 @@ async function selectSupplierProduct(product,productId = '',
                 );
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | PUT INTO MAIN IMAGE INPUT
-            |--------------------------------------------------------------------------
-            */
-
             const mainImageInput =
                 document.getElementById(
                     'filenew'
                 );
 
 
-            if (mainImageInput) {
+            if (
+                mainImageInput
+            ) {
 
                 const dataTransfer =
                     new DataTransfer();
@@ -20321,17 +21382,6 @@ async function selectSupplierProduct(product,productId = '',
                     dataTransfer.files;
 
 
-                /*
-                |--------------------------------------------------------------------------
-                | IMPORTANT
-                |--------------------------------------------------------------------------
-                |
-                | Your existing #filenew change handler
-                | will update selectedFiles and preview.
-                |
-                |--------------------------------------------------------------------------
-                */
-
                 mainImageInput.dispatchEvent(
                     new Event(
                         'change',
@@ -20340,73 +21390,7 @@ async function selectSupplierProduct(product,productId = '',
                         }
                     )
                 );
-
             }
-
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | 3. SUPPLIER SUB IMAGES
-        |--------------------------------------------------------------------------
-        */
-
-        selectedSubImages = [];
-
-
-        let supplierSubImages =
-            product.sub_images ||
-            product.subimg_path ||
-            [];
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | PARSE JSON
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            typeof supplierSubImages ===
-            'string'
-        ) {
-
-            try {
-
-                supplierSubImages =
-                    JSON.parse(
-                        supplierSubImages
-                    );
-
-            } catch (error) {
-
-                console.warn(
-                    'Supplier sub images JSON error:',
-                    error
-                );
-
-                supplierSubImages = [];
-
-            }
-
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | NORMALIZE ARRAY
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            !Array.isArray(
-                supplierSubImages
-            )
-        ) {
-
-            supplierSubImages = [];
-
         }
 
 
@@ -20418,23 +21402,20 @@ async function selectSupplierProduct(product,productId = '',
 
         for (
             const subImagePath
-            of supplierSubImages
+            of subImagePaths
         ) {
 
-            if (!subImagePath) {
+            if (
+                !subImagePath
+            ) {
+
                 continue;
             }
 
 
-            const subUrl =
-                normalizeImagePath(
-                    subImagePath
-                );
-
-
             console.log(
-                'Supplier Sub Image:',
-                subUrl
+                'LOADING SUB IMAGE:',
+                subImagePath
             );
 
 
@@ -20442,19 +21423,21 @@ async function selectSupplierProduct(product,productId = '',
 
                 const response =
                     await fetch(
-                        subUrl
+                        subImagePath
                     );
 
 
-                if (!response.ok) {
+                if (
+                    !response.ok
+                ) {
 
                     console.warn(
-                        'Unable to load supplier sub image:',
-                        subUrl
+                        'Sub image not available:',
+                        response.status,
+                        subImagePath
                     );
 
                     continue;
-
                 }
 
 
@@ -20463,21 +21446,20 @@ async function selectSupplierProduct(product,productId = '',
 
 
                 let fileName =
-                    String(
-                        subImagePath
-                    )
-                    .split('/')
-                    .pop()
-                    .split('?')[0];
+                    subImagePath
+                        .split('/')
+                        .pop()
+                        .split('?')[0];
 
 
-                if (!fileName) {
+                if (
+                    !fileName
+                ) {
 
                     fileName =
                         'supplier-sub-image-' +
                         Date.now() +
                         '.jpg';
-
                 }
 
 
@@ -20504,13 +21486,11 @@ async function selectSupplierProduct(product,productId = '',
             } catch (error) {
 
                 console.warn(
-                    'Supplier sub image loading failed:',
-                    subUrl,
+                    'Sub image loading failed:',
+                    subImagePath,
                     error
                 );
-
             }
-
         }
 
 
@@ -20526,7 +21506,6 @@ async function selectSupplierProduct(product,productId = '',
         ) {
 
             renderSubImagesPreview();
-
         }
 
 
@@ -20554,12 +21533,12 @@ async function selectSupplierProduct(product,productId = '',
                 );
 
 
-            if (supplierModal) {
+            if (
+                supplierModal
+            ) {
 
                 supplierModal.hide();
-
             }
-
         }
 
 
@@ -20578,27 +21557,16 @@ async function selectSupplierProduct(product,productId = '',
                 'Product Selected',
 
             text:
-                'Supplier product details and images have been loaded.',
+                supplierSku !== ''
+                    ? 'Supplier product and matching specification data have been loaded.'
+                    : 'Supplier product details and images have been loaded.',
 
             timer:
                 1500,
 
             showConfirmButton:
                 false
-
         });
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | DEBUG
-        |--------------------------------------------------------------------------
-        */
-
-        console.log(
-            'Supplier product loaded successfully:',
-            product
-        );
 
 
     } catch (error) {
@@ -20620,12 +21588,11 @@ async function selectSupplierProduct(product,productId = '',
             text:
                 error.message ||
                 'Something went wrong while loading supplier product.'
-
         });
-
     }
-
 }
+
+
 
 function showSupplierProductInfo(product)
 {
