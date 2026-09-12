@@ -18,28 +18,83 @@
     </div>
 @endif
 
-<div class="card shadow-sm border-0 mb-4">
-    <div class="card-body">
-        <form action="{{ route('supplier.products.index') }}" method="GET" class="row gx-2 gy-2 align-items-center">
-            <div class="col-md-4">
-                <input type="text" name="search" class="form-control" placeholder="Search by name, item type or color..." value="{{ request('search') }}">
-            </div>
-            <div class="col-md-3">
-                <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
-                    <input type="date" name="date" class="form-control" value="{{ $selectedDate ?? request('date', now()->toDateString()) }}">
+<div class="card shadow-sm border-0 mb-4 filter-card">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+        <strong class="text-dark">
+            <i class="bi bi-funnel me-1 text-primary"></i>
+            Filters
+        </strong>
+    </div>
+    <div class="card-body p-3 p-md-4">
+        <form action="{{ route('supplier.products.index') }}" method="GET" id="filterForm">
+            <div class="row g-3">
+                {{-- NAME --}}
+                <div class="col-md-3">
+                    <label for="filterName" class="form-label fw-semibold small">
+                        Name
+                    </label>
+                    <input type="text"
+                           name="name"
+                           id="filterName"
+                           class="form-control"
+                           placeholder="Search by name or SKU..."
+                           value="{{ request('name') }}">
+                </div>
+
+                {{-- ITEM TYPE --}}
+                <div class="col-md-3">
+                    <label for="filterItemType" class="form-label fw-semibold small">
+                        Item Type
+                    </label>
+                    <select name="item_type" id="filterItemType" class="form-select select2-filter">
+                        <option value="">All Item Types</option>
+                        @foreach($itemTypes as $itemType)
+                            <option value="{{ $itemType->id }}" {{ (string)request('item_type') === (string)$itemType->id ? 'selected' : '' }}>
+                                {{ $itemType->itemtype }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                {{-- COMPOSITION --}}
+                <div class="col-md-3">
+                    <label for="filterComposition" class="form-label fw-semibold small">
+                        Composition
+                    </label>
+                    <select name="composition" id="filterComposition" class="form-select select2-filter">
+                        <option value="">All Compositions</option>
+                        @foreach($compositions as $composition)
+                            <option value="{{ $composition->id }}" {{ (string)request('composition') === (string)$composition->id ? 'selected' : '' }}>
+                                {{ $composition->composition_details }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                {{-- GENDER TYPE --}}
+                <div class="col-md-3">
+                    <label for="filterGender" class="form-label fw-semibold small">
+                        Gender Type
+                    </label>
+                    <select name="gender" id="filterGender" class="form-select select2-filter">
+                        <option value="">All Gender Types</option>
+                        @foreach($genders as $gender)
+                            <option value="{{ $gender->id }}" {{ (string)request('gender') === (string)$gender->id ? 'selected' : '' }}>
+                                {{ $gender->name }}
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
             </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="bi bi-funnel me-1"></i> Filter
+
+            <div class="d-flex align-items-center gap-2 mt-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-funnel me-1"></i> Apply Filters
                 </button>
+                <a href="{{ route('supplier.products.index') }}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-clockwise me-1"></i> Clear
+                </a>
             </div>
-            @if(request()->has('search') || (request()->has('date') && request('date') != now()->toDateString()))
-            <div class="col-md-2">
-                <a href="{{ route('supplier.products.index') }}" class="btn btn-outline-secondary w-100">Reset</a>
-            </div>
-            @endif
         </form>
     </div>
 </div>
@@ -54,7 +109,7 @@
                         <th>Name</th>
                         <th>Item Type</th>
                         <th>Source</th>
-                        <th>Price</th>
+                        {{-- <th>Price</th> --}}
                         <th>Stock</th>
                         <th>Created Date</th>
                         <th>Actions</th>
@@ -64,14 +119,14 @@
                     @forelse($products as $product)
                         <tr>
                             <td>
-                                @if($product->main_image)
-                                    <img src="{{ asset($product->main_image) }}" alt="Image" class="rounded" style="width: 50px; height: 50px; object-fit: cover;">
+                                @if($product->main_image_url)
+                                    <img src="{{ $product->main_image_url }}" alt="{{ $product->name }}" class="rounded border" style="width: 50px; height: 50px; object-fit: cover;" onerror="this.onerror=null; this.parentElement.innerHTML='<span class=\'text-muted small\'>No Image</span>';">
                                 @else
                                     <span class="text-muted small">No Image</span>
                                 @endif
                             </td>
                             <td class="fw-bold">{{ $product->name }}</td>
-                            <td>{{ $product->item_type ?? '-' }}</td>
+                            <td>{{ $product->item_type_name ?? '-' }}</td>
                             <td>
                                 @if($product->is_integrated)
                                     <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
@@ -83,7 +138,7 @@
                                     </span>
                                 @endif
                             </td>
-                            <td>{{ $product->price ? '₹' . number_format($product->price, 2) : '-' }}</td>
+                            {{-- <td>{{ $product->price ? '₹' . number_format($product->price, 2) : '-' }}</td> --}}
                             <td>{{ $product->stock ?? 0 }}</td>
                             <td>
                                 <span class="badge bg-light text-dark border">
@@ -107,7 +162,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="text-center py-4 text-muted">No products found.</td>
+                            <td colspan="7" class="text-center py-4 text-muted">No products found.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -120,4 +175,16 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.jQuery && $.fn.select2) {
+            $('.select2-filter').select2({
+                width: '100%'
+            });
+        }
+    });
+</script>
+@endpush
 

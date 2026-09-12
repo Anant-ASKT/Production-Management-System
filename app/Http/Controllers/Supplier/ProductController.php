@@ -14,22 +14,63 @@ class ProductController extends Controller
         $query = SupplierProduct::where('supplier_id', $user->supplier_id)
             ->where('supplier_user_id', $user->sno);
 
-        $selectedDate = $request->has('date') ? $request->input('date') : now()->toDateString();
-        if (!empty($selectedDate)) {
-            $query->whereDate('created_at', $selectedDate);
+        if ($request->filled('name')) {
+            $name = trim($request->name);
+            $query->where(function($q) use ($name) {
+                $q->where('name', 'like', "%{$name}%")
+                  ->orWhere('product_sku', 'like', "%{$name}%");
+            });
+        }
+
+        if ($request->filled('item_type')) {
+            $query->where('item_type', $request->item_type);
+        }
+
+        if ($request->filled('composition')) {
+            $query->where('composition', $request->composition);
+        }
+
+        if ($request->filled('gender')) {
+            $query->where('gender', $request->gender);
         }
 
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $matchingTypeIds = \Illuminate\Support\Facades\DB::table('auto_itemtype_master')
+                ->where('itemtype', 'like', "%{$search}%")
+                ->pluck('id')
+                ->toArray();
+
+            $query->where(function($q) use ($search, $matchingTypeIds) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('item_type', 'like', "%{$search}%")
                   ->orWhere('colour', 'like', "%{$search}%");
+
+                if (!empty($matchingTypeIds)) {
+                    $q->orWhereIn('item_type', $matchingTypeIds);
+                }
             });
         }
 
-        $products = $query->latest('sno')->paginate(10)->withQueryString();
-        return view('supplier.products.index', compact('products', 'selectedDate'));
+        if ($request->filled('date')) {
+            $query->whereDate('created_at', $request->date);
+        }
+
+        $products = $query->latest('sno')->paginate(15)->withQueryString();
+
+        $itemTypes = \Illuminate\Support\Facades\DB::table('auto_itemtype_master')
+            ->orderBy('itemtype')
+            ->get(['id', 'itemtype']);
+
+        $compositions = \Illuminate\Support\Facades\DB::table('auto_composition_master_stock')
+            ->orderBy('composition_details')
+            ->get(['id', 'composition_details']);
+
+        $genders = \Illuminate\Support\Facades\DB::table('auto_gender_master')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return view('supplier.products.index', compact('products', 'itemTypes', 'compositions', 'genders'));
     }
 
     public function create()
@@ -97,7 +138,14 @@ class ProductController extends Controller
             $this->saveAndCompressImage($file, $path, $filename);
             $data['main_image'] = $path . '/' . $filename;
         } elseif ($request->filled('existing_spec_image')) {
-            $data['main_image'] = $request->existing_spec_image;
+            $rawImg = $request->existing_spec_image;
+            if (is_string($rawImg) && (str_starts_with($rawImg, '[') || str_starts_with($rawImg, '{'))) {
+                $decoded = json_decode($rawImg, true);
+                if (is_array($decoded) && !empty($decoded)) {
+                    $rawImg = is_array($decoded[0]) ? ($decoded[0]['url'] ?? reset($decoded[0])) : $decoded[0];
+                }
+            }
+            $data['main_image'] = $rawImg;
         }
 
         if ($request->hasFile('sub_images')) {
@@ -234,6 +282,12 @@ class ProductController extends Controller
         if (!empty($gender)) {
             $query->where('spec.gender', $gender);
         }
+
+        // Only show products with stock > 0 (exclude 0 stock items)
+        $query->where(function ($w) {
+            $w->where('vs_bar.available_stock', '>', 0)
+              ->orWhere('vs_item.available_stock', '>', 0);
+        });
 
         if ($q !== '') {
             $query->where(function ($w) use ($q) {
@@ -460,6 +514,15 @@ class ProductController extends Controller
             $path = "raw_products/{$supplierId}/main_image";
             $this->saveAndCompressImage($file, $path, $filename);
             $data['main_image'] = $path . '/' . $filename;
+        } elseif ($request->filled('existing_spec_image')) {
+            $rawImg = $request->existing_spec_image;
+            if (is_string($rawImg) && (str_starts_with($rawImg, '[') || str_starts_with($rawImg, '{'))) {
+                $decoded = json_decode($rawImg, true);
+                if (is_array($decoded) && !empty($decoded)) {
+                    $rawImg = is_array($decoded[0]) ? ($decoded[0]['url'] ?? reset($decoded[0])) : $decoded[0];
+                }
+            }
+            $data['main_image'] = $rawImg;
         }
 
         if ($request->hasFile('sub_images')) {
