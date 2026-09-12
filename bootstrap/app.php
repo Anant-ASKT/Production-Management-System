@@ -17,6 +17,26 @@ return Application::configure(basePath: dirname(__DIR__))
             'prevent.back' => \App\Http\Middleware\PreventBackHistory::class,
         ]);
 
+        $middleware->redirectGuestsTo(function (\Illuminate\Http\Request $request) {
+            if ($request->is('sampling/*') || $request->is('sampling')) {
+                return route('sampling.login');
+            }
+            if ($request->is('supplier/*') || $request->is('supplier')) {
+                return route('supplier.login');
+            }
+            return route('login');
+        });
+
+        $middleware->redirectUsersTo(function (\Illuminate\Http\Request $request) {
+            if (\Illuminate\Support\Facades\Auth::guard('sampling')->check()) {
+                return route('sampling.dashboard');
+            }
+            if (\Illuminate\Support\Facades\Auth::guard('supplier')->check()) {
+                return route('supplier.dashboard');
+            }
+            return '/';
+        });
+
         $middleware->validateCsrfTokens(except: [
             'api/*',
             'webhook/*',

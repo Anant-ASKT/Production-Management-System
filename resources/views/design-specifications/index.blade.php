@@ -8058,7 +8058,7 @@ body {
             }
         );
 
-        document.addEventListener(
+       document.addEventListener(
             'click',
             async function (event) {
 
@@ -14848,59 +14848,59 @@ if (
                                 EDIT
                                 ================================================= */
 
-                            const editButton =
-                                card.querySelector(
-                                    '.btn-edit-spec'
-                                );
+                                const editButton =
+                                    card.querySelector(
+                                        '.btn-edit-spec'
+                                    );
 
 
-                            if (editButton) {
+                                if (editButton) {
 
-                                editButton.addEventListener(
-                                    'click',
-                                    function () {
+                                    editButton.addEventListener(
+                                        'click',
+                                        function () {
 
-                                        const id =
-                                            this.dataset.id;
+                                            const id =
+                                                this.dataset.id;
 
 
-                                        const specification =
-                                            allSpecifications.find(
-                                                function (item) {
+                                            const specification =
+                                                allSpecifications.find(
+                                                    function (item) {
 
-                                                    return String(
-                                                        item.sno ||
-                                                        item.id ||
-                                                        ''
-                                                    ) === String(id);
+                                                        return String(
+                                                            item.sno ||
+                                                            item.id ||
+                                                            ''
+                                                        ) === String(id);
 
-                                                }
+                                                    }
+                                                );
+
+
+                                            if (!specification) {
+
+                                                alert(
+                                                    'Unable to find specification.'
+                                                );
+
+                                                return;
+
+                                            }
+
+
+                                            editSpecification(
+                                                specification
                                             );
-
-
-                                        if (!specification) {
-
-                                            alert(
-                                                'Unable to find specification.'
-                                            );
-
-                                            return;
 
                                         }
+                                    );
 
+                                }
 
-                                        editSpecification(
-                                            specification
-                                        );
-
-                                    }
-                                );
-
-                            }
-
-                                /* =================================================
-                                BARCODE
-                                ================================================== */
+                                    /* =================================================
+                                    BARCODE
+                                    ================================================== */
 
                                 const barcodeButton =
                                     card.querySelector(
@@ -15342,7 +15342,7 @@ if (
         |--------------------------------------------------------------------------
         */
 
-    function getExistingSpecificationImages(
+    function getExistingSpecificationImagesXXXX(
         specification
     ) {
 
@@ -15458,6 +15458,164 @@ if (
             : [];
 
     }
+
+    function getExistingSpecificationImages(
+    specification
+) {
+
+    /*
+    |--------------------------------------------------------------------------
+    | 1. FIRST USE CONTROLLER GENERATED image_url
+    |--------------------------------------------------------------------------
+    |
+    | This handles:
+    |
+    | ../../ItemsDesigner_Masterwithbarcode/147922232111/
+    |
+    | The controller searches that folder and returns the actual
+    | image filename as image_url.
+    |
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        specification &&
+        specification.image_url &&
+        typeof specification.image_url === 'string' &&
+        specification.image_url.trim() !== ''
+    ) {
+
+        console.log(
+            'EDIT - USING CONTROLLER IMAGE URL:',
+            specification.image_url
+        );
+
+        return [
+            specification.image_url.trim()
+        ];
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 2. FALLBACK TO img_path
+    |--------------------------------------------------------------------------
+    |
+    | This handles:
+    |
+    | ["ItemsDesigner_Masterwithbarcode/93827231221412/
+    |    1J0-IDI-2045-cwzfurrQhE.png"]
+    |
+    |--------------------------------------------------------------------------
+    */
+
+    let imageData =
+        specification &&
+        specification.img_path
+            ? specification.img_path
+            : '';
+
+
+    if (!imageData) {
+
+        return [];
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Already an array
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        Array.isArray(imageData)
+    ) {
+
+        return imageData
+            .map(
+                function (image) {
+
+                    return getSpecificationImageFromPath(
+                        image
+                    );
+
+                }
+            )
+            .filter(Boolean);
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | JSON string
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        typeof imageData === 'string'
+    ) {
+
+        imageData =
+            imageData.trim();
+
+
+        if (
+            imageData.startsWith('[')
+        ) {
+
+            try {
+
+                const parsed =
+                    JSON.parse(
+                        imageData
+                    );
+
+
+                if (
+                    Array.isArray(parsed)
+                ) {
+
+                    return parsed
+                        .map(
+                            function (image) {
+
+                                return getSpecificationImageFromPath(
+                                    image
+                                );
+
+                            }
+                        )
+                        .filter(Boolean);
+                }
+
+            } catch (error) {
+
+                console.warn(
+                    'Unable to parse existing images:',
+                    error
+                );
+            }
+        }
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Single image / fallback
+    |--------------------------------------------------------------------------
+    */
+
+    const singleImage =
+        getSpecificationImageFromPath(
+            imageData
+        );
+
+
+    return singleImage
+        ? [singleImage]
+        : [];
+}
 
     function getExistingSpecificationSubImages(
       specification

@@ -58,7 +58,16 @@
                         <input type="text" name="phone" class="form-control" value="{{ old('phone') }}" placeholder="e.g. +91 9876543210">
                     </div>
 
-                    <div class="col-md-12 mb-3">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Is Integrated? *</label>
+                        <select name="is_integrated" id="is_integrated" class="form-select" required>
+                            <option value="0" {{ old('is_integrated', '0') == '0' ? 'selected' : '' }}>No (Not Integrated)</option>
+                            <option value="1" {{ old('is_integrated') == '1' ? 'selected' : '' }}>Yes (Integrated)</option>
+                        </select>
+                        <small class="text-muted">Select whether this supplier is integrated or not</small>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
                         <label class="form-label fw-bold">Address</label>
                         <textarea name="address" class="form-control" rows="2" placeholder="Full company address">{{ old('address') }}</textarea>
                     </div>

@@ -26,6 +26,7 @@ class AdminSupplierController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'nickname' => 'required|string|size:3|alpha|unique:suppliers,nickname',
+            'is_integrated' => 'nullable|boolean',
             'company_email' => 'required|email|max:255|unique:suppliers,email',
             'user_name' => 'nullable|string|max:255',
             'user_email' => 'required|email|max:255|unique:supplier_users,email',
@@ -57,6 +58,7 @@ class AdminSupplierController extends Controller
             $supplier = Supplier::create([
                 'name' => $request->name,
                 'nickname' => strtoupper(trim($request->nickname)),
+                'is_integrated' => (bool) $request->input('is_integrated', 0),
                 'email' => $companyEmail,
                 'password' => Hash::make($request->password),
                 'phone' => $request->phone,
@@ -109,6 +111,7 @@ class AdminSupplierController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'nickname' => 'required|string|size:3|alpha|unique:suppliers,nickname,' . $id . ',sno',
+            'is_integrated' => 'nullable|boolean',
             'email' => 'required|email|max:255|unique:suppliers,email,' . $id . ',sno',
             'phone' => 'nullable|string|max:20',
             'address' => 'nullable|string',
@@ -127,6 +130,7 @@ class AdminSupplierController extends Controller
         $user = auth()->user();
 
         $data = $request->only(['name', 'email', 'phone', 'address', 'store_url', 'consumer_key', 'consumer_secret']);
+        $data['is_integrated'] = (bool) $request->input('is_integrated', 0);
         $data['nickname'] = strtoupper(trim($request->nickname));
         $data['countryid'] = $user->country_id ?? null;
         $data['companyid'] = $user->company_id ?? null;

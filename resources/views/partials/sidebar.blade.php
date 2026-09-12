@@ -400,6 +400,15 @@
                 </li>
 
                 <li>
+                    <a href="{{ route('admin.sampling-companies.index') }}" class="{{ request()->routeIs('admin.sampling-companies.*') ? 'active' : '' }}">
+                        <i class="bi bi-palette"></i>
+                        <span>
+                            Sampling Companies
+                        </span>
+                    </a>
+                </li>
+
+                <li>
                     <a href="{{ route('admin.categories.index') }}" class="{{ request()->routeIs('admin.categories.*') ? 'active' : '' }}">
                         <i class="bi bi-tags"></i>
                         <span>

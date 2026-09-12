@@ -47,6 +47,15 @@ return [
             'report' => false,
         ],
 
+        'sampling' => [
+            'driver' => 'local',
+            'root' => storage_path('app/public/sampling'),
+            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage/sampling',
+            'visibility' => 'public',
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),
