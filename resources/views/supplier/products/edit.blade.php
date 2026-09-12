@@ -4,6 +4,88 @@
 @section('page-title', 'Edit Product')
 
 @section('content')
+<style>
+    .filter-card,
+    .result-card {
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        background: #fff;
+    }
+
+    .filter-card .card-header,
+    .result-card .card-header {
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        padding: 12px 16px;
+    }
+
+    .filter-card .card-body {
+        padding: 16px;
+    }
+
+    .filter-label {
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .product-table-search {
+        padding: 12px 16px;
+        border-bottom: 1px solid #dee2e6;
+        background: #fff;
+    }
+
+    .product-table-search input {
+        min-height: 38px;
+    }
+
+    .product-table-search .btn {
+        min-height: 38px;
+    }
+
+    .product-image-cell {
+        width: 85px;
+        text-align: center;
+    }
+
+    .product-table-image {
+        width: 52px;
+        height: 52px;
+        object-fit: cover;
+        border-radius: 6px;
+        border: 1px solid #dee2e6;
+        background: #f8f9fa;
+    }
+
+    .no-product-image {
+        width: 52px;
+        height: 52px;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        color: #adb5bd;
+        background: #f8f9fa;
+        font-size: 16px;
+        margin: 0 auto;
+    }
+
+    .no-product-image span {
+        font-size: 8px;
+        margin-top: 2px;
+    }
+
+    .stock-qty-badge {
+        font-weight: 700;
+        font-size: 12px;
+    }
+
+    .spec-row-selected {
+        background-color: #f0f7ff !important;
+    }
+</style>
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h4 class="m-0">Edit Product</h4>
@@ -26,40 +108,21 @@
 @endif
 
 @if(!empty($isIntegrated))
-    <!-- Integrated Supplier Notice & Mode Selector -->
-    <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%); border-left: 5px solid #2563eb !important;">
-        <div class="card-body p-3">
-            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="bg-primary text-white rounded-circle p-2 d-flex align-items-center justify-content-center shadow-sm" style="width: 44px; height: 44px;">
-                        <i class="bi bi-patch-check-fill fs-5"></i>
-                    </div>
-                    <div>
-                        <h6 class="mb-1 fw-bold text-dark">
-                            You are an Integrated Supplier
-                            <span class="badge bg-success-subtle text-success border border-success-subtle ms-1">Integrated</span>
-                        </h6>
-                        <p class="mb-0 text-muted small">
-                            You can choose to select attributes directly from the official Master Catalogs or type them manually.
-                        </p>
-                    </div>
-                </div>
-                <div class="d-flex align-items-center gap-2 bg-white px-3 py-2 rounded-pill shadow-sm border">
-                    <span class="small fw-semibold text-secondary me-1">Entry Mode:</span>
-                    <div class="form-check form-check-inline m-0">
-                        <input class="form-check-input" type="radio" name="catalog_mode_switch" id="modeIntegrated" value="integrated" {{ old('catalog_mode', $product->is_integrated ? 'integrated' : 'manual') === 'integrated' ? 'checked' : '' }}>
-                        <label class="form-check-label small fw-bold text-primary" for="modeIntegrated" style="cursor:pointer;">
-                            <i class="bi bi-collection-fill text-primary me-1"></i> Select From Masters
-                        </label>
-                    </div>
-                    <div class="form-check form-check-inline m-0">
-                        <input class="form-check-input" type="radio" name="catalog_mode_switch" id="modeManual" value="manual" {{ old('catalog_mode', $product->is_integrated ? 'integrated' : 'manual') === 'manual' ? 'checked' : '' }}>
-                        <label class="form-check-label small fw-medium text-secondary" for="modeManual" style="cursor:pointer;">
-                            <i class="bi bi-pencil-square me-1"></i> Manual Entry
-                        </label>
-                    </div>
-                </div>
-            </div>
+    <!-- Direct Big Selection Buttons (Different Colors) -->
+    <div class="d-flex flex-wrap gap-3 mb-4">
+        <div>
+            <input type="radio" class="btn-check" name="catalog_mode_switch" id="modeIntegrated" value="integrated" autocomplete="off" {{ old('catalog_mode', $product->is_integrated ? 'integrated' : 'manual') === 'integrated' ? 'checked' : '' }}>
+            <label class="btn btn-outline-primary btn-lg px-4 py-3 fw-bold d-flex align-items-center gap-3 shadow-sm rounded-3 fs-5" for="modeIntegrated" style="cursor: pointer; border-width: 2px;">
+                <i class="bi bi-card-checklist fs-3"></i>
+                <span>Choose from Ready List</span>
+            </label>
+        </div>
+        <div>
+            <input type="radio" class="btn-check" name="catalog_mode_switch" id="modeManual" value="manual" autocomplete="off" {{ old('catalog_mode', $product->is_integrated ? 'integrated' : 'manual') === 'manual' ? 'checked' : '' }}>
+            <label class="btn btn-outline-success btn-lg px-4 py-3 fw-bold d-flex align-items-center gap-3 shadow-sm rounded-3 fs-5" for="modeManual" style="cursor: pointer; border-width: 2px;">
+                <i class="bi bi-plus-circle fs-3"></i>
+                <span>Add New Product</span>
+            </label>
         </div>
     </div>
 @endif
@@ -73,55 +136,182 @@
             <input type="hidden" name="existing_spec_image" id="existing_spec_image_input" value="">
             
             @if(!empty($isIntegrated))
-            {{-- CHOOSE SKU IN STARTING (ALL SUPPLIERS) --}}
-            <div id="chooseSkuTopCard" class="card border-primary border-2 shadow-sm mb-4" style="background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);">
-                <div class="card-body p-4">
-                    <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="bg-primary text-white rounded-circle p-2 d-flex align-items-center justify-content-center shadow-sm" style="width: 44px; height: 44px;">
-                                <i class="bi bi-upc-scan fs-5"></i>
-                            </div>
-                            <div>
-                                <h5 class="mb-0 fw-bold text-primary">
-                                    Step 1: Choose SKU
-                                </h5>
-                                <small class="text-muted">
-                                    Select any SKU from stock (all suppliers) to auto-fill product specifications, prices, images, and master attributes below.
-                                </small>
-                            </div>
-                        </div>
-                        <div>
-                            <span class="badge bg-primary px-3 py-2 fs-6">
-                                <i class="bi bi-boxes me-1"></i> {{ count($vendorStockSkus) }} SKUs Available (All Suppliers)
-                            </span>
-                        </div>
+            {{-- CHOOSE SKU / SPECIFICATION AUTO-FILL & FILTERS --}}
+            @php
+                $currentSku = old('product_sku', $product->product_sku ?? $product->intregated_sku);
+            @endphp
+            <div id="chooseSkuTopCard" class="mb-4">
+                <!-- Hidden input to store chosen SKU for form submission -->
+                <input type="hidden" name="selected_vendor_sku" id="select_vendor_sku" value="{{ $currentSku }}">
+
+                {{-- FILTER CARD --}}
+                <div class="card shadow-sm filter-card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <strong>
+                            <i class="bi bi-funnel me-1"></i>
+                            Filters
+                        </strong>
                     </div>
 
-                    <div class="mt-3">
-                        <label for="select_vendor_sku" class="form-label fw-bold text-dark">
-                            Choose SKU <span class="text-danger">*</span>
-                        </label>
-                        <select id="select_vendor_sku" class="form-select select2-master">
-                            <option value="">-- Choose SKU to Auto-Fill Specifications --</option>
-                            @php
-                                $currentSku = old('product_sku', $product->product_sku ?? $product->intregated_sku);
-                            @endphp
-                            @foreach($vendorStockSkus as $stockItem)
-                                <option value="{{ $stockItem->sku }}" data-spec="{{ json_encode($stockItem) }}" {{ $currentSku == $stockItem->sku ? 'selected' : '' }}>
-                                    {{ $stockItem->sku }} @if(!empty($stockItem->item_name_text)) - {{ $stockItem->item_name_text }} @endif @if(!empty($stockItem->supplier_name)) [Supplier: {{ $stockItem->supplier_name }}] @endif (Available Stock: {{ $stockItem->available_stock }})
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            {{-- ITEM TYPE --}}
+                            <div class="col-md-3">
+                                <label for="filterItemType" class="form-label filter-label">
+                                    Item Type
+                                </label>
+                                <select id="filterItemType" class="form-select select2-master">
+                                    <option value="">All Item Types</option>
+                                    @if(isset($masters['itemTypes']))
+                                        @foreach($masters['itemTypes'] as $itemType)
+                                            <option value="{{ $itemType->id }}">
+                                                {{ $itemType->itemtype }}
+                                            </option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                            </div>
 
-                    <div id="sku_auto_fill_alert" class="alert alert-success mt-3 mb-0 py-2 d-none align-items-center shadow-sm">
-                        <i class="bi bi-check-circle-fill me-2 fs-5 text-success"></i>
-                        <div>
-                            <strong>Specifications Auto-Filled!</strong>
-                            <span id="sku_auto_fill_msg">Attributes and details for this SKU have been populated into the form below.</span>
+                            {{-- ITEM NAME --}}
+                            <div class="col-md-3">
+                                <label for="filterItemName" class="form-label filter-label">
+                                    Item Name
+                                </label>
+                                <select id="filterItemName" class="form-select select2-master">
+                                    <option value="">All Item Names</option>
+                                    @if(isset($masters['itemNames']))
+                                        @foreach($masters['itemNames'] as $itemName)
+                                            <option value="{{ $itemName->id }}">
+                                                {{ $itemName->itemname }}
+                                            </option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                            </div>
+
+                            {{-- COMPOSITION --}}
+                            <div class="col-md-3">
+                                <label for="filterComposition" class="form-label filter-label">
+                                    Composition
+                                </label>
+                                <select id="filterComposition" class="form-select select2-master">
+                                    <option value="">All Compositions</option>
+                                    @if(isset($masters['compositions']))
+                                        @foreach($masters['compositions'] as $composition)
+                                            <option value="{{ $composition->id }}">
+                                                {{ $composition->composition_details }}
+                                            </option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                            </div>
+
+                            {{-- GENDER --}}
+                            <div class="col-md-3">
+                                <label for="filterGender" class="form-label filter-label">
+                                    Gender Type
+                                </label>
+                                <select id="filterGender" class="form-select select2-master">
+                                    <option value="">All Gender Types</option>
+                                    @if(isset($masters['genders']))
+                                        @foreach($masters['genders'] as $gender)
+                                            <option value="{{ $gender->id }}">
+                                                {{ $gender->name }}
+                                            </option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <button type="button" id="btnApplyFilters" class="btn btn-primary">
+                                <i class="bi bi-search me-1"></i>
+                                Apply Filters
+                            </button>
+
+                            <button type="button" id="btnClearFilters" class="btn btn-secondary">
+                                <i class="bi bi-arrow-clockwise me-1"></i>
+                                Clear
+                            </button>
                         </div>
                     </div>
                 </div>
+
+                {{-- RESULT CARD --}}
+                <div class="card shadow-sm result-card mb-4" id="specTableCard">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <strong>
+                            <i class="bi bi-list-ul me-1"></i>
+                            Ready Products List
+                        </strong>
+
+                        <span id="totalProducts" class="badge bg-primary">0</span>
+                    </div>
+
+                    <div class="card-body p-0">
+                        {{-- TABLE SEARCH --}}
+                        <div class="product-table-search">
+                            <div class="row g-2 align-items-center">
+                                <div class="col-md-8">
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-white">
+                                            <i class="bi bi-search"></i>
+                                        </span>
+                                        <input type="text"
+                                               id="productTableSearch"
+                                               class="form-control"
+                                               placeholder="Search by name, SKU, color, size, type..."
+                                               autocomplete="off">
+                                    </div>
+                                </div>
+
+                                <div class="col-md-auto">
+                                    <button type="button"
+                                            id="btnResetTableSearch"
+                                            class="btn btn-outline-secondary">
+                                        <i class="bi bi-arrow-clockwise me-1"></i> Reset
+                                    </button>
+                                </div>
+
+                                <div class="col-md-auto">
+                                    <small id="productTableSearchInfo" class="text-muted"></small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+                            <table class="table table-bordered table-hover mb-0 align-middle" id="productSpecificationTable">
+                                <thead class="table-light position-sticky top-0 shadow-sm" style="z-index: 2;">
+                                    <tr>
+                                        <th style="width: 50px;">#</th>
+                                        <th class="text-center" style="width: 85px;">Image</th>
+                                        <th>Item Type</th>
+                                        <th>Item Name</th>
+                                        <th>Composition</th>
+                                        <th>Gender Type</th>
+                                        <th class="text-end" style="width: 110px;">Stock Qty</th>
+                                        <th class="text-center" style="width: 110px;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="productSpecificationTableBody">
+                                    <tr>
+                                        <td colspan="8" class="text-center py-4 text-muted">
+                                            <span class="spinner-border spinner-border-sm me-1" role="status"></span> Loading specifications...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="productFormFieldsStart"></div>
+            <div id="sku_auto_fill_alert" class="alert alert-success alert-dismissible fade show d-none align-items-center mb-4 py-2" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                <span id="sku_auto_fill_msg">Specification auto-filled to product form.</span>
+                <button type="button" class="btn-close ms-auto py-2" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
             @endif
 
@@ -219,17 +409,9 @@
                      INTEGRATED MASTER ATTRIBUTES SECTION
                 ========================================================= -->
                 <div id="integratedAttributesSection" class="col-md-12">
-                    <div class="border-top pt-3 mt-3 mb-3">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <h5 class="text-primary m-0">
-                                <i class="bi bi-collection me-1"></i> Attributes (Select From Official Masters)
-                            </h5>
-                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
-                                <i class="bi bi-link-45deg me-1"></i> System Integrated
-                            </span>
-                        </div>
-                        <small class="text-muted d-block mt-1">Select standardized values from the official system master catalogs.</small>
-                    </div>
+                    <h5 class="text-primary border-bottom pb-2 mt-3 mb-3">
+                        <i class="bi bi-collection me-1"></i> Master Attributes
+                    </h5>
 
                     <div class="row">
                         {{-- Item Name --}}
@@ -401,12 +583,9 @@
                      MANUAL ATTRIBUTES SECTION (Simple Text)
                 ========================================================= -->
                 <div id="manualAttributesSection" class="col-md-12 {{ (!empty($isIntegrated) && $product->is_integrated) ? 'd-none' : '' }}">
-                    <div class="border-top pt-3 mt-3 mb-3">
-                        <h5 class="text-primary m-0">
-                            <i class="bi bi-pen me-1"></i> Attributes (Simple Text)
-                        </h5>
-                        <small class="text-muted d-block mt-1">Please type manual text values for attributes.</small>
-                    </div>
+                    <h5 class="text-primary border-bottom pb-2 mt-3 mb-3">
+                        <i class="bi bi-pencil-square me-1"></i> Product Attributes
+                    </h5>
 
                     <div class="row">
                         <div class="col-md-4 mb-3">
@@ -714,143 +893,303 @@
                 });
             });
 
-            // When SKU is selected from Vendor Stock dropdown, auto-select all masters and fill fields
-            $('#select_vendor_sku').on('change', function() {
-                const selectedVal = $(this).val();
-                if (!selectedVal) {
-                    $('#sku_auto_fill_alert').removeClass('d-flex').addClass('d-none');
+            // =========================================================================
+            // PRODUCT SPECIFICATION MASTER - FILTERS, TABLE SEARCH & AUTO-FILL
+            // =========================================================================
+            const filterItemType = $('#filterItemType');
+            const filterItemName = $('#filterItemName');
+            const filterComposition = $('#filterComposition');
+            const filterGender = $('#filterGender');
+            const btnApplyFilters = $('#btnApplyFilters');
+            const btnClearFilters = $('#btnClearFilters');
+            const productTableSearch = $('#productTableSearch');
+            const btnResetTableSearch = $('#btnResetTableSearch');
+            const productTableSearchInfo = $('#productTableSearchInfo');
+            const tableBody = $('#productSpecificationTableBody');
+            const totalProductsBadge = $('#totalProducts');
+            const hiddenSkuInput = $('#select_vendor_sku');
+            const skuAutoFillAlert = $('#sku_auto_fill_alert');
+            const skuAutoFillMsg = $('#sku_auto_fill_msg');
+
+            let loadedSpecifications = [];
+            let currentSelectedSku = hiddenSkuInput.val() || '';
+
+            function escapeHtml(str) {
+                if (str === null || str === undefined) return '';
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            function setSelect2Val(selectElem, val, text) {
+                if (val === undefined || val === null || val === '') return;
+                val = String(val);
+                if (selectElem.find("option[value='" + val + "']").length) {
+                    selectElem.val(val).trigger('change');
+                } else if (text) {
+                    const newOpt = new Option(text, val, true, true);
+                    selectElem.append(newOpt).trigger('change');
+                }
+            }
+
+            function renderSpecificationTable(items) {
+                tableBody.empty();
+                totalProductsBadge.text(items ? items.length : 0);
+
+                if (!items || items.length === 0) {
+                    tableBody.html(`
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-muted">
+                                <i class="bi bi-box-seam" style="font-size: 32px;"></i>
+                                <div class="mt-2 fw-semibold">No product specification stock found.</div>
+                                <small class="text-muted">Try adjusting your filters above.</small>
+                            </td>
+                        </tr>
+                    `);
+                    productTableSearchInfo.text('');
                     return;
                 }
 
-                const selectedOption = $(this).find('option:selected');
-                const specRaw = selectedOption.attr('data-spec');
-                if (!specRaw) return;
+                items.forEach((item, index) => {
+                    const isSelected = currentSelectedSku && item.sku === currentSelectedSku;
+                    const availStock = (item.available_stock !== undefined && item.available_stock !== null)
+                        ? parseInt(item.available_stock, 10)
+                        : (parseInt(item.total_stock, 10) || 0);
 
-                let spec;
-                try {
-                    spec = JSON.parse(specRaw);
-                } catch(e) {
-                    console.error('Error parsing spec JSON:', e);
-                    return;
-                }
-
-                // Helper to set Select2 value or add option if missing
-                function setSelect2Val(selectElem, val, text) {
-                    if (val === undefined || val === null || val === '') return;
-                    val = String(val);
-                    if (selectElem.find("option[value='" + val + "']").length) {
-                        selectElem.val(val).trigger('change');
-                    } else if (text) {
-                        const newOpt = new Option(text, val, true, true);
-                        selectElem.append(newOpt).trigger('change');
+                    let imageHtml = '';
+                    if (item.image_url) {
+                        imageHtml = `
+                            <img src="${escapeHtml(item.image_url)}"
+                                 alt="Product Image"
+                                 class="product-table-image"
+                                 loading="lazy"
+                                 onerror="this.outerHTML='<div class=&quot;no-product-image&quot;><i class=&quot;bi bi-image&quot;></i><span>Unavailable</span></div>';">
+                        `;
+                    } else {
+                        imageHtml = `
+                            <div class="no-product-image">
+                                <i class="bi bi-image"></i>
+                                <span>No Image</span>
+                            </div>
+                        `;
                     }
+
+                    const actionHtml = isSelected
+                        ? `<button type="button" class="btn btn-sm btn-success disabled">
+                               <i class="bi bi-check-lg me-1"></i> Selected
+                           </button>`
+                        : `<button type="button" class="btn btn-sm btn-primary js-choose-spec" data-index="${index}">
+                               <i class="bi bi-check2-circle me-1"></i> Choose
+                           </button>`;
+
+                    const tr = $(`
+                        <tr class="${isSelected ? 'table-primary spec-row-selected' : ''}" data-spec-id="${item.spec_id}">
+                            <td>${index + 1}</td>
+                            <td class="product-image-cell">${imageHtml}</td>
+                            <td>${escapeHtml(item.item_type_text || '-')}</td>
+                            <td>
+                                <div class="fw-bold text-dark">${escapeHtml(item.item_name_text || '-')}</div>
+                                <div class="small text-muted font-monospace">${escapeHtml(item.sku || '')}</div>
+                            </td>
+                            <td>${escapeHtml(item.composition_text || '-')}</td>
+                            <td>${escapeHtml(item.gender_text || '-')}</td>
+                            <td class="text-end">
+                                <span class="badge ${availStock > 0 ? 'bg-success' : 'bg-secondary'} stock-qty-badge">
+                                    ${availStock}
+                                </span>
+                            </td>
+                            <td class="text-center">${actionHtml}</td>
+                        </tr>
+                    `);
+
+                    tableBody.append(tr);
+                });
+
+                applyClientTableSearch();
+            }
+
+            function fetchSpecifications() {
+                tableBody.html(`
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            Loading product specifications...
+                        </td>
+                    </tr>
+                `);
+
+                const params = {
+                    item_type: filterItemType.val() || '',
+                    item_name: filterItemName.val() || '',
+                    composition: filterComposition.val() || '',
+                    gender: filterGender.val() || '',
+                    q: productTableSearch.val().trim()
+                };
+
+                $.ajax({
+                    url: '{{ route("supplier.products.search-specifications") }}',
+                    method: 'GET',
+                    data: params,
+                    dataType: 'json',
+                    success: function(response) {
+                        loadedSpecifications = Array.isArray(response) ? response : (response.data || []);
+                        renderSpecificationTable(loadedSpecifications);
+                    },
+                    error: function(err) {
+                        console.error('Error fetching specifications:', err);
+                        tableBody.html(`
+                            <tr>
+                                <td colspan="8" class="text-center text-danger py-4">
+                                    <i class="bi bi-exclamation-triangle me-1"></i> Failed to load product specifications. Please try again.
+                                </td>
+                            </tr>
+                        `);
+                    }
+                });
+            }
+
+            function applyClientTableSearch() {
+                const query = productTableSearch.val().trim().toLowerCase();
+                const rows = tableBody.find('tr').filter(function() {
+                    return $(this).find('td').length === 8;
+                });
+
+                let visibleCount = 0;
+                rows.each(function() {
+                    const rowText = $(this).text().replace(/\s+/g, ' ').toLowerCase();
+                    const match = !query || rowText.indexOf(query) !== -1;
+                    $(this).toggle(match);
+                    if (match) visibleCount++;
+                });
+
+                tableBody.find('.table-search-no-result').remove();
+                if (query && rows.length > 0 && visibleCount === 0) {
+                    tableBody.append(`
+                        <tr class="table-search-no-result">
+                            <td colspan="8" class="text-center py-4 text-muted">
+                                <i class="bi bi-search" style="font-size: 24px;"></i>
+                                <div class="mt-2">No matching product specification found for "${escapeHtml(query)}".</div>
+                            </td>
+                        </tr>
+                    `);
                 }
 
-                // Auto-fill SKU input
+                if (query) {
+                    productTableSearchInfo.text(`${visibleCount} matching on this page`);
+                } else {
+                    productTableSearchInfo.text('');
+                }
+            }
+
+            function applySpecification(spec) {
+                if (!spec) return;
+
+                currentSelectedSku = spec.sku || '';
+                hiddenSkuInput.val(currentSelectedSku);
+
+                let availStock = (spec.available_stock !== undefined && spec.available_stock !== null)
+                    ? parseInt(spec.available_stock, 10)
+                    : (parseInt(spec.total_stock, 10) || 0);
+
+                // Auto-fill form inputs
                 if (spec.sku) {
                     $('#product_sku_input').val(spec.sku);
                 }
-
-                // Auto-select Master Dropdowns
-                if (spec.item_name) {
-                    setSelect2Val($('#master_item_name'), spec.item_name, spec.item_name_text);
-                }
-                if (spec.item_type) {
-                    setSelect2Val($('#master_item_type'), spec.item_type);
-                }
-                if (spec.designer) {
-                    setSelect2Val($('#master_designer'), spec.designer);
-                }
-                if (spec.gender) {
-                    setSelect2Val($('#master_gender'), spec.gender);
-                }
-                if (spec.composition) {
-                    setSelect2Val($('#master_composition'), spec.composition);
-                }
-                if (spec.colour) {
-                    setSelect2Val($('#master_colour'), spec.colour);
-                }
-                if (spec.yarn) {
-                    setSelect2Val($('#master_yarn'), spec.yarn);
-                }
-                if (spec.size) {
-                    setSelect2Val($('#master_size'), spec.size);
-                }
-                if (spec.embellishment) {
-                    setSelect2Val($('#master_embellishment'), spec.embellishment);
-                }
-                if (spec.manufacturing_process) {
-                    setSelect2Val($('#master_manufacturing_process'), spec.manufacturing_process);
-                }
-                if (spec.craftsman !== undefined && spec.craftsman !== null) {
-                    setSelect2Val($('#master_craftsman'), spec.craftsman);
-                }
-                if (spec.manufacture) {
-                    setSelect2Val($('#master_manufacture'), spec.manufacture);
-                }
-
-                // Auto-fill Product Name
                 if (spec.item_name_text) {
                     $('#product_name_input').val(spec.item_name_text);
                 } else if (spec.sku) {
                     $('#product_name_input').val(spec.sku);
                 }
 
+                // Auto-select Master dropdowns
+                if (spec.item_name) setSelect2Val($('#master_item_name'), spec.item_name, spec.item_name_text);
+                if (spec.item_type) setSelect2Val($('#master_item_type'), spec.item_type, spec.item_type_text);
+                if (spec.designer) setSelect2Val($('#master_designer'), spec.designer);
+                if (spec.gender) setSelect2Val($('#master_gender'), spec.gender, spec.gender_text);
+                if (spec.composition) setSelect2Val($('#master_composition'), spec.composition);
+                if (spec.colour) setSelect2Val($('#master_colour'), spec.colour, spec.colour_text);
+                if (spec.yarn) setSelect2Val($('#master_yarn'), spec.yarn);
+                if (spec.size) setSelect2Val($('#master_size'), spec.size, spec.size_text);
+                if (spec.embellishment) setSelect2Val($('#master_embellishment'), spec.embellishment);
+                if (spec.manufacturing_process) setSelect2Val($('#master_manufacturing_process'), spec.manufacturing_process);
+                if (spec.craftsman !== undefined && spec.craftsman !== null) setSelect2Val($('#master_craftsman'), spec.craftsman);
+                if (spec.manufacture) setSelect2Val($('#master_manufacture'), spec.manufacture);
+
                 // Auto-fill Prices & Stock
-                if (spec.price) {
-                    $('input[name="price"]').val(spec.price);
-                }
-                if (spec.sale_price) {
-                    $('input[name="sale_price"]').val(spec.sale_price);
-                }
-                if (spec.min_price) {
-                    $('input[name="min_price"]').val(spec.min_price);
-                }
-                
-                // Update total available stock display after label
-                let availStock = 0;
-                if (spec.available_stock !== undefined && spec.available_stock !== null) {
-                    availStock = parseInt(spec.available_stock, 10) || 0;
-                } else if (spec.total_stock) {
-                    availStock = parseInt(spec.total_stock, 10) || 0;
-                }
+                if (spec.price) $('input[name="price"]').val(spec.price);
+                if (spec.sale_price) $('input[name="sale_price"]').val(spec.sale_price);
+                if (spec.min_price) $('input[name="min_price"]').val(spec.min_price);
+
                 $('#total_available_stock_count').text(availStock);
+                $('input[name="stock"]').val(availStock > 0 ? availStock : 1);
 
-                // Set stock input to total available for this SKU, or default to 1 (not 0)
-                let stockQty = availStock > 0 ? availStock : 1;
-                $('input[name="stock"]').val(stockQty);
-
-                // Auto-fill Image preview if present
-                if (spec.img_path) {
-                    try {
-                        let imgArr = typeof spec.img_path === 'string' && spec.img_path.startsWith('[') ? JSON.parse(spec.img_path) : spec.img_path;
-                        let firstImg = Array.isArray(imgArr) ? imgArr[0] : spec.img_path;
-                        if (firstImg) {
-                            let imgUrl = firstImg.startsWith('http') ? firstImg : ('/' + firstImg.replace(/^\/+/, ''));
-                            $('#mainImagePreview').attr('src', imgUrl);
-                            $('#mainImagePreviewContainer').removeClass('d-none');
-                            $('#existing_spec_image_input').val(firstImg);
-                        }
-                    } catch(e) {
-                        console.warn('Could not parse img_path', e);
-                    }
+                // Auto-fill Image
+                if (spec.image_url) {
+                    $('#mainImagePreview').attr('src', spec.image_url);
+                    $('#mainImagePreviewContainer').removeClass('d-none');
+                    $('#existing_spec_image_input').val(spec.img_path || spec.image_url);
                 }
 
                 // Show confirmation alert
-                $('#sku_auto_fill_msg').text(`Specifications for SKU "${spec.sku}" have been auto-populated.`);
-                $('#sku_auto_fill_alert').removeClass('d-none').addClass('d-flex');
-            });
+                skuAutoFillMsg.html(`Specification <strong>${escapeHtml(spec.sku)}</strong> selected and applied to product form below.`);
+                skuAutoFillAlert.removeClass('d-none').addClass('d-flex');
 
-            // If user types in Product SKU input, sync with Vendor Stock select if available
-            $('#product_sku_input').on('change', function() {
-                const typedSku = $(this).val().trim();
-                if (typedSku && $('#select_vendor_sku').val() !== typedSku) {
-                    const match = $('#select_vendor_sku').find("option[value='" + typedSku + "']");
-                    if (match.length) {
-                        $('#select_vendor_sku').val(typedSku).trigger('change');
-                    }
+                // Re-render table to mark active selection
+                renderSpecificationTable(loadedSpecifications);
+
+                // Smooth scroll down to the product form
+                const target = document.getElementById('productFormFieldsStart');
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+
+            // Click Choose button on a table row
+            tableBody.on('click', '.js-choose-spec', function() {
+                const idx = $(this).data('index');
+                const selectedItem = loadedSpecifications[idx];
+                if (selectedItem) {
+                    applySpecification(selectedItem);
                 }
             });
+
+            // Filter actions
+            btnApplyFilters.on('click', function() {
+                fetchSpecifications();
+            });
+
+            btnClearFilters.on('click', function() {
+                filterItemType.val('').trigger('change');
+                filterItemName.val('').trigger('change');
+                filterComposition.val('').trigger('change');
+                filterGender.val('').trigger('change');
+                productTableSearch.val('');
+                fetchSpecifications();
+            });
+
+            // Table search with input event (client filter) and debounce for server query
+            let searchDebounceTimer = null;
+            productTableSearch.on('input', function() {
+                applyClientTableSearch();
+                clearTimeout(searchDebounceTimer);
+                searchDebounceTimer = setTimeout(function() {
+                    const q = productTableSearch.val().trim();
+                    if (q.length >= 2) {
+                        fetchSpecifications();
+                    }
+                }, 400);
+            });
+
+            btnResetTableSearch.on('click', function() {
+                productTableSearch.val('');
+                applyClientTableSearch();
+            });
+
+            // Initial load of specifications
+            fetchSpecifications();
 
             // Set initial state
             updateMode('{{ $product->is_integrated ? "integrated" : "manual" }}');
