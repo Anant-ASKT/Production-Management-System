@@ -872,6 +872,14 @@
             }
 
             function renderSpecificationTable(items) {
+                // Filter out any items with 0 stock
+                items = (items || []).filter(item => {
+                    const stock = (item.available_stock !== undefined && item.available_stock !== null)
+                        ? parseInt(item.available_stock, 10)
+                        : (parseInt(item.total_stock, 10) || 0);
+                    return stock > 0;
+                });
+
                 tableBody.empty();
                 totalProductsBadge.text(items ? items.length : 0);
 

@@ -327,8 +327,8 @@
                     <label class="form-label fw-bold">Main Image</label>
                     <input type="file" name="main_image" class="form-control mb-1" accept="image/*" id="mainImageInput">
                     <div id="mainImageNotice" class="small mb-1"></div>
-                    <div id="mainImagePreviewContainer" class="{{ $product->main_image ? '' : 'd-none' }} position-relative d-inline-block">
-                        <img src="{{ $product->main_image ? asset($product->main_image) : '' }}" id="mainImagePreview" class="rounded border shadow-sm" style="height: 150px; object-fit: cover;">
+                    <div id="mainImagePreviewContainer" class="{{ $product->main_image_url ? '' : 'd-none' }} position-relative d-inline-block">
+                        <img src="{{ $product->main_image_url ?? '' }}" id="mainImagePreview" class="rounded border shadow-sm" style="height: 150px; object-fit: cover;">
                         @if($product->main_image)
                             <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-1 p-0 delete-image-btn" style="width: 24px; height: 24px; line-height: 1;" data-type="main" data-path="{{ $product->main_image }}">&times;</button>
                         @endif
@@ -732,10 +732,10 @@
                     reader.readAsDataURL(file);
                 } else {
                     if (mainNotice) mainNotice.innerHTML = '';
-                    @if(!$product->main_image)
+                    @if(!$product->main_image_url)
                     mainPreviewContainer.classList.add('d-none');
                     @else
-                    mainPreview.src = "{{ asset($product->main_image) }}";
+                    mainPreview.src = "{{ $product->main_image_url }}";
                     @endif
                 }
             });
@@ -936,6 +936,14 @@
             }
 
             function renderSpecificationTable(items) {
+                // Filter out any items with 0 stock
+                items = (items || []).filter(item => {
+                    const stock = (item.available_stock !== undefined && item.available_stock !== null)
+                        ? parseInt(item.available_stock, 10)
+                        : (parseInt(item.total_stock, 10) || 0);
+                    return stock > 0;
+                });
+
                 tableBody.empty();
                 totalProductsBadge.text(items ? items.length : 0);
 
