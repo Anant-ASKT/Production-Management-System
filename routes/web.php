@@ -642,6 +642,7 @@ Route::prefix('supplier')->name('supplier.')->group(function () {
         Route::get('dashboard', [SupplierDashboardController::class, 'index'])->name('dashboard');
         Route::post('logout', [SupplierLoginController::class, 'logout'])->name('logout');
         
+        Route::get('products/search-specifications', [\App\Http\Controllers\Supplier\ProductController::class, 'searchSpecifications'])->name('products.search-specifications');
         Route::delete('products/{product}/image', [\App\Http\Controllers\Supplier\ProductController::class, 'deleteImage'])->name('products.delete-image');
         Route::resource('products', \App\Http\Controllers\Supplier\ProductController::class)->except(['show']);
 
