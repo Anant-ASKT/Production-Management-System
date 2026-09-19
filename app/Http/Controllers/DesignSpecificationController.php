@@ -506,7 +506,346 @@ public function supplierProducts(Request $request)
     }
 }
 
-    public function findBySupplierSku(Request $request)
+//     public function findBySupplierSku(Request $request)
+// {
+//     $user = Auth::user();
+
+//     if (!$user) {
+//         return response()->json([
+//             'success' => false,
+//             'message' => 'Unauthenticated.'
+//         ], 401);
+//     }
+
+//     /*
+//     |--------------------------------------------------------------------------
+//     | CURRENT LOGIN CONTEXT
+//     |--------------------------------------------------------------------------
+//     */
+
+//     $companyId = (int) $user->company_id;
+//     $subCompanyId = (int) $user->sub_company_id;
+//     $projectId = (int) $user->project_id;
+
+
+//     /*
+//     |--------------------------------------------------------------------------
+//     | SUPPLIER SKU
+//     |--------------------------------------------------------------------------
+//     */
+
+//     $supplierSku = trim(
+//         (string) $request->input('sku', '')
+//     );
+
+//     if ($supplierSku === '') {
+//         return response()->json([
+//             'success' => false,
+//             'message' => 'Supplier SKU is empty.'
+//         ], 422);
+//     }
+
+
+//     /*
+//     |--------------------------------------------------------------------------
+//     | FIND SPECIFICATION
+//     |--------------------------------------------------------------------------
+//     |
+//     | IMPORTANT:
+//     |
+//     | supplier SKU is stored in:
+//     |
+//     |     sku_supplier
+//     |
+//     | NOT in the internally generated "sku".
+//     |
+//     */
+
+//     $specification = DB::table(
+//         'auto_designer_specification_master as dsm'
+//     )
+
+//         /*
+//         |--------------------------------------------------------------------------
+//         | MASTER TABLES
+//         |--------------------------------------------------------------------------
+//         */
+
+//         ->leftJoin(
+//             'auto_designer_master as designer',
+//             'designer.id',
+//             '=',
+//             'dsm.designer_name'
+//         )
+
+//         ->leftJoin(
+//             'auto_itemtype_master as itemtype',
+//             'itemtype.id',
+//             '=',
+//             'dsm.item_type'
+//         )
+
+//         ->leftJoin(
+//             'auto_gender_master as gender',
+//             'gender.id',
+//             '=',
+//             'dsm.gender'
+//         )
+
+//         ->leftJoin(
+//             'auto_itemname_master as itemname',
+//             'itemname.id',
+//             '=',
+//             'dsm.item_name'
+//         )
+
+//         ->leftJoin(
+//             'auto_composition_master_stock as composition',
+//             'composition.id',
+//             '=',
+//             'dsm.composition'
+//         )
+
+//         ->leftJoin(
+//             'auto_yarn_master as yarn',
+//             'yarn.id',
+//             '=',
+//             'dsm.yarn'
+//         )
+
+//         ->leftJoin(
+//             'auto_colour_master as colour',
+//             'colour.id',
+//             '=',
+//             'dsm.colour'
+//         )
+
+//         ->leftJoin(
+//             'auto_size_master as size',
+//             'size.id',
+//             '=',
+//             'dsm.sizes'
+//         )
+
+//         ->leftJoin(
+//             'auto_embellishment_master as embellishment',
+//             'embellishment.id',
+//             '=',
+//             'dsm.embellishment'
+//         )
+
+//         ->leftJoin(
+//             'auto_manufacturing_process_master as manufacturing',
+//             'manufacturing.id',
+//             '=',
+//             'dsm.manufacturing_process'
+//         )
+
+//         ->leftJoin(
+//             'auto_craftsman_master as craftsman',
+//             'craftsman.id',
+//             '=',
+//             'dsm.craftsman'
+//         )
+
+//         ->leftJoin(
+//             'auto_manufacture_master as manufacture',
+//             'manufacture.id',
+//             '=',
+//             'dsm.manufecture'
+//         )
+
+//         ->leftJoin(
+//             'auto_client_master as client',
+//             'client.id',
+//             '=',
+//             'dsm.client'
+//         )
+
+//         ->leftJoin(
+//             'AI_product_description as ai',
+//             'ai.product_id',
+//             '=',
+//             'dsm.id'
+//         )
+
+//         /*
+//         |--------------------------------------------------------------------------
+//         | FIND BY SUPPLIER SKU
+//         |--------------------------------------------------------------------------
+//         */
+
+//         ->where(
+//             'dsm.sku',
+//             $supplierSku
+//         )
+
+//         /*
+//         |--------------------------------------------------------------------------
+//         | CURRENT COMPANY / SUB COMPANY / PROJECT
+//         |--------------------------------------------------------------------------
+//         */
+
+//         ->where(
+//             'dsm.companyid',
+//             $companyId
+//         )
+
+//         ->where(
+//             'dsm.subcompanyid',
+//             $subCompanyId
+//         )
+
+//         ->where(
+//             'dsm.projectid',
+//             $projectId
+//         )
+
+//         /*
+//         |--------------------------------------------------------------------------
+//         | CURRENT VERSION ONLY
+//         |--------------------------------------------------------------------------
+//         */
+
+//         ->where(function ($query) {
+//             $query
+//                 ->whereNull('dsm.tedit')
+//                 ->orWhere('dsm.tedit', '');
+//         })
+
+//         ->where(function ($query) {
+//             $query
+//                 ->whereNull('dsm.status')
+//                 ->orWhere('dsm.status', '')
+//                 ->orWhere('dsm.status', 'done');
+//         })
+
+//         /*
+//         |--------------------------------------------------------------------------
+//         | SELECT COMPLETE SPECIFICATION
+//         |--------------------------------------------------------------------------
+//         */
+
+//         ->select([
+
+//             /*
+//             |--------------------------------------------------------------------------
+//             | IDs
+//             |--------------------------------------------------------------------------
+//             */
+
+//             'dsm.sno',
+//             'dsm.id',
+
+//             'dsm.designer_name',
+//             'dsm.item_type',
+//             'dsm.gender',
+//             'dsm.item_name',
+//             'dsm.composition',
+//             'dsm.yarn',
+//             'dsm.colour',
+//             'dsm.sizes',
+
+//             'dsm.embellishment',
+//             'dsm.manufacturing_process',
+//             'dsm.craftsman',
+//             'dsm.craftsman_code',
+//             'dsm.manufecture',
+//             'dsm.client',
+
+//             /*
+//             |--------------------------------------------------------------------------
+//             | DISPLAY NAMES
+//             |--------------------------------------------------------------------------
+//             */
+
+//             'designer.designername as designer_name_text',
+//             'itemtype.itemtype as item_type_text',
+//             'gender.name as gender_text',
+//             'itemname.itemname as item_name_text',
+//             'composition.composition_details as composition_text',
+//             'yarn.yarnname as yarn_text',
+//             'colour.colourname as colour_text',
+//             'size.size as size_text',
+
+//             'embellishment.embellishmentname as embellishment_text',
+//             'manufacturing.manufacturing_process as manufacturing_process_text',
+//             'craftsman.name as craftsman_text',
+//             'manufacture.name as manufacture_text',
+//             'client.name as client_text',
+
+//             /*
+//             |--------------------------------------------------------------------------
+//             | PRODUCT DATA
+//             |--------------------------------------------------------------------------
+//             */
+
+//             'dsm.barcode',
+//             'dsm.sku',
+//             'dsm.sku_supplier',
+
+//             'dsm.clientreference',
+
+//             'dsm.price',
+//             'dsm.sale_price',
+//             'dsm.min_price',
+
+//             'dsm.img_path',
+//             'dsm.subimg_path',
+
+//             'dsm.edatetime',
+//             'dsm.status',
+
+//             /*
+//             |--------------------------------------------------------------------------
+//             | AI DATA
+//             |--------------------------------------------------------------------------
+//             */
+
+//             'ai.AI_product_name',
+//             'ai.AI_product_description',
+//             'ai.AI_Metatitle',
+//             'ai.AI_Metakeywards',
+//             'ai.AI_Metadescription',
+//             'ai.AI_Producttag',
+//             'ai.AI_Imagealttext'
+//         ])
+
+//         ->orderByDesc('dsm.sno')
+//         ->first();
+
+
+//     /*
+//     |--------------------------------------------------------------------------
+//     | NOT FOUND
+//     |--------------------------------------------------------------------------
+//     */
+
+//     if (!$specification) {
+
+//         return response()->json([
+//             'success' => true,
+//             'found' => false,
+//             'message' =>
+//                 'No Design Specification found for this Supplier SKU.'
+//         ]);
+//     }
+
+
+//     /*
+//     |--------------------------------------------------------------------------
+//     | RESPONSE
+//     |--------------------------------------------------------------------------
+//     */
+
+//     return response()->json([
+//         'success' => true,
+//         'found' => true,
+//         'data' => $specification
+//     ]);
+// }
+
+public function findBySupplierSku(Request $request)
 {
     $user = Auth::user();
 
@@ -830,6 +1169,508 @@ public function supplierProducts(Request $request)
                 'No Design Specification found for this Supplier SKU.'
         ]);
     }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | IMAGE PATH RESOLVER
+    |--------------------------------------------------------------------------
+    |
+    | Supports BOTH formats:
+    |
+    | OLD:
+    |
+    | ../../ItemsDesigner_Masterwithbarcode/147923453532411/
+    |
+    | NEW:
+    |
+    | ["ItemsDesigner_Masterwithbarcode/9318778541/image.jpeg"]
+    |
+    |--------------------------------------------------------------------------
+    */
+
+    $resolveImagePath = function ($imagePath) {
+
+        if (
+            $imagePath === null ||
+            $imagePath === ''
+        ) {
+            return '';
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | JSON ARRAY
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            is_string($imagePath)
+        ) {
+
+            $trimmedPath =
+                trim($imagePath);
+
+            if (
+                str_starts_with(
+                    $trimmedPath,
+                    '['
+                ) &&
+                str_ends_with(
+                    $trimmedPath,
+                    ']'
+                )
+            ) {
+
+                $decoded =
+                    json_decode(
+                        $trimmedPath,
+                        true
+                    );
+
+                if (
+                    json_last_error() === JSON_ERROR_NONE &&
+                    is_array($decoded)
+                ) {
+
+                    $imagePath =
+                        $decoded[0] ?? '';
+                }
+            }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ARRAY / OBJECT
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            is_array($imagePath)
+        ) {
+
+            /*
+            | If normal indexed array
+            */
+
+            if (
+                isset($imagePath[0])
+            ) {
+
+                $imagePath =
+                    $imagePath[0];
+
+            } else {
+
+                /*
+                | If associative array
+                */
+
+                $imagePath =
+                    $imagePath['path'] ??
+                    $imagePath['url'] ??
+                    '';
+            }
+        }
+
+
+        if (
+            !$imagePath
+        ) {
+            return '';
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | STRING NORMALIZATION
+        |--------------------------------------------------------------------------
+        */
+
+        $imagePath =
+            trim(
+                str_replace(
+                    '\\',
+                    '/',
+                    (string) $imagePath
+                )
+            );
+
+
+        if (
+            $imagePath === ''
+        ) {
+            return '';
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | COMPLETE URL
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            str_starts_with(
+                $imagePath,
+                'http://'
+            ) ||
+            str_starts_with(
+                $imagePath,
+                'https://'
+            ) ||
+            str_starts_with(
+                $imagePath,
+                'data:'
+            )
+        ) {
+
+            return $imagePath;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | REMOVE ../../
+        |--------------------------------------------------------------------------
+        */
+
+        $imagePath =
+            preg_replace(
+                '#^(\.\./)+#',
+                '',
+                $imagePath
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | REMOVE LEADING /
+        |--------------------------------------------------------------------------
+        */
+
+        $imagePath =
+            ltrim(
+                $imagePath,
+                '/'
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ITEMS DESIGNER MASTER PATH
+        |--------------------------------------------------------------------------
+        */
+
+        $marker =
+            'ItemsDesigner_Masterwithbarcode/';
+
+        $position =
+            strpos(
+                $imagePath,
+                $marker
+            );
+
+
+        if (
+            $position !== false
+        ) {
+
+            /*
+            |--------------------------------------------------------------------------
+            | GET ONLY ITEMS DESIGNER PATH
+            |--------------------------------------------------------------------------
+            */
+
+            $relativePath =
+                substr(
+                    $imagePath,
+                    $position
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PHYSICAL PUBLIC PATH
+            |--------------------------------------------------------------------------
+            */
+
+            $physicalPath =
+                public_path(
+                    $relativePath
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | NEW FORMAT
+            |--------------------------------------------------------------------------
+            |
+            | Exact image file:
+            |
+            | ItemsDesigner_Masterwithbarcode/
+            | 9318778541/
+            | image.jpeg
+            |
+            */
+
+            if (
+                is_file(
+                    $physicalPath
+                )
+            ) {
+
+                return asset(
+                    $relativePath
+                );
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | OLD FORMAT
+            |--------------------------------------------------------------------------
+            |
+            | Folder:
+            |
+            | ItemsDesigner_Masterwithbarcode/
+            | 147923453532411/
+            |
+            | Find the first image inside it.
+            |
+            */
+
+            if (
+                is_dir(
+                    $physicalPath
+                )
+            ) {
+
+                $files =
+                    scandir(
+                        $physicalPath
+                    );
+
+
+                if (
+                    $files !== false
+                ) {
+
+                    $allowedExtensions = [
+                        'jpg',
+                        'jpeg',
+                        'png',
+                        'webp',
+                        'gif'
+                    ];
+
+
+                    foreach (
+                        $files as $file
+                    ) {
+
+                        /*
+                        | Skip . and ..
+                        */
+
+                        if (
+                            $file === '.' ||
+                            $file === '..'
+                        ) {
+                            continue;
+                        }
+
+
+                        $filePath =
+                            $physicalPath .
+                            DIRECTORY_SEPARATOR .
+                            $file;
+
+
+                        if (
+                            !is_file(
+                                $filePath
+                            )
+                        ) {
+                            continue;
+                        }
+
+
+                        $extension =
+                            strtolower(
+                                pathinfo(
+                                    $file,
+                                    PATHINFO_EXTENSION
+                                )
+                            );
+
+
+                        if (
+                            in_array(
+                                $extension,
+                                $allowedExtensions,
+                                true
+                            )
+                        ) {
+
+                            return asset(
+                                $relativePath .
+                                '/' .
+                                $file
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | STORAGE PATH
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            str_starts_with(
+                $imagePath,
+                'storage/'
+            )
+        ) {
+
+            return asset(
+                $imagePath
+            );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | NORMAL PUBLIC PATH
+        |--------------------------------------------------------------------------
+        */
+
+        return asset(
+            $imagePath
+        );
+    };
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | RESOLVE MAIN IMAGE
+    |--------------------------------------------------------------------------
+    */
+
+    $specification->image_url =
+        $resolveImagePath(
+            $specification->img_path
+        );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | RESOLVE SUB IMAGES
+    |--------------------------------------------------------------------------
+    */
+
+    $subImageUrls = [];
+
+
+    if (
+        !empty(
+            $specification->subimg_path
+        )
+    ) {
+
+        $rawSubImages =
+            $specification->subimg_path;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | JSON SUB IMAGE ARRAY
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            is_string(
+                $rawSubImages
+            )
+        ) {
+
+            $decodedSubImages =
+                json_decode(
+                    $rawSubImages,
+                    true
+                );
+
+
+            if (
+                json_last_error() === JSON_ERROR_NONE &&
+                is_array($decodedSubImages)
+            ) {
+
+                $rawSubImages =
+                    $decodedSubImages;
+
+            } else {
+
+                /*
+                | Single image path
+                */
+
+                $rawSubImages = [
+                    $rawSubImages
+                ];
+            }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | MAKE SURE ARRAY
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            is_array(
+                $rawSubImages
+            )
+        ) {
+
+            foreach (
+                $rawSubImages as $subImage
+            ) {
+
+                $resolvedSubImage =
+                    $resolveImagePath(
+                        $subImage
+                    );
+
+
+                if (
+                    $resolvedSubImage !== ''
+                ) {
+
+                    $subImageUrls[] =
+                        $resolvedSubImage;
+                }
+            }
+        }
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ADD RESOLVED SUB IMAGE URLS
+    |--------------------------------------------------------------------------
+    */
+
+    $specification->sub_image_urls =
+        $subImageUrls;
 
 
     /*
@@ -2604,6 +3445,47 @@ private function generateProductSku(
             }
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | SUPPLIER NAME / NICKNAME
+        |--------------------------------------------------------------------------
+        |
+        | These values come from the selected supplier product button.
+        | supplier_sku for vendor_stock_web is generated as:
+        |
+        | supplier nickname + supplier id
+        |
+        | Example:
+        |
+        | TAJ + 8 = TAJ-8
+        |
+        |--------------------------------------------------------------------------
+        */
+
+        $incomingSupplierNickname =
+            trim((string) $request->input('supplier_nickname'));
+
+        if ($incomingSupplierNickname === '') {
+            $incomingSupplierNickname =
+                trim((string) $request->input('login_suppliernickname'));
+        }
+
+        $incomingSupplierName =
+            trim((string) $request->input('supplier_name'));
+
+        if ($incomingSupplierName === '') {
+            $incomingSupplierName =
+                trim((string) $request->input('login_suppliername'));
+        }
+
+        $vendorSupplierSku =
+            (
+                $incomingSupplierNickname !== '' &&
+                !empty($incomingSupplierId)
+            )
+                ? $incomingSupplierNickname . '-' . $incomingSupplierId
+                : '';
+
         // The supplier SKU may be posted under different names depending on
         // which supplier-product control populated the form.
         $incomingSku = trim((string) $request->input('sku'));
@@ -3010,6 +3892,7 @@ private function generateProductSku(
                                 $subCompanyId,
                                 $projectId,
                                 $incomingSupplierId,
+                                $vendorSupplierSku,
                                 $masterItemId,
                                 $masterBarcode,
                                 $incomingSku,
@@ -3064,6 +3947,22 @@ private function generateProductSku(
 
                                         'vendor_id' =>
                                             (int) $incomingSupplierId,
+
+                                        /*
+                                        |--------------------------------------------------------------------------
+                                        | SUPPLIER SKU
+                                        |--------------------------------------------------------------------------
+                                        |
+                                        | Example:
+                                        | supplier nickname = TAJ
+                                        | supplier id       = 8
+                                        | supplier_sku      = TAJ-8
+                                        |
+                                        |--------------------------------------------------------------------------
+                                        */
+
+                                        'supplier_sku' =>
+                                            $vendorSupplierSku,
 
                                         /*
                                         |--------------------------------------------------------------------------
@@ -4672,6 +5571,27 @@ private function generateProductSku(
             $saleprice =
                 $validated['saleprice'] ?? 0;
 
+            /*
+            |--------------------------------------------------------------------------
+            | SUPPLIER SKU FOR VENDOR STOCK
+            |--------------------------------------------------------------------------
+            |
+            | Example:
+            | supplier nickname = TAJ
+            | supplier id       = 8
+            | supplier_sku      = TAJ-8
+            |
+            |--------------------------------------------------------------------------
+            */
+
+            $vendorSupplierSku =
+                (
+                    $supplierNickname !== '' &&
+                    !empty($validated['supplier_id'])
+                )
+                    ? $supplierNickname . '-' . $validated['supplier_id']
+                    : '';
+
 
             for (
                 $stockIndex = 0;
@@ -4697,6 +5617,9 @@ private function generateProductSku(
 
                     'vendor_id' =>
                         $supplierId,
+
+                    'supplier_sku' =>
+                        $vendorSupplierSku,
 
                     'item_id' =>
                         $insertId,
