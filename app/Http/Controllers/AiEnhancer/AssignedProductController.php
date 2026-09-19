@@ -26,7 +26,7 @@ class AssignedProductController extends Controller
                 'itemname.itemname as product_name',
                 'colour.colourname as color',
                 'gender.name as age_group',
-                'suppliers.name as supplier_name'
+                \DB::raw("COALESCE(suppliers.name, (SELECT s_vsw.name FROM vendor_stock_web vsw JOIN suppliers s_vsw ON s_vsw.sno = vsw.vendor_id WHERE (vsw.item_id = spec.id OR vsw.item_id = spec.sno OR vsw.batch_no = spec.sku) ORDER BY vsw.sno DESC LIMIT 1)) as supplier_name")
             )
             ->orderBy('apa.created_at', 'desc')
             ->get();
@@ -79,7 +79,7 @@ class AssignedProductController extends Controller
                 'craftsman.name as craftsman_text',
                 'manufacture.name as manufacture_text',
                 'client.name as client_text',
-                'suppliers.name as supplier_name'
+                \DB::raw("COALESCE(suppliers.name, (SELECT s_vsw.name FROM vendor_stock_web vsw JOIN suppliers s_vsw ON s_vsw.sno = vsw.vendor_id WHERE (vsw.item_id = spec.id OR vsw.item_id = spec.sno OR vsw.batch_no = spec.sku) ORDER BY vsw.sno DESC LIMIT 1)) as supplier_name")
             )
             ->first();
 

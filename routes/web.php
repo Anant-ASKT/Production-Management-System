@@ -952,6 +952,11 @@ Route::middleware('auth')->group(function () {
         '/admin/website-orders/{id}/update-status',
         [AdminWebsiteOrderController::class, 'updateStatusAndShipping']
     )->name('admin.website-orders.update-status');
+
+    Route::post(
+        '/admin/website-orders/sync',
+        [AdminWebsiteOrderController::class, 'syncFromStores']
+    )->name('admin.website-orders.sync');
 });
 
 /*

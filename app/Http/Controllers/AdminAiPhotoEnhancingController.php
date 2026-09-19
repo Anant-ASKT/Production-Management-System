@@ -558,7 +558,20 @@ class AdminAiPhotoEnhancingController extends Controller
     */
 
     if ($supplierId !== '' && $supplierId !== 'all') {
-        $query->where('dsm.supplier_id', $supplierId);
+        $query->where(function ($q) use ($supplierId) {
+            $q->where('dsm.supplier_id', $supplierId)
+              ->orWhereExists(function ($sub) use ($supplierId) {
+                  $sub->select(DB::raw(1))
+                      ->from('vendor_stock_web as vsw')
+                      ->where('vsw.vendor_id', $supplierId)
+                      ->where(function ($w) {
+                          $w->whereColumn('vsw.item_id', 'dsm.id')
+                            ->orWhereColumn('vsw.item_id', 'dsm.sno')
+                            ->orWhereColumn('vsw.batch_no', 'dsm.sku')
+                            ->orWhereColumn('vsw.barcode', 'dsm.barcode');
+                      });
+              });
+        });
     }
 
     /*
@@ -682,7 +695,7 @@ class AdminAiPhotoEnhancingController extends Controller
             'dsm.img_path',
             'dsm.edatetime',
             'dsm.clientreference',
-            'supplier.name as supplier_name',
+            DB::raw("COALESCE(supplier.name, (SELECT s_vsw.name FROM vendor_stock_web vsw_sub JOIN suppliers s_vsw ON s_vsw.sno = vsw_sub.vendor_id WHERE (vsw_sub.item_id = dsm.id OR vsw_sub.item_id = dsm.sno OR vsw_sub.batch_no = dsm.sku) LIMIT 1)) as supplier_name"),
             // Optional specification values
             'dsm.embellishment',
             'dsm.manufacturing_process',

@@ -24,14 +24,40 @@
             <i class="bi bi-funnel me-1 text-primary"></i>
             Filters
         </strong>
+        @if(!empty($selectedDate))
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                <i class="bi bi-calendar3 me-1"></i>
+                Date: {{ \Carbon\Carbon::parse($selectedDate)->format('d-m-Y') }} {{ $selectedDate === now()->toDateString() ? '(Today)' : '' }}
+            </span>
+        @else
+            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
+                <i class="bi bi-calendar-range me-1"></i>
+                All Dates
+            </span>
+        @endif
     </div>
     <div class="card-body p-3 p-md-4">
         <form action="{{ route('supplier.products.index') }}" method="GET" id="filterForm">
             <div class="row g-3">
+                {{-- DATE --}}
+                <div class="col-md-3">
+                    <label for="filterDate" class="form-label fw-semibold small">
+                        Date
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
+                        <input type="date"
+                               name="date"
+                               id="filterDate"
+                               class="form-control"
+                               value="{{ $selectedDate }}">
+                    </div>
+                </div>
+
                 {{-- NAME --}}
                 <div class="col-md-3">
                     <label for="filterName" class="form-label fw-semibold small">
-                        Name
+                        Name / SKU
                     </label>
                     <input type="text"
                            name="name"
@@ -42,7 +68,7 @@
                 </div>
 
                 {{-- ITEM TYPE --}}
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label for="filterItemType" class="form-label fw-semibold small">
                         Item Type
                     </label>
@@ -57,7 +83,7 @@
                 </div>
 
                 {{-- COMPOSITION --}}
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label for="filterComposition" class="form-label fw-semibold small">
                         Composition
                     </label>
@@ -72,7 +98,7 @@
                 </div>
 
                 {{-- GENDER TYPE --}}
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label for="filterGender" class="form-label fw-semibold small">
                         Gender Type
                     </label>
@@ -87,13 +113,18 @@
                 </div>
             </div>
 
-            <div class="d-flex align-items-center gap-2 mt-3">
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
                 <button type="submit" class="btn btn-primary">
                     <i class="bi bi-funnel me-1"></i> Apply Filters
                 </button>
-                <a href="{{ route('supplier.products.index') }}" class="btn btn-secondary">
-                    <i class="bi bi-arrow-clockwise me-1"></i> Clear
+                <a href="{{ route('supplier.products.index') }}" class="btn btn-secondary" title="Reset filters to today's products">
+                    <i class="bi bi-arrow-clockwise me-1"></i> Reset
                 </a>
+                @if(!empty($selectedDate))
+                    <a href="{{ route('supplier.products.index', array_merge(request()->except('date', 'page'), ['date' => 'all'])) }}" class="btn btn-outline-secondary" title="View all dates">
+                        <i class="bi bi-calendar-range me-1"></i> View All Dates
+                    </a>
+                @endif
             </div>
         </form>
     </div>

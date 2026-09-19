@@ -22,7 +22,7 @@ class UploadHistoryController extends Controller
                 'spec.sku',
                 'itemname.itemname as product_name',
                 'colour.colourname as color',
-                'suppliers.name as supplier_name'
+                \DB::raw("COALESCE(suppliers.name, (SELECT s_vsw.name FROM vendor_stock_web vsw JOIN suppliers s_vsw ON s_vsw.sno = vsw.vendor_id WHERE (vsw.item_id = spec.id OR vsw.item_id = spec.sno OR vsw.batch_no = spec.sku) ORDER BY vsw.sno DESC LIMIT 1)) as supplier_name")
             )
             ->orderBy('eps.created_at', 'desc')
             ->paginate(20);
@@ -50,7 +50,7 @@ class UploadHistoryController extends Controller
                 'itemname.itemname as product_name',
                 'colour.colourname as color',
                 'gender.name as gender_text',
-                'suppliers.name as supplier_name'
+                \DB::raw("COALESCE(suppliers.name, (SELECT s_vsw.name FROM vendor_stock_web vsw JOIN suppliers s_vsw ON s_vsw.sno = vsw.vendor_id WHERE (vsw.item_id = spec.id OR vsw.item_id = spec.sno OR vsw.batch_no = spec.sku) ORDER BY vsw.sno DESC LIMIT 1)) as supplier_name")
             )
             ->first();
 

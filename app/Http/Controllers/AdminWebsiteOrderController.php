@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 use Carbon\Carbon;
 
 class AdminWebsiteOrderController extends Controller
@@ -956,5 +957,74 @@ class AdminWebsiteOrderController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Pull latest orders from connected WooCommerce stores via REST API.
+     */
+    public function syncFromStores(Request $request)
+    {
+        $suppliers = DB::table('suppliers')
+            ->whereNotNull('store_url')
+            ->whereNotNull('consumer_key')
+            ->whereNotNull('consumer_secret')
+            ->get();
+
+        $syncedCount = 0;
+        $webhookController = new OrderWebhookController();
+
+        foreach ($suppliers as $supplier) {
+            try {
+                $url = rtrim($supplier->store_url, '/') . '/wp-json/wc/v3/orders';
+                $response = Http::withoutVerifying()
+                    ->timeout(15)
+                    ->withBasicAuth($supplier->consumer_key, $supplier->consumer_secret)
+                    ->get($url, [
+                        'per_page' => 15,
+                        'orderby'  => 'date',
+                        'order'    => 'desc',
+                    ]);
+
+                if ($response->successful()) {
+                    $orders = $response->json();
+                    if (is_array($orders)) {
+                        foreach ($orders as $orderPayload) {
+                            $orderId = $orderPayload['id'] ?? null;
+                            if (!$orderId) continue;
+
+                            $exists = OrderWebhookPayload::where('order_id', (string) $orderId)->exists();
+                            if (!$exists) {
+                                $subReq = Request::create(
+                                    '/order_webhook_payloads',
+                                    'POST',
+                                    [],
+                                    [],
+                                    [],
+                                    [
+                                        'HTTP_HOST' => parse_url($supplier->store_url, PHP_URL_HOST) ?: 'localhost',
+                                        'HTTP_X_WC_WEBHOOK_SOURCE' => $supplier->store_url,
+                                        'HTTP_X_WC_WEBHOOK_TOPIC' => 'order.created',
+                                        'CONTENT_TYPE' => 'application/json',
+                                    ],
+                                    json_encode($orderPayload)
+                                );
+                                $webhookController->handle($subReq);
+                                $syncedCount++;
+                            }
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error("Failed to sync orders for supplier {$supplier->name}: " . $e->getMessage());
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $syncedCount > 0 
+                ? "Successfully synced {$syncedCount} new order(s) from WooCommerce store." 
+                : "All orders are up to date. No new orders found.",
+            'synced_count' => $syncedCount,
+        ]);
     }
 }

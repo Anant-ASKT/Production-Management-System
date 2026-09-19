@@ -44,7 +44,7 @@ class AdminAiPhotoReceivingController extends Controller
             'spec.sku',
             'ae.first_name as enhancer_first_name',
             'ae.last_name as enhancer_last_name',
-            'sup.name as supplier_name'
+            DB::raw("COALESCE(sup.name, (SELECT s_vsw.name FROM vendor_stock_web vsw JOIN suppliers s_vsw ON s_vsw.sno = vsw.vendor_id WHERE (vsw.item_id = spec.id OR vsw.item_id = spec.sno OR vsw.batch_no = spec.sku) ORDER BY vsw.sno DESC LIMIT 1)) as supplier_name")
         )
         ->orderBy('eps.created_at', 'desc')
         ->paginate(20);
@@ -72,7 +72,7 @@ class AdminAiPhotoReceivingController extends Controller
                 'spec.clientreference',
                 'ae.first_name as enhancer_first_name',
                 'ae.last_name as enhancer_last_name',
-                'sup.name as supplier_name'
+                DB::raw("COALESCE(sup.name, (SELECT s_vsw.name FROM vendor_stock_web vsw JOIN suppliers s_vsw ON s_vsw.sno = vsw.vendor_id WHERE (vsw.item_id = spec.id OR vsw.item_id = spec.sno OR vsw.batch_no = spec.sku) ORDER BY vsw.sno DESC LIMIT 1)) as supplier_name")
             )
             ->first();
 

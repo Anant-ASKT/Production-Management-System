@@ -52,8 +52,15 @@ class ProductController extends Controller
             });
         }
 
-        if ($request->filled('date')) {
-            $query->whereDate('created_at', $request->date);
+        if (!$request->has('date')) {
+            $selectedDate = now()->toDateString();
+            $request->merge(['date' => $selectedDate]);
+            $query->whereDate('created_at', $selectedDate);
+        } elseif ($request->filled('date') && $request->date !== 'all') {
+            $selectedDate = $request->date;
+            $query->whereDate('created_at', $selectedDate);
+        } else {
+            $selectedDate = '';
         }
 
         $products = $query->latest('sno')->paginate(15)->withQueryString();
@@ -70,7 +77,7 @@ class ProductController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return view('supplier.products.index', compact('products', 'itemTypes', 'compositions', 'genders'));
+        return view('supplier.products.index', compact('products', 'itemTypes', 'compositions', 'genders', 'selectedDate'));
     }
 
     public function create()
