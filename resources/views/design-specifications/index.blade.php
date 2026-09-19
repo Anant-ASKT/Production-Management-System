@@ -8678,7 +8678,15 @@ body {
                         selectedSupplierProduct.supplier_user_id || '';
 
                     const supplierNickname =
-                        selectedSupplierProduct.supplier_nickname || '';
+                        selectedSupplierProduct.supplier_nickname ||
+                        selectedSupplierProduct.login_suppliernickname ||
+                        '';
+
+                    const supplierName =
+                        selectedSupplierProduct.supplier_name ||
+                        selectedSupplierProduct.login_suppliername ||
+                        '';
+
                     const createdAtDate =
                         selectedSupplierProduct.login_createatdate || '';
 
@@ -8712,6 +8720,11 @@ body {
                     formData.append(
                         'supplier_nickname',
                         supplierNickname
+                    );
+
+                    formData.append(
+                        'supplier_name',
+                        supplierName
                     );
 
                     /*
@@ -12602,9 +12615,15 @@ document.addEventListener(
             button.getAttribute('data-product-loginsuppleruserid') || '';
          const createdatdate =
             button.getAttribute('data-product-createdatdate') || '';
+        const suppliernamedata =
+            button.getAttribute('data-product-suppliername') || '';
+        const suppliernickname =
+            button.getAttribute('data-product-suppliernickname') || '';
 
         console.log('Selected Product ID:', productId);
         console.log('Selected Login Supplier ID:', loginSupplierId);
+        console.log('Selected Login Supplier Name:', suppliernamedata);
+        console.log('Selected Login Supplier Nick Name:', suppliernickname);
 
 
         /*
@@ -12663,7 +12682,9 @@ document.addEventListener(
             productId,
             loginSupplierId,
             supplierUserId,
-            createdatdate
+            createdatdate,
+            suppliernamedata,
+            suppliernickname
         );
 
     }
@@ -19695,6 +19716,9 @@ function appendSupplierProductRow(
     const supplierName =
         product.supplier_name || '-';
 
+       const supplierNickname =
+         product.supplier_nickname || '-';
+
 
     const itemType =
         product.item_type || '-';
@@ -19827,6 +19851,8 @@ function appendSupplierProductRow(
                     data-product-loginsupplerid="${product.supplier_id || ''}"
                     data-product-loginsuppleruserid="${product.supplier_user_id || ''}"
                     data-product-createdatdate="${createdat || ''}"
+                    data-product-suppliername="${supplierName || ''}"
+                    data-product-suppliernickname="${supplierNickname || ''}"
 
                     
                 >
@@ -19876,7 +19902,9 @@ async function selectSupplierProduct(
     productId = '',
     loginSupplierId = '',
     supplierUserId = '',
-    createdatdate = ''
+    createdatdate = '',
+    suppliernamedata='',
+    suppliernickname=''
 ) {
 
     /*
@@ -19949,7 +19977,25 @@ async function selectSupplierProduct(
             supplierUserId || '',
 
         login_createatdate:
-            createdatdate || ''
+            createdatdate || '',
+
+        login_suppliername:
+            suppliernamedata || '',
+
+        login_suppliernickname:
+            suppliernickname || '',
+
+        supplier_name:
+            suppliernamedata ||
+            product.supplier_name ||
+            product.suppliername ||
+            '',
+
+        supplier_nickname:
+            suppliernickname ||
+            product.supplier_nickname ||
+            product.suppliernickname ||
+            ''
     };
 
 
@@ -21006,6 +21052,7 @@ console.log(
                 */
 
                 let dsmMainImage =
+                    matchedSpecification.image_url ||
                     matchedSpecification.img_path ||
                     '';
 
@@ -21055,8 +21102,9 @@ console.log(
                 */
 
                 let dsmSubImages =
-                    matchedSpecification.subimg_path ||
-                    [];
+                matchedSpecification.sub_image_urls ||
+                matchedSpecification.subimg_path ||
+                [];
 
 
                 if (
