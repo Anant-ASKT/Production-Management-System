@@ -105,12 +105,13 @@ class AdminPublishedProductsController extends Controller
 
         $paginated = $query->paginate($perPage);
 
-        // Fetch approved images for these specifications
+        // Fetch approved images for these specifications (only main and sub, exclude extra)
         $specIds = collect($paginated->items())->pluck('specification_id')->unique()->toArray();
 
         $images = DB::table('approved_enhanced_images')
             ->whereIn('specification_id', $specIds)
             ->where('status', 'approved')
+            ->whereIn('image_type', ['main', 'sub'])
             ->orderByRaw("FIELD(image_type, 'main', 'sub')")
             ->orderBy('sno', 'asc')
             ->get()

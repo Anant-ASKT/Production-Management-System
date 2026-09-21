@@ -233,6 +233,11 @@ Route::get(
         [App\Http\Controllers\AdminAiPhotoReceivingController::class, 'reject']
     )->name('admin.ai-photo-enhancing.receiving.reject');
 
+    Route::post(
+        '/admin/ai-photo-enhancing/receiving/{id}/review-batch',
+        [App\Http\Controllers\AdminAiPhotoReceivingController::class, 'reviewBatch']
+    )->name('admin.ai-photo-enhancing.receiving.review-batch');
+
 
 
 Route::get(

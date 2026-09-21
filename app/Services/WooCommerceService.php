@@ -99,10 +99,11 @@ class WooCommerceService
             $cleanTitle = 'Handcrafted Garment #' . $product->spec_id;
         }
 
-        // 5. Retrieve approved AI enhanced images
+        // 5. Retrieve approved AI enhanced images (only main and sub, exclude extra)
         $approvedImages = DB::table('approved_enhanced_images')
             ->where('specification_id', $specificationId)
             ->where('status', 'approved')
+            ->whereIn('image_type', ['main', 'sub'])
             ->orderByRaw("FIELD(image_type, 'main', 'sub')")
             ->orderBy('sno', 'asc')
             ->get();

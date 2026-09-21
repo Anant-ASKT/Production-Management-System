@@ -66,12 +66,13 @@ class AdminPublishProductsController extends Controller
                 if ($subCompanyId) $q->where('dsm.subcompanyid', $subCompanyId);
                 if ($projectId) $q->where('dsm.projectid', $projectId);
             })
-            // Must have at least one approved enhanced image
+            // Must have at least one approved enhanced image (main or sub)
             ->whereExists(function ($q) {
                 $q->select(DB::raw(1))
                   ->from('approved_enhanced_images as aei')
                   ->whereColumn('aei.specification_id', 'dsm.sno')
-                  ->where('aei.status', 'approved');
+                  ->where('aei.status', 'approved')
+                  ->whereIn('aei.image_type', ['main', 'sub']);
             });
 
         // Search across SKU, barcode, AI product name, and master names
@@ -120,12 +121,13 @@ class AdminPublishProductsController extends Controller
 
         $products = $query->paginate($perPage);
 
-        // Attach approved AI enhanced images for each product
+        // Attach approved AI enhanced images for each product (only main and sub, exclude extra)
         $specIds = collect($products->items())->pluck('spec_id')->toArray();
 
         $approvedImages = DB::table('approved_enhanced_images')
             ->whereIn('specification_id', $specIds)
             ->where('status', 'approved')
+            ->whereIn('image_type', ['main', 'sub'])
             ->orderByRaw("FIELD(image_type, 'main', 'sub')")
             ->orderBy('sno', 'asc')
             ->get()
@@ -313,10 +315,11 @@ class AdminPublishProductsController extends Controller
             $product->stock_qty = isset($supplierProduct->stock) ? (int) $supplierProduct->stock : 25;
         }
 
-        // Approved enhanced images
+        // Approved enhanced images (only main and sub, exclude extra)
         $approvedImages = DB::table('approved_enhanced_images')
             ->where('specification_id', $id)
             ->where('status', 'approved')
+            ->whereIn('image_type', ['main', 'sub'])
             ->orderByRaw("FIELD(image_type, 'main', 'sub')")
             ->orderBy('sno', 'asc')
             ->get();
@@ -464,10 +467,11 @@ class AdminPublishProductsController extends Controller
             $product->stock_qty = isset($supplierProduct->stock) ? (int) $supplierProduct->stock : 25;
         }
 
-        // Fetch all approved enhanced images
+        // Fetch all approved enhanced images (only main and sub, exclude extra)
         $approvedImages = DB::table('approved_enhanced_images')
             ->where('specification_id', $id)
             ->where('status', 'approved')
+            ->whereIn('image_type', ['main', 'sub'])
             ->orderByRaw("FIELD(image_type, 'main', 'sub')")
             ->orderBy('sno', 'asc')
             ->get();

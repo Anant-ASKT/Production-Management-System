@@ -1,47 +1,47 @@
-﻿@extends('layouts.ai_enhancer')
+@extends('layouts.ai_enhancer')
 
-@section('title', 'Upload History - Submission Detail')
+@section('title', 'Product Photos History')
 
 @section('content')
 
 {{-- ===================================================
-     HEADER: Back + Title
+     HEADER: Back + Simple Title
 ==================================================== --}}
-<div class="d-flex align-items-center mb-4 gap-3">
-    <a href="{{ route('ai-enhancer.upload-history.index') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
-        <i class="bi bi-arrow-left me-1"></i> Back to History
-    </a>
-    <div>
-        <h4 class="fw-bold mb-0">Submission Details</h4>
-        <p class="text-muted small mb-0">Record #{{ $submission->sno }} | Submitted on {{ \Carbon\Carbon::parse($submission->created_at)->format('M d, Y h:i A') }}</p>
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{{ route('ai-enhancer.upload-history.index') }}" class="btn btn-outline-secondary rounded-pill px-3 py-2 fw-semibold">
+            <i class="bi bi-arrow-left me-1"></i> Go Back
+        </a>
+        <div>
+            <h3 class="fw-bold mb-0 text-dark">
+                Photos for: <span class="text-primary">{{ $spec->sku ?: ('#' . $spec->sno) }}</span>
+            </h3>
+            <p class="text-muted small mb-0">{{ $spec->product_name ?: 'Product Photos' }} &bull; Color: {{ $spec->color ?: '—' }}</p>
+        </div>
     </div>
-    
-    <div class="ms-auto">
-        @if($submission->status == 'pending')
-            <span class="badge bg-warning-subtle text-warning rounded-pill px-3 py-2 fs-6">Pending Review</span>
-        @elseif($submission->status == 'approved')
-            <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2 fs-6">Approved</span>
-        @elseif($submission->status == 'approved_need_version')
-            <span class="badge bg-info-subtle text-info rounded-pill px-3 py-2 fs-6">Approved (Need Version)</span>
-        @elseif($submission->status == 'rejected')
-            <span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-2 fs-6">Rejected</span>
-        @endif
-    </div>
+    @if($spec->assignment_id)
+        <a href="{{ route('ai-enhancer.assigned-products.show', $spec->assignment_id) }}" class="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow-sm">
+            <i class="bi bi-pencil-square me-1"></i> Open Task Page
+        </a>
+    @endif
 </div>
 
 @if(session('success'))
-    <div class="alert alert-success alert-dismissible fade show rounded-4 shadow-sm mb-4" role="alert">
+    <div class="alert alert-success alert-dismissible fade show rounded-4 shadow-sm mb-4 p-3" role="alert">
         <div class="d-flex align-items-center">
-            <i class="bi bi-check-circle-fill fs-5 me-2"></i>
-            <div>{{ session('success') }}</div>
+            <i class="bi bi-check-circle-fill fs-3 text-success me-3"></i>
+            <div>
+                <h6 class="fw-bold mb-0">Success!</h6>
+                <div>{{ session('success') }}</div>
+            </div>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 @endif
 
 @if($errors->any())
-    <div class="alert alert-danger rounded-4 shadow-sm mb-4" role="alert">
-        <ul class="mb-0 small">
+    <div class="alert alert-danger rounded-4 shadow-sm mb-4 p-3" role="alert">
+        <ul class="mb-0 fw-semibold">
             @foreach($errors->all() as $error)
                 <li>{{ $error }}</li>
             @endforeach
@@ -50,195 +50,233 @@
 @endif
 
 {{-- ===================================================
-     SECTION 1: PRODUCT SPECIFICATIONS
+     RE-UPLOAD SECTION (SEND NEW / REVISED PHOTOS)
 ==================================================== --}}
-<div class="card border-0 shadow-sm rounded-4 mb-4">
+<div class="card border-0 shadow-sm rounded-4 mb-4 border-2 border-primary">
     <div class="card-header bg-white border-bottom px-4 pt-4 pb-3">
         <h5 class="fw-bold mb-0 text-dark">
-            <i class="bi bi-info-circle text-primary me-2"></i> Product Specifications
+            <i class="bi bi-cloud-arrow-up-fill text-primary me-2"></i> Send New / Fixed Photos
         </h5>
-    </div>
-    <div class="card-body px-4 py-4">
-        <div class="row g-4">
-            @php
-                $specs = [
-                    'Item Name'     => $submission->product_name,
-                    'SKU'           => $submission->sku,
-                    'Colour'        => $submission->color,
-                    'Gender'        => $submission->gender_text,
-                    'Supplier'      => $submission->supplier_name,
-                    'Barcode'       => $submission->barcode,
-                    'Client Ref'    => $submission->clientreference,
-                ];
-            @endphp
-
-            @foreach($specs as $label => $value)
-                <div class="col-md-3 col-sm-6">
-                    <div class="bg-light rounded-3 p-3 h-100">
-                        <div class="text-muted small fw-semibold text-uppercase mb-1" style="font-size:0.68rem; letter-spacing:0.06em;">{{ $label }}</div>
-                        <div class="fw-semibold text-dark">{{ $value ?: '—' }}</div>
-                    </div>
-                </div>
-            @endforeach
-        </div>
-    </div>
-</div>
-
-{{-- ===================================================
-     SECTION 2: IMAGES COMPARISON & ACTION
-==================================================== --}}
-<div class="card border-0 shadow-sm rounded-4 mb-4">
-    <div class="card-header bg-white border-bottom px-4 pt-4 pb-3">
-        <h5 class="fw-bold mb-0 text-dark">
-            <i class="bi bi-images text-primary me-2"></i> Image Comparison ({{ strtoupper($submission->image_type) }} Image)
-        </h5>
+        <small class="text-muted">If any photo was rejected or needs changes, upload your corrected photo here.</small>
     </div>
     <div class="card-body p-4">
-        <div class="row g-4 mb-4">
-            {{-- Original Image --}}
-            <div class="col-md-6">
-                <div class="d-flex flex-column align-items-center justify-content-between p-3 rounded-3 bg-light border h-100" style="min-height: 480px;">
-                    <span class="badge bg-secondary rounded-pill px-3 py-1.5 mb-3 fw-semibold">Original Image</span>
-                    <div class="w-100 d-flex align-items-center justify-content-center flex-grow-1" style="height: 380px;">
-                        <a href="{{ asset($submission->original_image_path) }}" target="_blank" rel="noopener noreferrer" style="height: 100%; width: 100%; display: flex; align-items: center; justify-content: center;">
-                            <img src="{{ asset($submission->original_image_path) }}" class="img-fluid rounded border shadow-sm" style="max-height: 380px; object-fit: contain; cursor: pointer;" alt="Original">
-                        </a>
-                    </div>
-                    <a href="{{ asset($submission->original_image_path) }}" download class="btn btn-sm btn-outline-secondary w-100 rounded-pill mt-3">
-                        <i class="bi bi-download me-1"></i> Download Original
-                    </a>
-                </div>
+        <form action="{{ route('ai-enhancer.submissions.upload') }}" method="POST" enctype="multipart/form-data" id="historyUploadForm">
+            @csrf
+            <input type="hidden" name="specification_id" value="{{ $spec->sno }}">
+
+            <div class="p-4 border-2 border-dashed rounded-4 text-center bg-light mb-3" id="historyDropZone" style="border: 3px dashed #0d6efd; background-color: #f8faff; cursor: pointer;">
+                <i class="bi bi-images fs-1 text-primary mb-2 d-block"></i>
+                <h5 class="fw-bold text-dark mb-1">Click Here to Choose New Photos</h5>
+                <p class="text-muted small mb-3">Or drag and drop your photo files here</p>
+                <input type="file" name="enhanced_images[]" id="historyFileInput" class="d-none" multiple accept="image/*">
+                <button type="button" class="btn btn-primary rounded-pill px-5 py-2 fw-bold" onclick="document.getElementById('historyFileInput').click()">
+                    <i class="bi bi-folder-plus me-1"></i> Choose Photos
+                </button>
             </div>
 
-            {{-- Enhanced Image --}}
-            <div class="col-md-6">
-                <div class="d-flex flex-column align-items-center justify-content-between p-3 rounded-3 bg-primary-subtle border border-primary-subtle h-100" style="min-height: 480px;">
-                    <span class="badge bg-primary rounded-pill px-3 py-1.5 mb-3 fw-semibold">Enhanced Image</span>
-                    <div class="w-100 d-flex align-items-center justify-content-center flex-grow-1" style="height: 380px;">
-                        <a href="{{ asset($submission->enhanced_image_path) }}" target="_blank" rel="noopener noreferrer" style="height: 100%; width: 100%; display: flex; align-items: center; justify-content: center;">
-                            <img src="{{ asset($submission->enhanced_image_path) }}" class="img-fluid rounded border shadow-sm" style="max-height: 380px; object-fit: contain; cursor: pointer;" alt="Enhanced">
-                        </a>
-                    </div>
-                    <a href="{{ asset($submission->enhanced_image_path) }}" download class="btn btn-sm btn-primary w-100 rounded-pill mt-3 shadow-xs">
-                        <i class="bi bi-download me-1"></i> Download Enhanced
-                    </a>
+            <div id="historyPreviewArea" class="mb-3 d-none">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="fw-bold text-dark" id="historySelectedCount">0 photos selected</span>
+                    <button type="button" class="btn btn-link btn-sm text-danger text-decoration-none fw-bold p-0" onclick="clearHistoryFiles()">Remove All</button>
                 </div>
+                <div class="row g-2" id="historyPreviewGrid"></div>
             </div>
-        </div>
 
-        {{-- Upload New Version Panel (Enabled only if Rejected or Approved-Need-Version) --}}
-        @if($submission->status == 'rejected' || $submission->status == 'approved_need_version')
-            <hr class="my-4">
-            <div class="p-4 rounded-4 border bg-light">
-                <div class="row g-4">
-                    {{-- Left side: Feedback explanation --}}
-                    <div class="col-md-6 d-flex flex-column justify-content-center">
-                        <div class="alert alert-{{ $submission->status == 'rejected' ? 'danger' : 'info' }} rounded-3 border-0 shadow-sm p-3 mb-0 h-100 d-flex flex-column justify-content-center">
-                            <h6 class="fw-bold mb-1">
-                                <i class="bi {{ $submission->status == 'rejected' ? 'bi-exclamation-triangle-fill text-danger' : 'bi-info-circle-fill text-info' }} me-2"></i>
-                                {{ $submission->status == 'rejected' ? 'Rejection Feedback' : 'Admin Request Notes' }}
-                            </h6>
-                            <p class="mb-0 text-secondary mt-1">
-                                @if($submission->status == 'rejected')
-                                    This enhancement attempt was rejected. Reason: <strong>"{{ $submission->admin_feedback }}"</strong>. Please correct and upload a fresh enhancement version using the form.
-                                @else
-                                    This version was approved, but the admin requested a new version with further improvements. Please upload it here.
-                                @endif
-                            </p>
-                        </div>
-                    </div>
-
-                    {{-- Right side: Fresh upload form --}}
-                    <div class="col-md-6 border-start ps-md-4">
-                        <form action="{{ route('ai-enhancer.submissions.upload') }}" method="POST" enctype="multipart/form-data">
-                            @csrf
-                            <input type="hidden" name="specification_id" value="{{ $submission->specification_id }}">
-                            <input type="hidden" name="original_image_path" value="{{ $submission->original_image_path }}">
-                            <input type="hidden" name="image_type" value="{{ $submission->image_type }}">
-
-                            <div class="mb-3">
-                                <label for="enhanced_image" class="form-label small fw-semibold text-secondary mb-2">Upload New Improved Version</label>
-                                <input type="file" name="enhanced_image" id="enhanced_image" class="form-control rounded-pill" accept="image/*" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm w-100 py-2">
-                                <i class="bi bi-cloud-arrow-up-fill me-1"></i> Submit New Attempt
-                            </button>
-                        </form>
-                    </div>
-                </div>
+            <div class="text-end">
+                <button type="submit" id="historySubmitBtn" class="btn btn-success btn-lg rounded-pill px-5 py-2.5 fw-bold shadow" disabled>
+                    <i class="bi bi-send-fill me-2"></i> Send Photos to Admin
+                </button>
             </div>
-        @endif
+        </form>
     </div>
 </div>
 
 {{-- ===================================================
-     SECTION 3: OTHER ATTEMPTS HISTORY (BOTTOM)
+     ALL PHOTOS SENT FOR THIS PRODUCT
 ==================================================== --}}
 <div class="card border-0 shadow-sm rounded-4">
-    <div class="card-header bg-white border-bottom px-4 pt-4 pb-3">
-        <h5 class="fw-bold mb-0 text-dark">
-            <i class="bi bi-clock-history text-primary me-2"></i> Other Submissions History for this Image
-        </h5>
+    <div class="card-header bg-white border-bottom px-4 pt-4 pb-3 d-flex align-items-center justify-content-between">
+        <div>
+            <h5 class="fw-bold mb-0 text-dark">Photos Sent for this Product ({{ $submissions->count() }})</h5>
+            <small class="text-muted">Review the status and comments from admin for each photo.</small>
+        </div>
+        <span class="badge bg-dark rounded-pill px-3 py-1.5 fw-bold">{{ $submissions->count() }} Total</span>
     </div>
-    <div class="card-body p-4">
-        @if($history->count() > 0)
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0 small">
-                    <thead class="table-light text-secondary">
-                        <tr>
-                            <th scope="col" class="fw-semibold">#</th>
-                            <th scope="col" class="fw-semibold text-center">Enhanced Preview</th>
-                            <th scope="col" class="fw-semibold">Submitted At</th>
-                            <th scope="col" class="fw-semibold">Status</th>
-                            <th scope="col" class="fw-semibold">Feedback Comments</th>
-                            <th scope="col" class="fw-semibold text-end">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($history as $index => $hist)
-                            <tr>
-                                <td class="text-muted">{{ $index + 1 }}</td>
-                                <td class="text-center">
-                                    <a href="{{ asset($hist->enhanced_image_path) }}" target="_blank" rel="noopener noreferrer">
-                                        <img src="{{ asset($hist->enhanced_image_path) }}" class="rounded border shadow-sm" style="max-height: 48px; width: 48px; object-fit: contain;" alt="Enhanced Version">
+    <div class="card-body p-4 bg-light">
+        @if($submissions->count() > 0)
+            <div class="row g-4">
+                @foreach($submissions as $sub)
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <div class="card border rounded-4 shadow-sm h-100 overflow-hidden bg-white">
+                            
+                            {{-- Visual Status Banner --}}
+                            @if($sub->status == 'approved')
+                                <div class="p-2 text-center bg-success text-white fw-bold small">
+                                    <i class="bi bi-check-circle-fill me-1"></i> APPROVED
+                                </div>
+                            @elseif($sub->status == 'approved_need_version')
+                                <div class="p-2 text-center bg-warning text-dark fw-bold small">
+                                    <i class="bi bi-arrow-repeat me-1"></i> NEED MORE
+                                </div>
+                            @elseif($sub->status == 'rejected')
+                                <div class="p-2 text-center bg-danger text-white fw-bold small">
+                                    <i class="bi bi-x-circle-fill me-1"></i> REJECT
+                                </div>
+                            @else
+                                <div class="p-2 text-center bg-secondary text-white fw-bold small">
+                                    <i class="bi bi-hourglass-split me-1"></i> Waiting for Admin to Check
+                                </div>
+                            @endif
+
+                            {{-- Image Display --}}
+                            <div class="p-3 text-center">
+                                <div class="d-flex align-items-center justify-content-center bg-light rounded-3 p-2 mb-2" style="height: 180px;">
+                                    <a href="{{ asset($sub->enhanced_image_path) }}" target="_blank" title="Click to view full photo">
+                                        <img src="{{ asset($sub->enhanced_image_path) }}" class="img-fluid rounded" style="max-height: 165px; object-fit: contain;" alt="Photo">
                                     </a>
-                                </td>
-                                <td>{{ \Carbon\Carbon::parse($hist->created_at)->format('M d, Y h:i A') }}</td>
-                                <td>
-                                    @if($hist->status == 'approved')
-                                        <span class="badge bg-success-subtle text-success rounded-pill px-2.5 py-1">Approved</span>
-                                    @elseif($hist->status == 'approved_need_version')
-                                        <span class="badge bg-info-subtle text-info rounded-pill px-2.5 py-1">Need Version</span>
-                                    @elseif($hist->status == 'rejected')
-                                        <span class="badge bg-danger-subtle text-danger rounded-pill px-2.5 py-1">Rejected</span>
-                                    @else
-                                        <span class="badge bg-warning-subtle text-warning rounded-pill px-2.5 py-1">Pending</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($hist->admin_feedback)
-                                        <span class="text-danger fw-medium">{{ $hist->admin_feedback }}</span>
-                                    @else
-                                        <span class="text-muted">—</span>
-                                    @endif
-                                </td>
-                                <td class="text-end">
-                                    <a href="{{ route('ai-enhancer.upload-history.show', $hist->sno) }}" class="btn btn-xs btn-outline-primary rounded-pill px-2.5">
-                                        View Detail
+                                </div>
+                                <div class="d-flex gap-2 justify-content-center">
+                                    <a href="{{ asset($sub->enhanced_image_path) }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold">
+                                        <i class="bi bi-zoom-in me-1"></i> View Full
                                     </a>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                                    <a href="{{ asset($sub->enhanced_image_path) }}" download class="btn btn-sm btn-outline-dark rounded-pill px-3 fw-semibold">
+                                        <i class="bi bi-download me-1"></i> Download
+                                    </a>
+                                </div>
+                            </div>
+
+                            {{-- Admin Feedback / Note --}}
+                            @if($sub->admin_feedback || in_array($sub->status, ['rejected', 'approved_need_version']))
+                                <div class="card-footer p-3 small {{ $sub->status == 'rejected' ? 'bg-danger-subtle text-danger-emphasis' : 'bg-warning-subtle text-warning-emphasis' }}">
+                                    <div class="fw-bold mb-1">
+                                        <i class="bi bi-chat-left-text-fill me-1"></i> Note from Admin:
+                                    </div>
+                                    <div class="fw-semibold">
+                                        {{ $sub->admin_feedback ?: ($sub->status == 'approved_need_version' ? 'Please fix issues and send a new photo.' : 'This photo was rejected.') }}
+                                    </div>
+                                </div>
+                            @endif
+
+                        </div>
+                    </div>
+                @endforeach
             </div>
         @else
-            <div class="text-center py-4 text-muted">
-                <i class="bi bi-info-circle opacity-50 d-block mb-1.5 fs-5"></i>
-                <p class="mb-0 small">No other historical submissions found for this image.</p>
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-inbox fs-1 opacity-25 d-block mb-2"></i>
+                <p class="mb-0">No photos found.</p>
             </div>
         @endif
     </div>
 </div>
+
+<script>
+    const hFileInput = document.getElementById('historyFileInput');
+    const hPreviewArea = document.getElementById('historyPreviewArea');
+    const hPreviewGrid = document.getElementById('historyPreviewGrid');
+    const hSelectedCount = document.getElementById('historySelectedCount');
+    const hSubmitBtn = document.getElementById('historySubmitBtn');
+    const hDropZone = document.getElementById('historyDropZone');
+
+    let hDt = new DataTransfer();
+
+    hFileInput.addEventListener('change', function() {
+        for (let i = 0; i < this.files.length; i++) {
+            hDt.items.add(this.files[i]);
+        }
+        hFileInput.files = hDt.files;
+        renderHistoryPreviews();
+    });
+
+    hDropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        hDropZone.style.backgroundColor = '#e8f0fe';
+    });
+    hDropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        hDropZone.style.backgroundColor = '#f8faff';
+    });
+    hDropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        hDropZone.style.backgroundColor = '#f8faff';
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            for (let i = 0; i < e.dataTransfer.files.length; i++) {
+                if (e.dataTransfer.files[i].type.startsWith('image/')) {
+                    hDt.items.add(e.dataTransfer.files[i]);
+                }
+            }
+            hFileInput.files = hDt.files;
+            renderHistoryPreviews();
+        }
+    });
+
+    function renderHistoryPreviews() {
+        hPreviewGrid.innerHTML = '';
+        const files = hDt.files;
+
+        if (files.length === 0) {
+            hPreviewArea.classList.add('d-none');
+            hSubmitBtn.disabled = true;
+            return;
+        }
+
+        hPreviewArea.classList.remove('d-none');
+        hSubmitBtn.disabled = false;
+        hSelectedCount.innerText = `${files.length} photo(s) selected to send`;
+
+        Array.from(files).forEach((file, index) => {
+            const col = document.createElement('div');
+            col.className = 'col-4 col-md-3 col-lg-2';
+
+            const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+
+            const card = document.createElement('div');
+            card.className = 'card p-2 border rounded-3 position-relative bg-white text-center shadow-xs';
+            card.innerHTML = `
+                <div style="height: 80px;" class="d-flex align-items-center justify-content-center overflow-hidden mb-1">
+                    <img id="h-prev-img-${index}" class="img-fluid rounded" style="max-height: 80px; object-fit: cover;">
+                </div>
+                <div class="text-truncate small fw-bold text-dark" title="${file.name}" style="font-size:0.75rem;">${file.name}</div>
+                <div class="text-muted" style="font-size:0.68rem;">${sizeMb} MB</div>
+                <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 rounded-circle p-0 d-flex align-items-center justify-content-center" style="width: 22px; height: 22px;" onclick="removeHistoryFile(${index})" title="Remove">
+                    &times;
+                </button>
+            `;
+            col.appendChild(card);
+            hPreviewGrid.appendChild(col);
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imgElem = document.getElementById(`h-prev-img-${index}`);
+                if (imgElem) imgElem.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    window.removeHistoryFile = function(index) {
+        const newDt = new DataTransfer();
+        const files = hDt.files;
+        for (let i = 0; i < files.length; i++) {
+            if (i !== index) {
+                newDt.items.add(files[i]);
+            }
+        }
+        hDt = newDt;
+        hFileInput.files = hDt.files;
+        renderHistoryPreviews();
+    };
+
+    window.clearHistoryFiles = function() {
+        hDt = new DataTransfer();
+        hFileInput.files = hDt.files;
+        renderHistoryPreviews();
+    };
+
+    document.getElementById('historyUploadForm').addEventListener('submit', function() {
+        hSubmitBtn.disabled = true;
+        hSubmitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Sending photos... please wait`;
+    });
+</script>
 
 @endsection
