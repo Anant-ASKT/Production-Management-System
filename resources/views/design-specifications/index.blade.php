@@ -19696,11 +19696,8 @@ function appendSupplierProductRow(
 
 
     const mainImage =
-        product.main_image
-            ? '/' + String(
-                product.main_image
-            ).replace(/^\/+/, '')
-            : '';
+    product.image_url ||
+    '';
 
 
     const productName =
@@ -20988,343 +20985,390 @@ console.log(
         |--------------------------------------------------------------------------
         | IMAGE VARIABLES
         |--------------------------------------------------------------------------
+        |
+        | IMPORTANT:
+        |
+        | When the user clicks Select, ALWAYS use the images belonging
+        | to the selected supplier product.
+        |
+        | We do NOT replace supplier images with DSM images here.
+        |
+        | The backend returns:
+        |
+        | product.image_url
+        | product.sub_image_urls
+        |
+        | These are already resolved to real image FILE URLs, including
+        | old folder paths such as:
+        |
+        | ../../ItemsDesigner_Masterwithbarcode/1479234288689411/
+        |
+        | and new file paths such as:
+        |
+        | ItemsDesigner_Masterwithbarcode/912454521237010/file.webp
+        |
+        |--------------------------------------------------------------------------
         */
 
-        let mainImagePath =
+        let mainImagePath = '';
+
+        let subImagePaths = [];
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | IMAGE PATH NORMALIZER
+        |--------------------------------------------------------------------------
+        */
+
+        function normalizeImagePath(path) {
+
+            if (!path) {
+                return '';
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | OBJECT
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                typeof path === 'object' &&
+                !Array.isArray(path)
+            ) {
+
+                path =
+                    path.url ||
+                    path.path ||
+                    '';
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | JSON ARRAY
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                typeof path === 'string'
+            ) {
+
+                path =
+                    path.trim();
+
+
+                if (
+                    path.startsWith('[') &&
+                    path.endsWith(']')
+                ) {
+
+                    try {
+
+                        const parsed =
+                            JSON.parse(path);
+
+
+                        if (
+                            Array.isArray(parsed) &&
+                            parsed.length > 0
+                        ) {
+
+                            path =
+                                parsed[0];
+
+                        }
+
+                    } catch (error) {
+
+                        console.warn(
+                            'Image path JSON parse failed:',
+                            path
+                        );
+                    }
+                }
+            }
+
+
+            if (!path) {
+                return '';
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | STRING NORMALIZATION
+            |--------------------------------------------------------------------------
+            */
+
+            path =
+                String(path)
+                    .trim()
+                    .replace(/\\/g, '/')
+                    .replace(/^["']|["']$/g, '')
+                    .trim();
+
+
+            if (!path) {
+                return '';
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | COMPLETE URL
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                path.startsWith('http://') ||
+                path.startsWith('https://') ||
+                path.startsWith('blob:') ||
+                path.startsWith('data:')
+            ) {
+
+                return path;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | ITEMS DESIGNER MASTER PATH
+            |--------------------------------------------------------------------------
+            */
+
+            const marker =
+                'ItemsDesigner_Masterwithbarcode/';
+
+
+            const markerPosition =
+                path.indexOf(marker);
+
+
+            if (
+                markerPosition !== -1
+            ) {
+
+                const publicPath =
+                    path.substring(
+                        markerPosition
+                    );
+
+
+                return (
+                    window.location.origin +
+                    '/' +
+                    publicPath.replace(
+                        /^\/+/,
+                        ''
+                    )
+                );
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | STORAGE PATH
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                path.startsWith('/storage/')
+            ) {
+
+                return (
+                    window.location.origin +
+                    path
+                );
+            }
+
+
+            if (
+                path.startsWith('storage/')
+            ) {
+
+                return (
+                    window.location.origin +
+                    '/' +
+                    path
+                );
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | NORMAL PATH
+            |--------------------------------------------------------------------------
+            */
+
+            return (
+                window.location.origin +
+                '/' +
+                path.replace(
+                    /^\/+/,
+                    ''
+                )
+            );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | GET SUPPLIER MAIN IMAGE
+        |--------------------------------------------------------------------------
+        |
+        | image_url is preferred because the backend has already resolved
+        | old folder-style paths to an actual image file.
+        |--------------------------------------------------------------------------
+        */
+
+        let supplierMainImage =
+            product.image_url ||
+            product.main_image ||
             '';
 
-        let subImagePaths =
+
+        /*
+        |--------------------------------------------------------------------------
+        | MAIN IMAGE
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            supplierMainImage
+        ) {
+
+            mainImagePath =
+                normalizeImagePath(
+                    supplierMainImage
+                );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | GET ALL SUPPLIER SUB IMAGES
+        |--------------------------------------------------------------------------
+        |
+        | Prefer sub_image_urls because the backend resolves old folder
+        | paths and returns actual image FILE URLs.
+        |--------------------------------------------------------------------------
+        */
+
+        let supplierSubImages =
+            product.sub_image_urls ||
+            product.sub_images ||
+            product.subimg_path ||
             [];
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | NORMALIZE SUB IMAGE DATA
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            typeof supplierSubImages ===
+            'string'
+        ) {
+
+            try {
+
+                const parsed =
+                    JSON.parse(
+                        supplierSubImages
+                    );
+
+
+                if (
+                    Array.isArray(parsed)
+                ) {
+
+                    supplierSubImages =
+                        parsed;
+
+                } else {
+
+                    supplierSubImages =
+                        [supplierSubImages];
+
+                }
+
+            } catch (error) {
+
+                /*
+                | A single non-JSON path is also valid.
+                */
+
+                supplierSubImages =
+                    [supplierSubImages];
+            }
+        }
+
+
+        if (
+            !Array.isArray(
+                supplierSubImages
+            )
+        ) {
+
+            supplierSubImages =
+                [];
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | BUILD SUB IMAGE URL LIST
+        |--------------------------------------------------------------------------
+        */
+
+        subImagePaths =
+            supplierSubImages
+                .filter(
+                    image =>
+                        image !== null &&
+                        image !== undefined &&
+                        String(image).trim() !== ''
+                )
+                .map(
+                    image =>
+                        normalizeImagePath(
+                            image
+                        )
+                )
+                .filter(
+                    image =>
+                        image !== ''
+                );
+
+
+        console.log(
+            'SELECTED SUPPLIER MAIN IMAGE:',
+            mainImagePath
+        );
+
+
+        console.log(
+            'SELECTED SUPPLIER SUB IMAGES:',
+            subImagePaths
+        );
 
 
         /*
         |--------------------------------------------------------------------------
         | IMPORTANT:
         |
-        | CHECK WHETHER SKU MATCHED DSM
+        | Do NOT use matchedSpecification.img_path here.
+        | The selected supplier product's own images must be attached.
         |--------------------------------------------------------------------------
         */
-
-        const matchedSpecification =
-            selectedSupplierProduct &&
-            selectedSupplierProduct.matched_specification
-                ? selectedSupplierProduct.matched_specification
-                : null;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CASE 1:
-        |
-        | SKU EXISTS
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            supplierSku !== ''
-        ) {
-
-            console.log(
-                'Supplier product has SKU:',
-                supplierSku
-            );
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | DSM FOUND
-            |--------------------------------------------------------------------------
-            */
-
-            if (
-                matchedSpecification
-            ) {
-
-                console.log(
-                    'USING DESIGN SPECIFICATION MASTER IMAGES'
-                );
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | DSM MAIN IMAGE
-                |--------------------------------------------------------------------------
-                */
-
-                let dsmMainImage =
-                    matchedSpecification.image_url ||
-                    matchedSpecification.img_path ||
-                    '';
-
-
-                if (
-                    typeof dsmMainImage ===
-                    'string'
-                ) {
-
-                    try {
-
-                        const parsed =
-                            JSON.parse(
-                                dsmMainImage
-                            );
-
-
-                        if (
-                            Array.isArray(parsed)
-                        ) {
-
-                            dsmMainImage =
-                                parsed[0] ||
-                                '';
-                        }
-
-                    } catch (error) {
-
-                        /*
-                        | Not JSON.
-                        | Use as normal string.
-                        */
-                    }
-                }
-
-
-                mainImagePath =
-                    normalizeImagePath(
-                        dsmMainImage
-                    );
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | DSM SUB IMAGES
-                |--------------------------------------------------------------------------
-                */
-
-                let dsmSubImages =
-                matchedSpecification.sub_image_urls ||
-                matchedSpecification.subimg_path ||
-                [];
-
-
-                if (
-                    typeof dsmSubImages ===
-                    'string'
-                ) {
-
-                    try {
-
-                        dsmSubImages =
-                            JSON.parse(
-                                dsmSubImages
-                            );
-
-                    } catch (error) {
-
-                        console.warn(
-                            'DSM subimg_path JSON parse failed:',
-                            error
-                        );
-
-                        dsmSubImages =
-                            [];
-                    }
-                }
-
-
-                if (
-                    !Array.isArray(
-                        dsmSubImages
-                    )
-                ) {
-
-                    dsmSubImages =
-                        [];
-                }
-
-
-                subImagePaths =
-                    dsmSubImages
-                        .filter(
-                            image => image
-                        )
-                        .map(
-                            image =>
-                                normalizeImagePath(
-                                    image
-                                )
-                        )
-                        .filter(
-                            image =>
-                                image !== ''
-                        );
-
-
-                console.log(
-                    'DSM img_path:',
-                    matchedSpecification.img_path
-                );
-
-
-                console.log(
-                    'DSM subimg_path:',
-                    matchedSpecification.subimg_path
-                );
-
-
-                console.log(
-                    'FINAL DSM MAIN IMAGE:',
-                    mainImagePath
-                );
-
-
-                console.log(
-                    'FINAL DSM SUB IMAGES:',
-                    subImagePaths
-                );
-
-
-            } else {
-
-                /*
-                |--------------------------------------------------------------------------
-                | SKU EXISTS BUT DSM NOT FOUND
-                |--------------------------------------------------------------------------
-                |
-                | VERY IMPORTANT:
-                |
-                | DO NOT USE product.main_image.
-                |
-                |--------------------------------------------------------------------------
-                */
-
-                console.warn(
-                    'SKU exists but no Design Specification was found:',
-                    supplierSku
-                );
-
-
-                mainImagePath =
-                    '';
-
-                subImagePaths =
-                    [];
-            }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CASE 2:
-        |
-        | NO SKU
-        |--------------------------------------------------------------------------
-        */
-
-        } else {
-
-            console.log(
-                'Supplier product has NO SKU.'
-            );
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | EXISTING SUPPLIER MAIN IMAGE
-            |--------------------------------------------------------------------------
-            */
-
-            if (
-                product.main_image
-            ) {
-
-                mainImagePath =
-                    normalizeImagePath(
-                        product.main_image
-                    );
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | EXISTING SUPPLIER SUB IMAGES
-            |--------------------------------------------------------------------------
-            */
-
-            let supplierSubImages =
-                product.sub_images ||
-                product.subimg_path ||
-                [];
-
-
-            if (
-                typeof supplierSubImages ===
-                'string'
-            ) {
-
-                try {
-
-                    supplierSubImages =
-                        JSON.parse(
-                            supplierSubImages
-                        );
-
-                } catch (error) {
-
-                    console.warn(
-                        'Supplier sub images JSON error:',
-                        error
-                    );
-
-                    supplierSubImages =
-                        [];
-                }
-            }
-
-
-            if (
-                !Array.isArray(
-                    supplierSubImages
-                )
-            ) {
-
-                supplierSubImages =
-                    [];
-            }
-
-
-            subImagePaths =
-                supplierSubImages
-                    .filter(
-                        image => image
-                    )
-                    .map(
-                        image =>
-                            normalizeImagePath(
-                                image
-                            )
-                    )
-                    .filter(
-                        image =>
-                            image !== ''
-                    );
-
-
-            console.log(
-                'USING EXISTING SUPPLIER IMAGES'
-            );
-
-
-            console.log(
-                'SUPPLIER MAIN IMAGE:',
-                mainImagePath
-            );
-
-
-            console.log(
-                'SUPPLIER SUB IMAGES:',
-                subImagePaths
-            );
-        }
 
 
         /*
@@ -21639,6 +21683,9 @@ console.log(
         });
     }
 }
+
+
+
 
 
 

@@ -295,9 +295,6 @@ public function supplierProducts(Request $request)
         |--------------------------------------------------------------------------
         | GET CURRENT PROJECT CONTEXT
         |--------------------------------------------------------------------------
-        |
-        | Use the same session values used by your existing application.
-        |
         */
 
         $companyId =
@@ -332,6 +329,7 @@ public function supplierProducts(Request $request)
             '=',
             'sp.supplier_id'
         )
+
         ->leftJoin(
             'supplier_users as su',
             'su.sno',
@@ -406,9 +404,10 @@ public function supplierProducts(Request $request)
             'sp.status',
             'active'
         )
+
         ->where(function ($q) {
             $q->whereNull('sp.status_done')
-            ->orWhere('sp.status_done', '');
+              ->orWhere('sp.status_done', '');
         });
 
 
@@ -482,6 +481,277 @@ public function supplierProducts(Request $request)
                     'desc'
                 )
                 ->get();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | RESOLVE MAIN IMAGE
+        |--------------------------------------------------------------------------
+        |
+        | Supports:
+        |
+        | OLD:
+        | ../../ItemsDesigner_Masterwithbarcode/1479234288689411/
+        |
+        | NEW:
+        | ItemsDesigner_Masterwithbarcode/912454521237010/image.webp
+        |
+        */
+
+        foreach ($products as $product) {
+
+            $product->image_url = '';
+
+
+            $imagePath =
+                $product->main_image ?? '';
+
+
+            if (
+                is_string($imagePath) &&
+                trim($imagePath) !== ''
+            ) {
+
+                $imagePath =
+                    trim($imagePath);
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | JSON IMAGE ARRAY
+                |--------------------------------------------------------------------------
+                */
+
+                if (
+                    str_starts_with($imagePath, '[') &&
+                    str_ends_with($imagePath, ']')
+                ) {
+
+                    $decoded =
+                        json_decode(
+                            $imagePath,
+                            true
+                        );
+
+
+                    if (
+                        json_last_error() === JSON_ERROR_NONE &&
+                        is_array($decoded)
+                    ) {
+
+                        $imagePath =
+                            $decoded[0] ?? '';
+
+                    }
+
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | NORMALIZE SLASHES
+                |--------------------------------------------------------------------------
+                */
+
+                $imagePath =
+                    str_replace(
+                        '\\',
+                        '/',
+                        (string) $imagePath
+                    );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | REMOVE ../../
+                |--------------------------------------------------------------------------
+                */
+
+                $imagePath =
+                    preg_replace(
+                        '#^(\.\./)+#',
+                        '',
+                        $imagePath
+                    );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | REMOVE LEADING /
+                |--------------------------------------------------------------------------
+                */
+
+                $imagePath =
+                    ltrim(
+                        $imagePath,
+                        '/'
+                    );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | FIND ITEMS DESIGNER FOLDER
+                |--------------------------------------------------------------------------
+                */
+
+                $marker =
+                    'ItemsDesigner_Masterwithbarcode/';
+
+
+                $position =
+                    strpos(
+                        $imagePath,
+                        $marker
+                    );
+
+
+                if (
+                    $position !== false
+                ) {
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | GET RELATIVE PUBLIC PATH
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $relativePath =
+                        substr(
+                            $imagePath,
+                            $position
+                        );
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | PHYSICAL PATH
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $physicalPath =
+                        public_path(
+                            $relativePath
+                        );
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | CASE 1:
+                    | EXACT IMAGE FILE
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        is_file(
+                            $physicalPath
+                        )
+                    ) {
+
+                        $product->image_url =
+                            asset(
+                                $relativePath
+                            );
+
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | CASE 2:
+                    | OLD FORMAT = FOLDER
+                    |--------------------------------------------------------------------------
+                    */
+
+                    elseif (
+                        is_dir(
+                            $physicalPath
+                        )
+                    ) {
+
+                        $files =
+                            scandir(
+                                $physicalPath
+                            );
+
+
+                        if (
+                            $files !== false
+                        ) {
+
+                            $allowedExtensions = [
+                                'jpg',
+                                'jpeg',
+                                'png',
+                                'webp',
+                                'gif'
+                            ];
+
+
+                            foreach (
+                                $files as $file
+                            ) {
+
+                                if (
+                                    $file === '.' ||
+                                    $file === '..'
+                                ) {
+                                    continue;
+                                }
+
+
+                                $filePath =
+                                    $physicalPath .
+                                    DIRECTORY_SEPARATOR .
+                                    $file;
+
+
+                                if (
+                                    !is_file(
+                                        $filePath
+                                    )
+                                ) {
+                                    continue;
+                                }
+
+
+                                $extension =
+                                    strtolower(
+                                        pathinfo(
+                                            $file,
+                                            PATHINFO_EXTENSION
+                                        )
+                                    );
+
+
+                                if (
+                                    in_array(
+                                        $extension,
+                                        $allowedExtensions,
+                                        true
+                                    )
+                                ) {
+
+                                    $product->image_url =
+                                        asset(
+                                            $relativePath .
+                                            '/' .
+                                            $file
+                                        );
+
+                                    break;
+                                }
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        }
 
 
         /*
