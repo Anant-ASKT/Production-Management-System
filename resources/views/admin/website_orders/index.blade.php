@@ -22,6 +22,9 @@
             <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill fs-7 fw-semibold border border-success-subtle shadow-2xs">
                 <i class="bi bi-receipt me-1"></i> <span id="statTotalOrdersTop">{{ $totalOrders }}</span> Orders
             </span>
+            <button class="btn btn-primary btn-sm rounded-pill px-3 shadow-2xs" id="btnSyncStore" title="Fetch latest orders from connected WooCommerce store">
+                <i class="bi bi-cloud-arrow-down me-1"></i> Sync from Store
+            </button>
             <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 shadow-2xs" id="btnRefresh" title="Refresh Orders">
                 <i class="bi bi-arrow-clockwise me-1"></i> Refresh
             </button>
@@ -500,6 +503,37 @@ document.addEventListener('DOMContentLoaded', function () {
     dateFilter.addEventListener('change', () => loadOrders(1));
     perPageSelect.addEventListener('change', () => loadOrders(1));
     btnRefresh.addEventListener('click', () => loadOrders(currentPage));
+
+    const btnSyncStore = document.getElementById('btnSyncStore');
+    if (btnSyncStore) {
+        btnSyncStore.addEventListener('click', function () {
+            const originalHtml = btnSyncStore.innerHTML;
+            btnSyncStore.disabled = true;
+            btnSyncStore.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Syncing...';
+
+            fetch('{{ route("admin.website-orders.sync") }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                btnSyncStore.disabled = false;
+                btnSyncStore.innerHTML = originalHtml;
+                if (data.success) {
+                    loadOrders(1);
+                }
+            })
+            .catch(err => {
+                btnSyncStore.disabled = false;
+                btnSyncStore.innerHTML = originalHtml;
+                console.error(err);
+            });
+        });
+    }
 
     btnClearDate.addEventListener('click', function () {
         dateFilter.value = '';

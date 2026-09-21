@@ -134,6 +134,17 @@ class OrderWebhookController extends Controller
 
             // If order is cancelled, failed, or refunded, restore vendor stock
             if (in_array($statusNormalized, ['cancelled', 'refunded', 'failed'])) {
+                DB::table('vendor_stock_web')
+                    ->where(function($q) use ($orderId, $orderNumber) {
+                        $q->where('orderid', (string) $orderId)
+                          ->orWhere('orderno', (string) $orderNumber);
+                    })
+                    ->update([
+                        'send_qty' => 0,
+                        'orderstatus' => $statusNormalized,
+                        'updated_at' => now(),
+                    ]);
+
                 DB::table('vendor_stock')
                     ->where(function($q) use ($orderId, $orderNumber) {
                         $q->where('orderid', (string) $orderId)
@@ -184,13 +195,12 @@ class OrderWebhookController extends Controller
                 $itemId = $spec->id ?: $spec->sno;
                 $barcode = $spec->barcode ?? null;
 
-                // Check how many rows are already allocated to this order for this item
-                $alreadyAllocatedCount = DB::table('vendor_stock')
-                    ->where(function($q) use ($itemId, $barcode) {
+                // 1. Check how many rows are already allocated to this order in vendor_stock_web
+                $alreadyAllocatedCount = DB::table('vendor_stock_web')
+                    ->where(function($q) use ($itemId, $barcode, $sku) {
                         $q->where('item_id', $itemId);
-                        if (!empty($barcode)) {
-                            $q->orWhere('barcode', $barcode);
-                        }
+                        if (!empty($barcode)) $q->orWhere('barcode', $barcode);
+                        if (!empty($sku)) $q->orWhere('batch_no', $sku);
                     })
                     ->where(function($q) use ($orderId, $orderNumber) {
                         $q->where('orderid', (string) $orderId)
@@ -202,12 +212,11 @@ class OrderWebhookController extends Controller
                 $neededQty = $qty - $alreadyAllocatedCount;
                 if ($neededQty <= 0) {
                     // Update orderstatus on already allocated rows if changed
-                    DB::table('vendor_stock')
-                        ->where(function($q) use ($itemId, $barcode) {
+                    DB::table('vendor_stock_web')
+                        ->where(function($q) use ($itemId, $barcode, $sku) {
                             $q->where('item_id', $itemId);
-                            if (!empty($barcode)) {
-                                $q->orWhere('barcode', $barcode);
-                            }
+                            if (!empty($barcode)) $q->orWhere('barcode', $barcode);
+                            if (!empty($sku)) $q->orWhere('batch_no', $sku);
                         })
                         ->where(function($q) use ($orderId, $orderNumber) {
                             $q->where('orderid', (string) $orderId)
@@ -220,13 +229,12 @@ class OrderWebhookController extends Controller
                     continue;
                 }
 
-                // Find $neededQty available rows matching item_id and barcode where send_qty == 0
-                $availableRows = DB::table('vendor_stock')
-                    ->where(function($q) use ($itemId, $barcode) {
+                // 2. Find $neededQty available rows in vendor_stock_web where send_qty == 0
+                $availableRows = DB::table('vendor_stock_web')
+                    ->where(function($q) use ($itemId, $barcode, $sku) {
                         $q->where('item_id', $itemId);
-                        if (!empty($barcode)) {
-                            $q->orWhere('barcode', $barcode);
-                        }
+                        if (!empty($barcode)) $q->orWhere('barcode', $barcode);
+                        if (!empty($sku)) $q->orWhere('batch_no', $sku);
                     })
                     ->where(function($q) {
                         $q->where('send_qty', 0)
@@ -241,7 +249,7 @@ class OrderWebhookController extends Controller
                     ->pluck('sno');
 
                 if ($availableRows->isNotEmpty()) {
-                    DB::table('vendor_stock')
+                    DB::table('vendor_stock_web')
                         ->whereIn('sno', $availableRows)
                         ->update([
                             'send_qty' => 1,
@@ -251,9 +259,38 @@ class OrderWebhookController extends Controller
                             'updated_at' => now(),
                         ]);
 
-                    Log::info("VendorStock allocated: {$availableRows->count()} units for item_id {$itemId} (SKU: {$spec->sku}, Barcode: {$barcode}) in Order #{$orderNumber}");
-                } else {
-                    Log::warning("VendorStock: No available stock units found for item_id {$itemId} (SKU: {$spec->sku}, Barcode: {$barcode}) in Order #{$orderNumber}");
+                    Log::info("vendor_stock_web allocated: {$availableRows->count()} units for item_id {$itemId} (SKU: {$spec->sku}) in Order #{$orderNumber}");
+                    $neededQty -= $availableRows->count();
+                }
+
+                // 3. Fallback to legacy vendor_stock if neededQty remaining
+                if ($neededQty > 0) {
+                    $fallbackRows = DB::table('vendor_stock')
+                        ->where(function($q) use ($itemId, $barcode) {
+                            $q->where('item_id', $itemId);
+                            if (!empty($barcode)) $q->orWhere('barcode', $barcode);
+                        })
+                        ->where(function($q) {
+                            $q->where('send_qty', 0)->orWhereNull('send_qty');
+                        })
+                        ->where(function($q) {
+                            $q->where('avilable_qty', '>', 0)->orWhereNull('avilable_qty');
+                        })
+                        ->orderBy('sno', 'asc')
+                        ->limit($neededQty)
+                        ->pluck('sno');
+
+                    if ($fallbackRows->isNotEmpty()) {
+                        DB::table('vendor_stock')
+                            ->whereIn('sno', $fallbackRows)
+                            ->update([
+                                'send_qty' => 1,
+                                'orderid' => (string) $orderId,
+                                'orderno' => (string) $orderNumber,
+                                'orderstatus' => $statusNormalized ?: 'processing',
+                                'updated_at' => now(),
+                            ]);
+                    }
                 }
             }
         } catch (\Exception $e) {

@@ -99,10 +99,11 @@ class WooCommerceService
             $cleanTitle = 'Handcrafted Garment #' . $product->spec_id;
         }
 
-        // 5. Retrieve approved AI enhanced images
+        // 5. Retrieve approved AI enhanced images (only main and sub, exclude extra)
         $approvedImages = DB::table('approved_enhanced_images')
             ->where('specification_id', $specificationId)
             ->where('status', 'approved')
+            ->whereIn('image_type', ['main', 'sub'])
             ->orderByRaw("FIELD(image_type, 'main', 'sub')")
             ->orderBy('sno', 'asc')
             ->get();
@@ -224,44 +225,77 @@ class WooCommerceService
             $metaData[] = ['key' => 'rank_math_focus_keyword', 'value' => $cleanKeywords];
         }
 
-        // 11. Fetch price and stock
-        $sp = null;
-        if (!empty($product->supplier_product_id)) {
-            $sp = DB::table('supplier_products')->where('sno', $product->supplier_product_id)->first();
-        }
-        if (!$sp && !empty($targetSupplierId)) {
-            $sp = DB::table('supplier_products')
-                ->where('supplier_id', $targetSupplierId)
-                ->where(function($q) use ($product) {
-                    if (!empty($product->item_type)) {
-                        $q->where('item_type', $product->item_type);
-                    }
-                })
-                ->first();
+        // 11. Fetch price and stock from vendor_stock_web
+        $vswQuery = DB::table('vendor_stock_web')
+            ->where(function($q) use ($product) {
+                $q->where('item_id', $product->spec_id);
+                if (!empty($product->sku)) {
+                    $q->orWhere('batch_no', $product->sku);
+                }
+                if (!empty($product->barcode)) {
+                    $q->orWhere('barcode', $product->barcode);
+                }
+            });
 
-            if (!$sp) {
-                $sp = DB::table('supplier_products')->where('supplier_id', $targetSupplierId)->first();
-            }
-        }
-        if (!$sp && !empty($product->origin_supplier_id)) {
-            $sp = DB::table('supplier_products')
-                ->where('supplier_id', $product->origin_supplier_id)
-                ->where(function($q) use ($product) {
-                    if (!empty($product->item_type)) {
-                        $q->where('item_type', $product->item_type);
-                    }
-                })
-                ->first();
-
-            if (!$sp) {
-                $sp = DB::table('supplier_products')->where('supplier_id', $product->origin_supplier_id)->first();
+        if (!empty($targetSupplierId)) {
+            $vswTarget = (clone $vswQuery)->where('vendor_id', $targetSupplierId);
+            if ($vswTarget->exists()) {
+                $vswQuery = $vswTarget;
             }
         }
 
-        $regularPrice = !empty($product->price) ? (string) $product->price : (!empty($sp->price) ? (string) $sp->price : '5999');
-        $salePrice = !empty($product->sale_price) ? (string) $product->sale_price : (!empty($sp->sale_price) ? (string) $sp->sale_price : '');
-        $minPrice = !empty($product->min_price) ? (string) $product->min_price : (!empty($sp->min_price) ? (string) $sp->min_price : '');
-        $stockQty = !empty($sp->stock) ? (int) $sp->stock : 50;
+        $vswLatest = (clone $vswQuery)->orderBy('sno', 'desc')->first();
+        $vswAvailableStock = (clone $vswQuery)->where(function($q) {
+            $q->where('send_qty', 0)->orWhereNull('send_qty');
+        })->where(function($q) {
+            $q->where('avilable_qty', '>', 0)->orWhereNull('avilable_qty');
+        })->count();
+
+        if ($vswLatest) {
+            $regularPrice = !empty($vswLatest->purchase_price) ? (string) $vswLatest->purchase_price : (!empty($product->price) ? (string) $product->price : '5999');
+            $salePrice = !empty($vswLatest->sale_price) ? (string) $vswLatest->sale_price : (!empty($product->sale_price) ? (string) $product->sale_price : '');
+            $minPrice = !empty($product->min_price) ? (string) $product->min_price : '';
+            $stockQty = $vswAvailableStock;
+        } else {
+            // Fallback to supplier_products if not found in vendor_stock_web
+            $sp = null;
+            if (!empty($product->supplier_product_id)) {
+                $sp = DB::table('supplier_products')->where('sno', $product->supplier_product_id)->first();
+            }
+            if (!$sp && !empty($targetSupplierId)) {
+                $sp = DB::table('supplier_products')
+                    ->where('supplier_id', $targetSupplierId)
+                    ->where(function($q) use ($product) {
+                        if (!empty($product->item_type)) {
+                            $q->where('item_type', $product->item_type);
+                        }
+                    })
+                    ->first();
+
+                if (!$sp) {
+                    $sp = DB::table('supplier_products')->where('supplier_id', $targetSupplierId)->first();
+                }
+            }
+            if (!$sp && !empty($product->origin_supplier_id)) {
+                $sp = DB::table('supplier_products')
+                    ->where('supplier_id', $product->origin_supplier_id)
+                    ->where(function($q) use ($product) {
+                        if (!empty($product->item_type)) {
+                            $q->where('item_type', $product->item_type);
+                        }
+                    })
+                    ->first();
+
+                if (!$sp) {
+                    $sp = DB::table('supplier_products')->where('supplier_id', $product->origin_supplier_id)->first();
+                }
+            }
+
+            $regularPrice = !empty($product->price) ? (string) $product->price : (!empty($sp->price) ? (string) $sp->price : '5999');
+            $salePrice = !empty($product->sale_price) ? (string) $product->sale_price : (!empty($sp->sale_price) ? (string) $sp->sale_price : '');
+            $minPrice = !empty($product->min_price) ? (string) $product->min_price : (!empty($sp->min_price) ? (string) $sp->min_price : '');
+            $stockQty = !empty($sp->stock) ? (int) $sp->stock : 50;
+        }
 
         if (!empty($minPrice)) {
             $metaData[] = ['key' => '_min_price', 'value' => (string) $minPrice];

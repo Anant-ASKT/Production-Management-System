@@ -26,7 +26,7 @@ class AssignedProductController extends Controller
                 'itemname.itemname as product_name',
                 'colour.colourname as color',
                 'gender.name as age_group',
-                'suppliers.name as supplier_name'
+                \DB::raw("COALESCE(suppliers.name, (SELECT s_vsw.name FROM vendor_stock_web vsw JOIN suppliers s_vsw ON s_vsw.sno = vsw.vendor_id WHERE (vsw.item_id = spec.id OR vsw.item_id = spec.sno OR vsw.batch_no = spec.sku) ORDER BY vsw.sno DESC LIMIT 1)) as supplier_name")
             )
             ->orderBy('apa.created_at', 'desc')
             ->get();
@@ -79,7 +79,7 @@ class AssignedProductController extends Controller
                 'craftsman.name as craftsman_text',
                 'manufacture.name as manufacture_text',
                 'client.name as client_text',
-                'suppliers.name as supplier_name'
+                \DB::raw("COALESCE(suppliers.name, (SELECT s_vsw.name FROM vendor_stock_web vsw JOIN suppliers s_vsw ON s_vsw.sno = vsw.vendor_id WHERE (vsw.item_id = spec.id OR vsw.item_id = spec.sno OR vsw.batch_no = spec.sku) ORDER BY vsw.sno DESC LIMIT 1)) as supplier_name")
             )
             ->first();
 
@@ -147,14 +147,14 @@ class AssignedProductController extends Controller
         $user = auth('ai_enhancer')->user();
 
         $request->validate([
-            'specification_id'    => 'required|integer|exists:auto_designer_specification_master,sno',
-            'original_image_path' => 'required|string',
-            'image_type'          => 'required|string|in:main,sub',
-            'enhanced_image'      => 'required|image|mimes:jpeg,jpg,png,webp|max:10240',
+            'specification_id'  => 'required|integer|exists:auto_designer_specification_master,sno',
+            'enhanced_images'   => 'nullable|array',
+            'enhanced_images.*' => 'image|mimes:jpeg,jpg,png,webp|max:20480',
+            'enhanced_image'    => 'nullable|image|mimes:jpeg,jpg,png,webp|max:20480',
         ]);
 
         $specId = $request->input('specification_id');
-        
+
         // Ensure assigned
         $assignment = \DB::table('ai_photo_enhancer_assignments')
             ->where('specification_id', $specId)
@@ -171,22 +171,25 @@ class AssignedProductController extends Controller
             return redirect()->back()->withErrors(['error' => 'Product specification not found.']);
         }
 
-        // Handle file upload
-        if ($request->hasFile('enhanced_image')) {
-            $file = $request->file('enhanced_image');
-            
-            // Clean original filename
-            $originalPath = $request->input('original_image_path');
-            $originalFilename = basename($originalPath);
-            if (empty($originalFilename)) {
-                $originalFilename = 'product_image.jpg';
+        $files = [];
+        if ($request->hasFile('enhanced_images')) {
+            $files = $request->file('enhanced_images');
+        } elseif ($request->hasFile('enhanced_image')) {
+            $files = [$request->file('enhanced_image')];
+        }
+
+        if (empty($files)) {
+            return redirect()->back()->withErrors(['error' => 'Please select at least one enhanced image to upload.']);
+        }
+
+        $uploadedCount = 0;
+        foreach ($files as $file) {
+            if (!$file->isValid()) {
+                continue;
             }
-            
-            $filename = time() . '_' . $originalFilename;
-            
-            // Move file to public/enhanced_images directory
-            $file->move(public_path('enhanced_images'), $filename);
-            $enhancedPath = 'enhanced_images/' . $filename;
+
+            // Optimize & compress image
+            $enhancedPath = \App\Services\ImageOptimizerService::optimizeAndSave($file, 'enhanced_images');
 
             // Insert submission
             \DB::table('enhanced_product_submissions')->insert([
@@ -197,17 +200,25 @@ class AssignedProductController extends Controller
                 'subprojectid'         => $spec->subprojectid ?? null,
                 'specification_id'     => $specId,
                 'ai_photo_enhancer_id' => $user->sno,
-                'original_image_path'  => $originalPath,
+                'original_image_path'  => $request->input('original_image_path') ?: null,
                 'enhanced_image_path'  => $enhancedPath,
-                'image_type'           => $request->input('image_type'),
+                'image_type'           => $request->input('image_type') ?: 'enhanced',
                 'status'               => 'pending',
                 'created_at'           => now(),
                 'updated_at'           => now(),
             ]);
 
-            return redirect()->back()->with('success', 'Enhanced image successfully uploaded and submitted for review.');
+            $uploadedCount++;
         }
 
-        return redirect()->back()->withErrors(['error' => 'File upload failed.']);
+        // Update assignment status to submitted
+        \DB::table('ai_photo_enhancer_assignments')
+            ->where('id', $assignment->id)
+            ->update([
+                'status'     => 'submitted',
+                'updated_at' => now(),
+            ]);
+
+        return redirect()->back()->with('success', "{$uploadedCount} enhanced image(s) successfully compressed, uploaded, and submitted for admin review.");
     }
 }

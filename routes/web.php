@@ -233,6 +233,11 @@ Route::get(
         [App\Http\Controllers\AdminAiPhotoReceivingController::class, 'reject']
     )->name('admin.ai-photo-enhancing.receiving.reject');
 
+    Route::post(
+        '/admin/ai-photo-enhancing/receiving/{id}/review-batch',
+        [App\Http\Controllers\AdminAiPhotoReceivingController::class, 'reviewBatch']
+    )->name('admin.ai-photo-enhancing.receiving.review-batch');
+
 
 
 Route::get(
@@ -952,6 +957,11 @@ Route::middleware('auth')->group(function () {
         '/admin/website-orders/{id}/update-status',
         [AdminWebsiteOrderController::class, 'updateStatusAndShipping']
     )->name('admin.website-orders.update-status');
+
+    Route::post(
+        '/admin/website-orders/sync',
+        [AdminWebsiteOrderController::class, 'syncFromStores']
+    )->name('admin.website-orders.sync');
 });
 
 /*

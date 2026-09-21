@@ -5903,6 +5903,9 @@ private function generateProductSku(
                     'barcode' =>
                         $barcode,
 
+                    'batch_no' =>
+                        $sku,
+
                     'g_id' =>
                         $insertId,
 

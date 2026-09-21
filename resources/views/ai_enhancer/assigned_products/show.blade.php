@@ -1,79 +1,87 @@
 @extends('layouts.ai_enhancer')
 
-@section('title', 'Product Detail')
+@section('title', 'Product Photos & Upload')
 
 @section('content')
 
 {{-- ===================================================
-     HEADER: Back + Title + Status
+     HEADER: Back + Simple Title
 ==================================================== --}}
-<div class="d-flex align-items-center mb-4 gap-3">
-    <a href="{{ route('ai-enhancer.assigned-products.index') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
-        <i class="bi bi-arrow-left me-1"></i> Back
-    </a>
-    <div>
-        <h4 class="fw-bold mb-0">Product Detail</h4>
-        <p class="text-muted small mb-0">Assignment #{{ $product->assignment_id }}</p>
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{{ route('ai-enhancer.assigned-products.index') }}" class="btn btn-outline-secondary rounded-pill px-3 py-2 fw-semibold">
+            <i class="bi bi-arrow-left me-1"></i> Go Back
+        </a>
+        <div>
+            <h3 class="fw-bold mb-0 text-dark">
+                Product: <span class="text-primary">{{ $product->sku ?: ('#' . $product->spec_id) }}</span>
+            </h3>
+            <p class="text-muted small mb-0">{{ $product->item_name_text ?: 'Product Details' }} &bull; Color: {{ $product->colour_text ?: '—' }}</p>
+        </div>
     </div>
-    <span class="badge bg-warning-subtle text-warning rounded-pill px-3 py-2 ms-auto fs-6">
-        {{ ucfirst($product->assignment_status ?? 'Assigned') }}
+    <span class="badge bg-primary rounded-pill px-3 py-2 fs-6 fw-bold">
+        <i class="bi bi-tag-fill me-1"></i> {{ ucfirst($product->assignment_status ?? 'Assigned') }}
     </span>
 </div>
 
+@if(session('success'))
+    <div class="alert alert-success alert-dismissible fade show rounded-4 shadow-sm mb-4 p-3" role="alert">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-check-circle-fill fs-3 text-success me-3"></i>
+            <div>
+                <h6 class="fw-bold mb-0">Success!</h6>
+                <div>{{ session('success') }}</div>
+            </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+@endif
+
+@if($errors->any())
+    <div class="alert alert-danger rounded-4 shadow-sm mb-4 p-3" role="alert">
+        <ul class="mb-0 fw-semibold">
+            @foreach($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
+
 {{-- ===================================================
-     SECTION 1: PRODUCT SPECIFICATIONS
+     PRODUCT SUMMARY (SIMPLE CARDS)
 ==================================================== --}}
 <div class="card border-0 shadow-sm rounded-4 mb-4">
-    <div class="card-header bg-white border-bottom px-4 pt-4 pb-3">
-        <h5 class="fw-bold mb-0 text-dark">
-            <i class="bi bi-clipboard-data text-primary me-2"></i> Product Specifications
-        </h5>
-    </div>
-    <div class="card-body px-4 py-4">
-        <div class="row g-4">
-
-            @php
-                $specs = [
-                    'Item Name'             => $product->item_name_text,
-                    'Colour'                => $product->colour_text,
-                    'Gender'                => $product->gender_text,
-                    'Item Type'             => $product->item_type_text,
-                    'Designer'              => $product->designer_name_text,
-                    'Composition'           => $product->composition_text,
-                    'Size'                  => $product->size_text,
-                    'Embellishment'         => $product->embellishment_text,
-                    'Manufacturing Process' => $product->manufacturing_process_text,
-                    'Craftsman'             => $product->craftsman_text,
-                    'Manufacturer'          => $product->manufacture_text,
-                    'Client'                => $product->client_text,
-                    'Supplier'              => $product->supplier_name,
-                    'Client Reference'      => $product->clientreference,
-                    'Barcode'               => $product->barcode,
-                    'SKU'                   => $product->sku,
-                    'Assigned Date'         => $product->assigned_date ? \Carbon\Carbon::parse($product->assigned_date)->format('d-m-Y') : null,
-                ];
-            @endphp
-
-            @foreach($specs as $label => $value)
-                @if($value)
-                <div class="col-md-3 col-sm-6">
-                    <div class="bg-light rounded-3 p-3 h-100">
-                        <div class="text-muted small fw-semibold text-uppercase mb-1" style="font-size:0.68rem; letter-spacing:0.06em;">{{ $label }}</div>
-                        <div class="fw-semibold text-dark">{{ $value }}</div>
-                    </div>
+    <div class="card-body p-4">
+        <div class="row g-3">
+            <div class="col-6 col-md-3">
+                <div class="bg-light rounded-3 p-3 text-center">
+                    <span class="text-muted small d-block mb-1">Product Name</span>
+                    <strong class="text-dark">{{ $product->item_name_text ?: '—' }}</strong>
                 </div>
-                @endif
-            @endforeach
-
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="bg-light rounded-3 p-3 text-center">
+                    <span class="text-muted small d-block mb-1">SKU</span>
+                    <strong class="text-dark">{{ $product->sku ?: '—' }}</strong>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="bg-light rounded-3 p-3 text-center">
+                    <span class="text-muted small d-block mb-1">Color</span>
+                    <strong class="text-dark">{{ $product->colour_text ?: '—' }}</strong>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="bg-light rounded-3 p-3 text-center">
+                    <span class="text-muted small d-block mb-1">Barcode</span>
+                    <strong class="text-dark">{{ $product->barcode ?: '—' }}</strong>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-{{-- ===================================================
-     SECTION 2: PRODUCT IMAGES
-==================================================== --}}
 @php
-    // Helper: convert a stored path to a usable URL
     function resolveImageUrl($path) {
         if (!$path) return null;
         $path = trim($path, " \t\n\r\0\x0B\"'\\");
@@ -83,12 +91,8 @@
             $pos = strpos($path, 'ItemsDesigner_Masterwithbarcode/');
             return '/' . substr($path, $pos);
         }
-        if (str_starts_with($path, 'raw_products/')) {
-            return '/' . $path;
-        }
-        if (str_starts_with($path, 'enhanced_images/')) {
-            return '/' . $path;
-        }
+        if (str_starts_with($path, 'raw_products/')) return '/' . $path;
+        if (str_starts_with($path, 'enhanced_images/')) return '/' . $path;
         if (str_starts_with($path, '/')) return $path;
         if (str_starts_with($path, 'storage/')) return '/' . $path;
         return '/' . $path;
@@ -111,139 +115,312 @@
 
     $mainImages = parseImages($product->img_path);
     $subImages  = parseImages($product->subimg_path);
-    $allImages  = array_values(array_unique(array_merge($mainImages, $subImages)));
+    $allOriginalImages = array_values(array_unique(array_merge($mainImages, $subImages)));
 @endphp
 
+{{-- ===================================================
+     STEP 1: ORIGINAL PHOTOS (DOWNLOAD THEM)
+==================================================== --}}
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-white border-bottom px-4 pt-4 pb-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                1
+            </span>
+            <div>
+                <h5 class="fw-bold mb-0 text-dark">Original Photos (Download to Edit)</h5>
+                <small class="text-muted">Click any photo or download button to save to your phone or computer.</small>
+            </div>
+        </div>
+        @if(count($allOriginalImages) > 1)
+            <button type="button" class="btn btn-outline-primary rounded-pill px-3 py-1.5 fw-bold" onclick="downloadAllOriginals()">
+                <i class="bi bi-download me-1"></i> Download All Photos
+            </button>
+        @endif
+    </div>
+    <div class="card-body p-4 bg-light">
+        @if(count($allOriginalImages) > 0)
+            <div class="row g-3">
+                @foreach($allOriginalImages as $idx => $imgUrl)
+                    @php $isMain = in_array($imgUrl, $mainImages); @endphp
+                    <div class="col-6 col-md-4 col-lg-3">
+                        <div class="card border rounded-3 p-2 bg-white text-center shadow-xs h-100">
+                            <span class="badge {{ $isMain ? 'bg-primary' : 'bg-secondary' }} align-self-start mb-1 px-2 py-0.5" style="font-size: 0.68rem;">
+                                {{ $isMain ? 'Main Photo' : 'Photo #' . $idx }}
+                            </span>
+                            <div class="d-flex align-items-center justify-content-center p-2 mb-2 bg-light rounded" style="height: 140px;">
+                                <a href="{{ $imgUrl }}" target="_blank" title="Click to view">
+                                    <img src="{{ $imgUrl }}" class="img-fluid rounded" style="max-height: 125px; object-fit: contain;" alt="Original">
+                                </a>
+                            </div>
+                            <a href="{{ $imgUrl }}" download="original_{{ $product->sku }}_{{ $idx + 1 }}" class="btn btn-sm btn-primary rounded-pill w-100 py-1.5 fw-bold download-orig-link" data-url="{{ $imgUrl }}">
+                                <i class="bi bi-download me-1"></i> Download Photo
+                            </a>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <p class="text-muted mb-0">No original photos found.</p>
+        @endif
+    </div>
+</div>
+
+{{-- ===================================================
+     STEP 2: UPLOAD FINISHED PHOTOS
+==================================================== --}}
+<div class="card border-0 shadow-sm rounded-4 mb-4 border-2 border-primary">
+    <div class="card-header bg-white border-bottom px-4 pt-4 pb-3">
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-success rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                2
+            </span>
+            <div>
+                <h5 class="fw-bold mb-0 text-dark">Send Finished Photos (Upload Multiple)</h5>
+                <small class="text-muted">Select one or more edited photos. You can select large photos; they will be automatically compressed.</small>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-4">
+        <form action="{{ route('ai-enhancer.submissions.upload') }}" method="POST" enctype="multipart/form-data" id="batchUploadForm">
+            @csrf
+            <input type="hidden" name="specification_id" value="{{ $product->spec_id }}">
+
+            {{-- Big Friendly Dropzone --}}
+            <div class="p-4 border-2 border-dashed rounded-4 text-center bg-light mb-3" id="dropZone" style="border: 3px dashed #0d6efd; background-color: #f8faff; cursor: pointer;">
+                <i class="bi bi-cloud-arrow-up-fill fs-1 text-primary mb-2 d-block"></i>
+                <h5 class="fw-bold text-dark mb-1">Click Here to Choose Photos</h5>
+                <p class="text-muted small mb-3">Or drag and drop your edited photo files here</p>
+                <input type="file" name="enhanced_images[]" id="fileInput" class="d-none" multiple accept="image/*">
+                <button type="button" class="btn btn-primary btn-lg rounded-pill px-5 fw-bold shadow-sm" onclick="document.getElementById('fileInput').click()">
+                    <i class="bi bi-plus-circle-fill me-2"></i> Choose Photos
+                </button>
+            </div>
+
+            {{-- Preview Area --}}
+            <div id="previewArea" class="mb-3 d-none">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="fw-bold text-dark" id="selectedCountText">0 photos selected</span>
+                    <button type="button" class="btn btn-link btn-sm text-danger text-decoration-none fw-bold p-0" onclick="clearSelectedFiles()">Remove All</button>
+                </div>
+                <div class="row g-2" id="previewGrid"></div>
+            </div>
+
+            <div class="text-end">
+                <button type="submit" id="submitBtn" class="btn btn-success btn-lg rounded-pill px-5 py-2.5 fw-bold shadow" disabled>
+                    <i class="bi bi-send-fill me-2"></i> Send Photos to Admin
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- ===================================================
+     STEP 3: STATUS OF SENT PHOTOS
+==================================================== --}}
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-header bg-white border-bottom px-4 pt-4 pb-3 d-flex align-items-center justify-content-between">
-        <h5 class="fw-bold mb-0 text-dark">
-            <i class="bi bi-images text-primary me-2"></i> Product Images
-        </h5>
-        <span class="badge bg-secondary-subtle text-secondary rounded-pill px-3">{{ count($allImages) }} Image{{ count($allImages) !== 1 ? 's' : '' }}</span>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-secondary rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                3
+            </span>
+            <div>
+                <h5 class="fw-bold mb-0 text-dark">Photos You Have Sent ({{ count($submissions) }})</h5>
+                <small class="text-muted">Check below to see which photos are accepted or need changes.</small>
+            </div>
+        </div>
+        <span class="badge bg-dark rounded-pill px-3 py-1.5 fw-bold">{{ count($submissions) }} Sent</span>
     </div>
-    <div class="card-body px-4 py-4">
-
-        @if(count($allImages) > 0)
+    <div class="card-body p-4 bg-light">
+        @if(count($submissions) > 0)
             <div class="row g-4">
-                @foreach($allImages as $index => $img)
-                    @php
-                        $isMain = in_array($img, $mainImages);
-                        $latestSubmission = $submissions->firstWhere('original_image_path', $img);
-                    @endphp
-                    <div class="col-12 col-md-6">
-                        <div class="card border border-light-subtle rounded-4 shadow-sm h-100 overflow-hidden">
-                            <div class="card-header bg-light border-0 py-3 px-4 d-flex align-items-center justify-content-between">
-                                <span class="badge bg-secondary rounded-pill px-3 py-1.5 fw-semibold text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.05em;">
-                                    {{ $isMain ? 'Main Image' : 'Sub Image' }}
-                                </span>
-                                @if($latestSubmission)
-                                    @if($latestSubmission->status == 'pending')
-                                        <span class="badge bg-warning-subtle text-warning rounded-pill px-3 py-1.5 fw-semibold">
-                                            <i class="bi bi-hourglass-split me-1"></i> Pending Review
-                                        </span>
-                                    @elseif($latestSubmission->status == 'approved')
-                                        <span class="badge bg-success-subtle text-success rounded-pill px-3 py-1.5 fw-semibold">
-                                            <i class="bi bi-check-circle me-1"></i> Approved
-                                        </span>
-                                    @elseif($latestSubmission->status == 'approved_need_version')
-                                        <span class="badge bg-info-subtle text-info rounded-pill px-3 py-1.5 fw-semibold">
-                                            <i class="bi bi-arrow-repeat me-1"></i> Approved (Need Version)
-                                        </span>
-                                    @elseif($latestSubmission->status == 'rejected')
-                                        <span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-1.5 fw-semibold">
-                                            <i class="bi bi-x-circle me-1"></i> Rejected
-                                        </span>
-                                    @endif
-                                @else
-                                    <span class="badge bg-light text-secondary rounded-pill px-3 py-1.5 border fw-semibold">
-                                        Not Uploaded
-                                    </span>
-                                @endif
-                            </div>
-                            <div class="card-body p-4">
-                                <div class="row g-3">
-                                    {{-- Left side: Original Image Preview & Download --}}
-                                    <div class="col-sm-5 d-flex flex-column align-items-center justify-content-between bg-light rounded-3 p-3 text-center" style="min-height: 180px;">
-                                        <div class="w-100 d-flex align-items-center justify-content-center flex-grow-1" style="height: 120px;">
-                                            <a href="{{ $img }}" target="_blank" rel="noopener noreferrer" title="View Original in new tab">
-                                                <img src="{{ $img }}" class="img-fluid rounded border shadow-sm" style="max-height: 120px; object-fit: contain; cursor: pointer;" alt="Original Image" onerror="this.parentElement.parentElement.innerHTML='<span class=\'text-muted small\'><i class=\'bi bi-exclamation-circle\'></i> Not found</span>'">
-                                            </a>
-                                        </div>
-                                        <a href="{{ $img }}" download class="btn btn-sm btn-outline-primary w-100 rounded-pill mt-2">
-                                            <i class="bi bi-download me-1"></i> Download Original
-                                        </a>
-                                    </div>
+                @foreach($submissions as $sub)
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <div class="card border rounded-4 shadow-sm h-100 overflow-hidden bg-white">
+                            
+                            {{-- Visual Status Banner --}}
+                            @if($sub->status == 'approved')
+                                <div class="p-2 text-center bg-success text-white fw-bold small">
+                                    <i class="bi bi-check-circle-fill me-1"></i> APPROVED
+                                </div>
+                            @elseif($sub->status == 'approved_need_version')
+                                <div class="p-2 text-center bg-warning text-dark fw-bold small">
+                                    <i class="bi bi-arrow-repeat me-1"></i> NEED MORE
+                                </div>
+                            @elseif($sub->status == 'rejected')
+                                <div class="p-2 text-center bg-danger text-white fw-bold small">
+                                    <i class="bi bi-x-circle-fill me-1"></i> REJECT
+                                </div>
+                            @else
+                                <div class="p-2 text-center bg-secondary text-white fw-bold small">
+                                    <i class="bi bi-hourglass-split me-1"></i> Waiting for Admin to Check
+                                </div>
+                            @endif
 
-                                    {{-- Right side: Upload Form or Current Enhancement status --}}
-                                    <div class="col-sm-7 d-flex flex-column justify-content-center">
-                                        @if(!$latestSubmission)
-                                            <form action="{{ route('ai-enhancer.submissions.upload') }}" method="POST" enctype="multipart/form-data" class="upload-form">
-                                                @csrf
-                                                <input type="hidden" name="specification_id" value="{{ $product->spec_id }}">
-                                                <input type="hidden" name="original_image_path" value="{{ $img }}">
-                                                <input type="hidden" name="image_type" value="{{ $isMain ? 'main' : 'sub' }}">
-
-                                                <label class="form-label small fw-semibold text-secondary mb-2">Upload Enhanced Version</label>
-                                                <div class="input-group input-group-sm mb-2">
-                                                    <input type="file" name="enhanced_image" class="form-control rounded-start-pill" accept="image/*" required>
-                                                </div>
-                                                <button type="submit" class="btn btn-sm btn-primary w-100 rounded-pill shadow-sm">
-                                                    <i class="bi bi-cloud-arrow-up-fill me-1"></i> Submit Enhancement
-                                                </button>
-                                            </form>
-                                        @else
-                                            {{-- Pending, Approved, Approved Need Version or Rejected state --}}
-                                            @if($latestSubmission->status == 'pending')
-                                                <div class="text-center p-3 border rounded-3 bg-light-subtle h-100 d-flex flex-column align-items-center justify-content-center">
-                                                    <i class="bi bi-clock-history fs-3 text-warning opacity-75 mb-2"></i>
-                                                    <p class="small text-muted mb-0">Enhancement is pending review by Admin.</p>
-                                                </div>
-                                            @elseif($latestSubmission->status == 'approved')
-                                                <div class="text-center p-3 border rounded-3 bg-light-subtle h-100 d-flex flex-column align-items-center justify-content-center">
-                                                    <div class="w-100 mb-2 d-flex align-items-center justify-content-center" style="height: 100px;">
-                                                        <a href="{{ asset($latestSubmission->enhanced_image_path) }}" target="_blank" rel="noopener noreferrer" title="View Enhanced in new tab">
-                                                            <img src="{{ asset($latestSubmission->enhanced_image_path) }}" class="img-fluid rounded border shadow-sm" style="max-height: 100px; object-fit: contain; cursor: pointer;" alt="Enhanced Image">
-                                                        </a>
-                                                    </div>
-                                                    <a href="{{ asset($latestSubmission->enhanced_image_path) }}" download class="btn btn-xs btn-outline-success rounded-pill mt-2">
-                                                        <i class="bi bi-download me-1"></i> Download Enhanced
-                                                    </a>
-                                                </div>
-                                            @elseif($latestSubmission->status == 'rejected')
-                                                <div class="alert alert-danger p-3 rounded-3 mb-0 small border-0 shadow-sm text-center">
-                                                    <i class="bi bi-exclamation-triangle-fill fs-4 text-danger mb-2 d-block"></i>
-                                                    <div class="fw-bold text-dark mb-1">Enhancement Rejected</div>
-                                                    <p class="text-muted mb-3 fs-7">Feedback: "{{ $latestSubmission->admin_feedback }}"</p>
-                                                    <a href="{{ route('ai-enhancer.upload-history.show', $latestSubmission->sno) }}" class="btn btn-sm btn-danger rounded-pill px-3 shadow-sm w-100">
-                                                        <i class="bi bi-arrow-right-circle me-1"></i> Go to History to Re-upload
-                                                    </a>
-                                                </div>
-                                            @elseif($latestSubmission->status == 'approved_need_version')
-                                                <div class="alert alert-info p-3 rounded-3 mb-0 small border-0 shadow-sm text-center">
-                                                    <i class="bi bi-info-circle-fill fs-4 text-info mb-2 d-block"></i>
-                                                    <div class="fw-bold text-dark mb-1">Approved (New Version Requested)</div>
-                                                    <p class="text-muted mb-3 fs-7">Admin has approved the image but requested a new version.</p>
-                                                    <a href="{{ route('ai-enhancer.upload-history.show', $latestSubmission->sno) }}" class="btn btn-sm btn-info rounded-pill px-3 text-white shadow-sm w-100">
-                                                        <i class="bi bi-arrow-right-circle me-1"></i> Go to History to Upload New
-                                                    </a>
-                                                </div>
-                                            @endif
-                                        @endif
-                                    </div>
+                            {{-- Image Display --}}
+                            <div class="p-3 text-center">
+                                <div class="d-flex align-items-center justify-content-center bg-light rounded-3 p-2 mb-2" style="height: 180px;">
+                                    <a href="{{ asset($sub->enhanced_image_path) }}" target="_blank" title="Click to view large">
+                                        <img src="{{ asset($sub->enhanced_image_path) }}" class="img-fluid rounded" style="max-height: 165px; object-fit: contain;" alt="Enhanced">
+                                    </a>
+                                </div>
+                                <div class="d-flex gap-2 justify-content-center">
+                                    <a href="{{ asset($sub->enhanced_image_path) }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold">
+                                        <i class="bi bi-zoom-in me-1"></i> View Full
+                                    </a>
+                                    <a href="{{ asset($sub->enhanced_image_path) }}" download class="btn btn-sm btn-outline-dark rounded-pill px-3 fw-semibold">
+                                        <i class="bi bi-download me-1"></i> Download
+                                    </a>
                                 </div>
                             </div>
+
+                            {{-- Note / Reason from Admin --}}
+                            @if($sub->admin_feedback || in_array($sub->status, ['rejected', 'approved_need_version']))
+                                <div class="card-footer p-3 small {{ $sub->status == 'rejected' ? 'bg-danger-subtle text-danger-emphasis' : 'bg-warning-subtle text-warning-emphasis' }}">
+                                    <div class="fw-bold mb-1">
+                                        <i class="bi bi-chat-left-text-fill me-1"></i> Note from Admin:
+                                    </div>
+                                    <div class="fw-semibold">
+                                        {{ $sub->admin_feedback ?: ($sub->status == 'approved_need_version' ? 'Please fix issues and send a new photo.' : 'This photo was rejected.') }}
+                                    </div>
+                                </div>
+                            @endif
+
                         </div>
                     </div>
                 @endforeach
             </div>
         @else
             <div class="text-center py-5 text-muted">
-                <i class="bi bi-image fs-1 opacity-25 d-block mb-2"></i>
-                <p class="mb-0">No images available for this product.</p>
+                <i class="bi bi-cloud-upload fs-1 opacity-25 d-block mb-2"></i>
+                <h5>No photos sent yet</h5>
+                <p class="text-muted small">Choose your edited photos in Step 2 above and click Send.</p>
             </div>
         @endif
-
     </div>
 </div>
+
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const previewArea = document.getElementById('previewArea');
+    const previewGrid = document.getElementById('previewGrid');
+    const selectedCountText = document.getElementById('selectedCountText');
+    const submitBtn = document.getElementById('submitBtn');
+    const dropZone = document.getElementById('dropZone');
+
+    let dt = new DataTransfer();
+
+    fileInput.addEventListener('change', function() {
+        for (let i = 0; i < this.files.length; i++) {
+            dt.items.add(this.files[i]);
+        }
+        fileInput.files = dt.files;
+        renderPreviews();
+    });
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.backgroundColor = '#e8f0fe';
+    });
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.style.backgroundColor = '#f8faff';
+    });
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.backgroundColor = '#f8faff';
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            for (let i = 0; i < e.dataTransfer.files.length; i++) {
+                if (e.dataTransfer.files[i].type.startsWith('image/')) {
+                    dt.items.add(e.dataTransfer.files[i]);
+                }
+            }
+            fileInput.files = dt.files;
+            renderPreviews();
+        }
+    });
+
+    function renderPreviews() {
+        previewGrid.innerHTML = '';
+        const files = dt.files;
+
+        if (files.length === 0) {
+            previewArea.classList.add('d-none');
+            submitBtn.disabled = true;
+            return;
+        }
+
+        previewArea.classList.remove('d-none');
+        submitBtn.disabled = false;
+        selectedCountText.innerText = `${files.length} photo(s) selected to send`;
+
+        Array.from(files).forEach((file, index) => {
+            const col = document.createElement('div');
+            col.className = 'col-4 col-md-3 col-lg-2';
+
+            const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+
+            const card = document.createElement('div');
+            card.className = 'card p-2 border rounded-3 position-relative bg-white text-center shadow-xs';
+            card.innerHTML = `
+                <div style="height: 80px;" class="d-flex align-items-center justify-content-center overflow-hidden mb-1">
+                    <img id="prev-img-${index}" class="img-fluid rounded" style="max-height: 80px; object-fit: cover;">
+                </div>
+                <div class="text-truncate small fw-bold text-dark" title="${file.name}" style="font-size:0.75rem;">${file.name}</div>
+                <div class="text-muted" style="font-size:0.68rem;">${sizeMb} MB</div>
+                <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 rounded-circle p-0 d-flex align-items-center justify-content-center" style="width: 22px; height: 22px;" onclick="removeFile(${index})" title="Remove photo">
+                    &times;
+                </button>
+            `;
+            col.appendChild(card);
+            previewGrid.appendChild(col);
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imgElem = document.getElementById(`prev-img-${index}`);
+                if (imgElem) imgElem.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    window.removeFile = function(index) {
+        const newDt = new DataTransfer();
+        const files = dt.files;
+        for (let i = 0; i < files.length; i++) {
+            if (i !== index) {
+                newDt.items.add(files[i]);
+            }
+        }
+        dt = newDt;
+        fileInput.files = dt.files;
+        renderPreviews();
+    };
+
+    window.clearSelectedFiles = function() {
+        dt = new DataTransfer();
+        fileInput.files = dt.files;
+        renderPreviews();
+    };
+
+    window.downloadAllOriginals = function() {
+        const links = document.querySelectorAll('.download-orig-link');
+        links.forEach((a, idx) => {
+            setTimeout(() => {
+                const trigger = document.createElement('a');
+                trigger.href = a.getAttribute('href');
+                trigger.download = a.getAttribute('download') || 'photo_' + idx;
+                document.body.appendChild(trigger);
+                trigger.click();
+                document.body.removeChild(trigger);
+            }, idx * 350);
+        });
+    };
+
+    document.getElementById('batchUploadForm').addEventListener('submit', function() {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Sending photos... please wait`;
+    });
+</script>
 
 @endsection
