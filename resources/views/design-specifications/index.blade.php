@@ -9327,6 +9327,12 @@ body {
 
                 }
 
+                setSupplierSkuFieldState(false);
+
+                console.log(
+                    'SUPPLIER FIELD LOCK REMOVED AFTER FINAL SAVE'
+                );
+
 
                 /*
                 |--------------------------------------------------------------------------
@@ -21660,6 +21666,20 @@ console.log(
                 false
         });
 
+        setSupplierSkuFieldState(
+            supplierSku !== ''
+        );
+
+        console.log(
+            'FINAL SUPPLIER SKU:',
+            supplierSku
+        );
+
+        console.log(
+            'FINAL FIELD LOCK:',
+            supplierSku !== ''
+        );
+
 
     } catch (error) {
 
@@ -21915,6 +21935,185 @@ function clearSupplierProductInfo()
     }
 
     selectedSupplierProduct = null;
+}
+function setSupplierSkuFieldState(hasSupplierSku) {
+
+    console.log(
+        'SETTING SUPPLIER SKU FIELD STATE:',
+        hasSupplierSku
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | SELECT2 / SELECT FIELDS
+    |--------------------------------------------------------------------------
+    */
+
+    const selectFields = [
+        '#item_name',
+        '#item_type',
+        '#designer_name',
+        '#gender_type',
+        '#composition',
+        '#colour',
+        '#sizes'
+        
+    ];
+
+    selectFields.forEach(function (selector) {
+
+        const element =
+            document.querySelector(selector);
+
+        if (!element) {
+            console.warn(
+                'Field not found:',
+                selector
+            );
+            return;
+        }
+
+        /*
+        | Native select disabled
+        */
+
+        element.disabled =
+            hasSupplierSku;
+
+        /*
+        | Select2 disabled
+        */
+
+        if (
+            typeof window.jQuery !== 'undefined' &&
+            window.jQuery.fn &&
+            window.jQuery.fn.select2 &&
+            window.jQuery(element).hasClass(
+                'select2-hidden-accessible'
+            )
+        ) {
+
+            window.jQuery(element)
+                .prop(
+                    'disabled',
+                    hasSupplierSku
+                )
+                .trigger('change.select2');
+        }
+
+    });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | INPUT / TEXTAREA FIELDS
+    |--------------------------------------------------------------------------
+    */
+
+    const inputFields = [
+        '#sku',
+        
+        '#stock_qty',
+        '#txt_clientreference',
+        '#craftsman_code'
+    ];
+
+    inputFields.forEach(function (selector) {
+
+        const element =
+            document.querySelector(selector);
+
+        if (!element) {
+            console.warn(
+                'Input field not found:',
+                selector
+            );
+            return;
+        }
+
+        /*
+        | Readonly for text / number inputs
+        */
+
+        element.readOnly =
+            hasSupplierSku;
+
+    });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | AI FIELDS
+    |--------------------------------------------------------------------------
+    */
+
+    const aiFields = [
+        '#txt_productName',
+        '#txt_productDescription',
+        '#txt_metaTitle',
+        '#txt_metaKeywords',
+        '#txt_metaDescription',
+        '#txt_productTags',
+        '#txt_image_alt_text'
+    ];
+
+    aiFields.forEach(function (selector) {
+
+        const element =
+            document.querySelector(selector);
+
+        if (!element) {
+            return;
+        }
+
+        element.readOnly =
+            hasSupplierSku;
+
+    });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | VISUAL LOCK
+    |--------------------------------------------------------------------------
+    */
+
+    const allFields = [
+        ...selectFields,
+        ...inputFields,
+        ...aiFields
+    ];
+
+    allFields.forEach(function (selector) {
+
+        const element =
+            document.querySelector(selector);
+
+        if (!element) {
+            return;
+        }
+
+        if (hasSupplierSku) {
+
+            element.classList.add(
+                'supplier-field-locked'
+            );
+
+        } else {
+
+            element.classList.remove(
+                'supplier-field-locked'
+            );
+
+        }
+
+    });
+
+
+    console.log(
+        'SUPPLIER SKU FIELD STATE APPLIED:',
+        hasSupplierSku
+    );
 }
 </script>
 @endsection
