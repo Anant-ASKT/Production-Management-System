@@ -123,8 +123,28 @@
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-muted ps-0">Store:</td>
-                            <td class="text-dark fw-medium">{{ $orderData['selling_supplier_name'] }}</td>
+                            <td class="text-muted ps-0 text-nowrap" style="width: 130px;">Order From Supplier:</td>
+                            <td>
+                                <span class="badge bg-light text-dark border px-2 py-1 fw-semibold">
+                                    <i class="bi bi-shop me-1 text-primary"></i>{{ $orderData['order_from_supplier_name'] ?? ($orderData['selling_supplier_name'] ?? 'Store') }}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted ps-0 text-nowrap">Product Supplier:</td>
+                            <td>
+                                @if(!empty($orderData['product_suppliers']) && count($orderData['product_suppliers']) > 0)
+                                    @foreach($orderData['product_suppliers'] as $pSup)
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fw-semibold me-1">
+                                            <i class="bi bi-building me-1"></i>{{ $pSup['name'] }}
+                                        </span>
+                                    @endforeach
+                                @else
+                                    <span class="badge bg-secondary-subtle text-secondary border px-2 py-1 fw-semibold">
+                                        {{ $orderData['product_supplier_names'] ?? 'In-house' }}
+                                    </span>
+                                @endif
+                            </td>
                         </tr>
                         <tr>
                             <td class="text-muted ps-0">Order Date:</td>
@@ -254,7 +274,7 @@
                             <th class="ps-3" style="width: 40px;">#</th>
                             <th>Product Name</th>
                             <th>SKU</th>
-                            <th>Manufacturer / Origin</th>
+                            <th class="text-nowrap"><i class="bi bi-building me-1 text-primary"></i>Product Supplier</th>
                             <th class="text-center" style="width: 100px;">Price</th>
                             <th class="text-center" style="width: 80px;">Qty</th>
                             <th class="text-end pe-3" style="width: 120px;">Total</th>
@@ -279,7 +299,9 @@
                                     <span class="font-monospace text-dark">{{ $item['resolved_sku'] ?: ($item['sku'] ?: '—') }}</span>
                                 </td>
                                 <td>
-                                    <span class="text-dark">{{ $item['origin_supplier_name'] ?: 'In-house' }}</span>
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-medium px-2 py-1">
+                                        <i class="bi bi-building me-1"></i>{{ $item['origin_supplier_name'] ?: 'In-house' }}
+                                    </span>
                                     @if(!empty($item['spec_id']))
                                         <a href="{{ route('admin.publish-products.show', $item['spec_id']) }}" target="_blank" class="ms-1 text-primary text-decoration-none" title="View Specification">
                                             <i class="bi bi-box-arrow-up-right" style="font-size: 0.75rem;"></i>

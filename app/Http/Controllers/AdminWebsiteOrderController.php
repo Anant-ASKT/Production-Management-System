@@ -85,9 +85,89 @@ class AdminWebsiteOrderController extends Controller
             }
         }
 
-        // Filter by Supplier (Selling store or Origin manufacturer)
+        // Filter by Order From Supplier (Selling store)
+        $orderFromSupplierId = $request->input('order_from_supplier_id');
+        // Filter by Product Supplier (Manufacturer / Origin)
+        $productSupplierId = $request->input('product_supplier_id');
+        // Legacy or general supplier filter (matches either)
         $supplierId = $request->input('supplier_id');
-        if (!empty($supplierId) && $supplierId !== 'all') {
+
+        if (!empty($orderFromSupplierId) && $orderFromSupplierId !== 'all') {
+            $targetSup = DB::table('suppliers')->where('sno', $orderFromSupplierId)->first();
+            if ($targetSup) {
+                $targetWcPids = DB::table('published_products')
+                    ->where('target_supplier_id', $orderFromSupplierId)
+                    ->pluck('woocommerce_product_id')
+                    ->filter()
+                    ->toArray();
+
+                $cleanSupUrl = !empty($targetSup->store_url) ? preg_replace('#^https?://#i', '', rtrim(trim($targetSup->store_url), '/')) : '';
+
+                $query->where(function ($q) use ($targetWcPids, $cleanSupUrl) {
+                    $hasCond = false;
+                    if (!empty($targetWcPids)) {
+                        foreach ($targetWcPids as $pid) {
+                            if ($hasCond) {
+                                $q->orWhere('payload', 'like', "%\"product_id\":{$pid}%");
+                            } else {
+                                $q->where('payload', 'like', "%\"product_id\":{$pid}%");
+                                $hasCond = true;
+                            }
+                        }
+                    }
+                    if (!empty($cleanSupUrl)) {
+                        if ($hasCond) {
+                            $q->orWhere('headers', 'like', "%{$cleanSupUrl}%");
+                        } else {
+                            $q->where('headers', 'like', "%{$cleanSupUrl}%");
+                            $hasCond = true;
+                        }
+                    }
+                    if (!$hasCond) {
+                        $q->whereRaw('1 = 0');
+                    }
+                });
+            }
+        }
+
+        if (!empty($productSupplierId) && $productSupplierId !== 'all') {
+            $prodSkus = DB::table('auto_designer_specification_master')
+                ->where('supplier_id', $productSupplierId)
+                ->pluck('sku')
+                ->filter()
+                ->toArray();
+
+            $originWcPids = DB::table('published_products')
+                ->where('origin_supplier_id', $productSupplierId)
+                ->pluck('woocommerce_product_id')
+                ->filter()
+                ->toArray();
+
+            $query->where(function ($q) use ($prodSkus, $originWcPids) {
+                $hasCond = false;
+                foreach ($prodSkus as $sku) {
+                    if ($hasCond) {
+                        $q->orWhere('payload', 'like', "%{$sku}%");
+                    } else {
+                        $q->where('payload', 'like', "%{$sku}%");
+                        $hasCond = true;
+                    }
+                }
+                foreach ($originWcPids as $pid) {
+                    if ($hasCond) {
+                        $q->orWhere('payload', 'like', "%\"product_id\":{$pid}%");
+                    } else {
+                        $q->where('payload', 'like', "%\"product_id\":{$pid}%");
+                        $hasCond = true;
+                    }
+                }
+                if (!$hasCond) {
+                    $q->whereRaw('1 = 0');
+                }
+            });
+        }
+
+        if (!empty($supplierId) && $supplierId !== 'all' && empty($orderFromSupplierId) && empty($productSupplierId)) {
             $selectedSupplier = DB::table('suppliers')->where('sno', $supplierId)->first();
             if ($selectedSupplier) {
                 $cleanSupUrl = !empty($selectedSupplier->store_url) ? preg_replace('#^https?://#i', '', rtrim(trim($selectedSupplier->store_url), '/')) : '';
@@ -98,20 +178,33 @@ class AdminWebsiteOrderController extends Controller
                     ->filter()
                     ->toArray();
 
-                $query->where(function ($q) use ($cleanSupUrl, $supplierSkus) {
+                $associatedWcPids = DB::table('published_products')
+                    ->where('target_supplier_id', $supplierId)
+                    ->orWhere('origin_supplier_id', $supplierId)
+                    ->pluck('woocommerce_product_id')
+                    ->filter()
+                    ->toArray();
+
+                $query->where(function ($q) use ($cleanSupUrl, $supplierSkus, $associatedWcPids) {
                     $hasCond = false;
                     if (!empty($cleanSupUrl)) {
                         $q->where('headers', 'like', "%{$cleanSupUrl}%");
                         $hasCond = true;
                     }
-                    if (!empty($supplierSkus)) {
-                        foreach ($supplierSkus as $sku) {
-                            if ($hasCond) {
-                                $q->orWhere('payload', 'like', "%{$sku}%");
-                            } else {
-                                $q->where('payload', 'like', "%{$sku}%");
-                                $hasCond = true;
-                            }
+                    foreach ($supplierSkus as $sku) {
+                        if ($hasCond) {
+                            $q->orWhere('payload', 'like', "%{$sku}%");
+                        } else {
+                            $q->where('payload', 'like', "%{$sku}%");
+                            $hasCond = true;
+                        }
+                    }
+                    foreach ($associatedWcPids as $pid) {
+                        if ($hasCond) {
+                            $q->orWhere('payload', 'like', "%\"product_id\":{$pid}%");
+                        } else {
+                            $q->where('payload', 'like', "%\"product_id\":{$pid}%");
+                            $hasCond = true;
                         }
                     }
                     if (!$hasCond) {
@@ -200,17 +293,30 @@ class AdminWebsiteOrderController extends Controller
             $total = isset($payload['total']) ? (float) $payload['total'] : 0.00;
             $paymentMethod = $payload['payment_method_title'] ?? ($payload['payment_method'] ?? 'N/A');
 
-            // Detect selling supplier / store
-            $storeInfo = $this->resolveSellingSupplier($headers, $allSuppliers);
+            // Detect selling supplier / store (accurately prioritized by line item publications)
+            $storeInfo = $this->resolveSellingSupplier($headers, $allSuppliers, $lineItems, $specLookup);
 
             // Format & enrich line items
             $itemsSummary = [];
+            $productSuppliers = [];
+            $productSupplierNames = [];
+
             foreach ($lineItems as $item) {
                 $sku = trim($item['sku'] ?? '');
                 $wcPid = (int) ($item['product_id'] ?? 0);
                 $specData = $specLookup['by_sku'][$sku] ?? ($specLookup['by_wc_id'][$wcPid] ?? null);
 
                 $imgSrc = $specData['enhanced_image'] ?? ($item['image']['src'] ?? null);
+                $origSupName = $specData['origin_supplier_name'] ?? '—';
+
+                if (!empty($origSupName) && $origSupName !== '—' && !in_array($origSupName, $productSupplierNames)) {
+                    $productSupplierNames[] = $origSupName;
+                    $productSuppliers[] = [
+                        'id' => $specData['origin_supplier_id'] ?? null,
+                        'name' => $origSupName,
+                        'url' => $specData['origin_supplier_url'] ?? null,
+                    ];
+                }
 
                 $itemsSummary[] = [
                     'id' => $item['id'] ?? null,
@@ -225,8 +331,10 @@ class AdminWebsiteOrderController extends Controller
                     'spec_id' => $specData['spec_id'] ?? null,
                     'spec_url' => !empty($specData['spec_id']) ? route('admin.publish-products.show', $specData['spec_id']) : null,
                     'origin_supplier_id' => $specData['origin_supplier_id'] ?? null,
-                    'origin_supplier_name' => $specData['origin_supplier_name'] ?? '—',
+                    'origin_supplier_name' => $origSupName,
                     'origin_supplier_url' => $specData['origin_supplier_url'] ?? null,
+                    'target_supplier_id' => $specData['target_supplier_id'] ?? null,
+                    'target_supplier_name' => $specData['target_supplier_name'] ?? null,
                     'product_type' => $specData['product_type'] ?? null,
                     'colour' => $specData['colour'] ?? null,
                     'size' => $specData['size'] ?? null,
@@ -256,9 +364,16 @@ class AdminWebsiteOrderController extends Controller
                 'payment_method' => $paymentMethod,
                 'items_count' => count($lineItems),
                 'items_summary' => $itemsSummary,
+                // Order from supplier (selling store)
+                'order_from_supplier_id' => $storeInfo['supplier_id'],
+                'order_from_supplier_name' => $storeInfo['name'],
+                'order_from_supplier_url' => $storeInfo['store_url'],
                 'selling_supplier_name' => $storeInfo['name'],
                 'selling_supplier_url' => $storeInfo['store_url'],
                 'source_store' => $storeInfo['domain'],
+                // Product suppliers
+                'product_suppliers' => $productSuppliers,
+                'product_supplier_names' => !empty($productSupplierNames) ? implode(', ', $productSupplierNames) : 'In-house',
             ];
         });
 
@@ -379,7 +494,6 @@ class AdminWebsiteOrderController extends Controller
         $headers = is_array($record->headers) ? $record->headers : (json_decode($record->headers, true) ?? []);
 
         $allSuppliers = DB::table('suppliers')->get();
-        $storeInfo = $this->resolveSellingSupplier($headers, $allSuppliers);
 
         $lineItems = $payload['line_items'] ?? [];
         $skus = [];
@@ -391,15 +505,29 @@ class AdminWebsiteOrderController extends Controller
         }
 
         $specLookup = $this->buildSpecificationLookup(array_unique($skus), array_unique($wcProductIds));
+        $storeInfo = $this->resolveSellingSupplier($headers, $allSuppliers, $lineItems, $specLookup);
 
         // Enrich line items with full specification & origin supplier details
         $enrichedLineItems = [];
+        $productSuppliers = [];
+        $productSupplierNames = [];
+
         foreach ($lineItems as $item) {
             $sku = trim($item['sku'] ?? '');
             $wcPid = (int) ($item['product_id'] ?? 0);
             $specData = $specLookup['by_sku'][$sku] ?? ($specLookup['by_wc_id'][$wcPid] ?? null);
 
             $imgSrc = $specData['enhanced_image'] ?? ($item['image']['src'] ?? null);
+            $origSupName = $specData['origin_supplier_name'] ?? '—';
+
+            if (!empty($origSupName) && $origSupName !== '—' && !in_array($origSupName, $productSupplierNames)) {
+                $productSupplierNames[] = $origSupName;
+                $productSuppliers[] = [
+                    'id' => $specData['origin_supplier_id'] ?? null,
+                    'name' => $origSupName,
+                    'url' => $specData['origin_supplier_url'] ?? null,
+                ];
+            }
 
             $enrichedLineItems[] = array_merge($item, [
                 'resolved_sku' => !empty($sku) ? $sku : ($specData['sku'] ?? '—'),
@@ -409,8 +537,10 @@ class AdminWebsiteOrderController extends Controller
                 'spec_url' => !empty($specData['spec_id']) ? route('admin.publish-products.show', $specData['spec_id']) : null,
                 'barcode' => $specData['barcode'] ?? null,
                 'origin_supplier_id' => $specData['origin_supplier_id'] ?? null,
-                'origin_supplier_name' => $specData['origin_supplier_name'] ?? '—',
+                'origin_supplier_name' => $origSupName,
                 'origin_supplier_url' => $specData['origin_supplier_url'] ?? null,
+                'target_supplier_id' => $specData['target_supplier_id'] ?? null,
+                'target_supplier_name' => $specData['target_supplier_name'] ?? null,
                 'product_type' => $specData['product_type'] ?? null,
                 'colour' => $specData['colour'] ?? null,
                 'size' => $specData['size'] ?? null,
@@ -461,9 +591,15 @@ class AdminWebsiteOrderController extends Controller
             'tax_lines' => $payload['tax_lines'] ?? [],
             'fee_lines' => $payload['fee_lines'] ?? [],
             'coupon_lines' => $payload['coupon_lines'] ?? [],
+            // Supplier Information
+            'order_from_supplier_id' => $storeInfo['supplier_id'],
+            'order_from_supplier_name' => $storeInfo['name'],
+            'order_from_supplier_url' => $storeInfo['store_url'],
             'selling_supplier_name' => $storeInfo['name'],
             'selling_supplier_url' => $storeInfo['store_url'],
             'source_store' => $storeInfo['domain'],
+            'product_suppliers' => $productSuppliers,
+            'product_supplier_names' => !empty($productSupplierNames) ? implode(', ', $productSupplierNames) : 'In-house',
             'headers' => $headers,
             'raw_payload' => $payload,
         ];
@@ -473,14 +609,14 @@ class AdminWebsiteOrderController extends Controller
         if (!empty($storeInfo['supplier_id'])) {
             $sup = $allSuppliers->firstWhere('sno', $storeInfo['supplier_id']);
             if ($sup && !empty($sup->email)) {
-                $candidateSuppliers[$sup->email] = $sup->name . ' (Selling Store - ' . $sup->email . ')';
+                $candidateSuppliers[$sup->email] = $sup->name . ' (Order From Supplier - ' . $sup->email . ')';
             }
         }
         foreach ($enrichedLineItems as $it) {
             if (!empty($it['origin_supplier_id'])) {
                 $sup = $allSuppliers->firstWhere('sno', $it['origin_supplier_id']);
                 if ($sup && !empty($sup->email) && !isset($candidateSuppliers[$sup->email])) {
-                    $candidateSuppliers[$sup->email] = $sup->name . ' (Manufacturer - ' . $sup->email . ')';
+                    $candidateSuppliers[$sup->email] = $sup->name . ' (Product Supplier - ' . $sup->email . ')';
                 }
             }
         }
@@ -498,10 +634,33 @@ class AdminWebsiteOrderController extends Controller
     }
 
     /**
-     * Resolve the selling supplier store from webhook headers.
+     * Resolve the selling supplier store from matched line item publications or webhook headers.
      */
-    private function resolveSellingSupplier($headers, $allSuppliers)
+    private function resolveSellingSupplier($headers, $allSuppliers, array $lineItems = [], ?array $specLookup = null)
     {
+        // 1. Highest Priority: Match target_supplier from published_products linked to line items
+        if (!empty($lineItems) && !empty($specLookup)) {
+            foreach ($lineItems as $item) {
+                $sku = trim($item['sku'] ?? '');
+                $wcPid = (int) ($item['product_id'] ?? 0);
+                $specData = $specLookup['by_wc_id'][$wcPid] ?? ($specLookup['by_sku'][$sku] ?? null);
+
+                if (!empty($specData['target_supplier_id'])) {
+                    $targetSup = $allSuppliers->firstWhere('sno', $specData['target_supplier_id']);
+                    if ($targetSup) {
+                        $cleanSupUrl = !empty($targetSup->store_url) ? preg_replace('#^https?://#i', '', rtrim(trim($targetSup->store_url), '/')) : '';
+                        return [
+                            'supplier_id' => $targetSup->sno,
+                            'name' => $targetSup->name,
+                            'store_url' => $targetSup->store_url,
+                            'domain' => !empty($cleanSupUrl) ? $cleanSupUrl : ($targetSup->name . ' Store')
+                        ];
+                    }
+                }
+            }
+        }
+
+        // 2. Fallback: Match store URL from webhook headers
         $sourceUrl = $headers['x-wc-webhook-source'][0] ?? ($headers['host'][0] ?? '');
         $cleanSource = preg_replace('#^https?://#i', '', rtrim(trim($sourceUrl), '/'));
 
@@ -584,8 +743,22 @@ class AdminWebsiteOrderController extends Controller
                 ->where('image_type', 'main')
                 ->pluck('enhanced_image_path', 'specification_id');
 
+            // Also check published_products mapping by specification_id
+            $pubBySpec = DB::table('published_products as pp')
+                ->leftJoin('suppliers as target_supplier', 'target_supplier.sno', '=', 'pp.target_supplier_id')
+                ->whereIn('pp.specification_id', $specIds)
+                ->select([
+                    'pp.specification_id',
+                    'pp.target_supplier_id',
+                    'target_supplier.name as target_supplier_name',
+                    'target_supplier.store_url as target_supplier_url',
+                ])
+                ->get()
+                ->keyBy('specification_id');
+
             foreach ($specRows as $r) {
                 $imgPath = $enhancedImages[$r->spec_id] ?? null;
+                $pubInfo = $pubBySpec[$r->spec_id] ?? null;
                 $data = [
                     'spec_id' => $r->spec_id,
                     'sku' => $r->sku,
@@ -594,6 +767,9 @@ class AdminWebsiteOrderController extends Controller
                     'origin_supplier_id' => $r->origin_supplier_id,
                     'origin_supplier_name' => $r->origin_supplier_name ?: 'Global / In-house',
                     'origin_supplier_url' => $r->origin_supplier_url,
+                    'target_supplier_id' => $pubInfo->target_supplier_id ?? null,
+                    'target_supplier_name' => $pubInfo->target_supplier_name ?? null,
+                    'target_supplier_url' => $pubInfo->target_supplier_url ?? null,
                     'master_product_name' => $r->master_product_name,
                     'ai_product_name' => $r->AI_product_name,
                     'product_type' => $r->product_type,
@@ -678,6 +854,9 @@ class AdminWebsiteOrderController extends Controller
                     'origin_supplier_id' => $r->origin_supplier_id,
                     'origin_supplier_name' => $r->origin_supplier_name ?: 'Global / In-house',
                     'origin_supplier_url' => $r->origin_supplier_url,
+                    'target_supplier_id' => $r->target_supplier_id ?? null,
+                    'target_supplier_name' => $r->target_supplier_name ?? null,
+                    'target_supplier_url' => $r->target_supplier_url ?? null,
                     'master_product_name' => $r->master_product_name,
                     'ai_product_name' => $r->AI_product_name,
                     'product_type' => $r->product_type,
