@@ -99,7 +99,7 @@
         <div class="card-body p-3">
             <div class="row g-2 align-items-center">
                 {{-- Search --}}
-                <div class="col-12 col-lg-4">
+                <div class="col-12 col-xl-3">
                     <div class="input-group input-group-sm">
                         <span class="input-group-text bg-light border-end-0 text-muted ps-3">
                             <i class="bi bi-search"></i>
@@ -114,10 +114,20 @@
                     </div>
                 </div>
 
-                {{-- Supplier Filter --}}
-                <div class="col-6 col-sm-4 col-lg-2">
-                    <select id="supplierFilter" class="form-select form-select-sm rounded-2">
-                        <option value="all">All Suppliers</option>
+                {{-- Order From Supplier (Store) Filter --}}
+                <div class="col-6 col-sm-4 col-xl-2">
+                    <select id="orderFromSupplierFilter" class="form-select form-select-sm rounded-2" title="Filter by Order From Supplier (Selling Store)">
+                        <option value="all">All Stores (Order From)</option>
+                        @foreach($suppliers ?? [] as $supplier)
+                            <option value="{{ $supplier->sno }}">{{ $supplier->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                {{-- Product Supplier Filter --}}
+                <div class="col-6 col-sm-4 col-xl-2">
+                    <select id="productSupplierFilter" class="form-select form-select-sm rounded-2" title="Filter by Product Supplier (Manufacturer)">
+                        <option value="all">All Product Suppliers</option>
                         @foreach($suppliers ?? [] as $supplier)
                             <option value="{{ $supplier->sno }}">{{ $supplier->name }}</option>
                         @endforeach
@@ -125,7 +135,7 @@
                 </div>
 
                 {{-- Status Filter --}}
-                <div class="col-6 col-sm-4 col-lg-2">
+                <div class="col-6 col-sm-4 col-xl-2">
                     <select id="statusFilter" class="form-select form-select-sm rounded-2">
                         <option value="all">All Statuses</option>
                         <option value="Order confirmed">Order confirmed</option>
@@ -135,7 +145,7 @@
                 </div>
 
                 {{-- Date Filter --}}
-                <div class="col-6 col-sm-4 col-lg-2">
+                <div class="col-6 col-sm-4 col-xl-2">
                     <div class="input-group input-group-sm">
                         <span class="input-group-text bg-light text-muted"><i class="bi bi-calendar3"></i></span>
                         <input type="date" id="dateFilter" class="form-control form-control-sm" title="Filter by date">
@@ -144,9 +154,8 @@
                 </div>
 
                 {{-- Per page --}}
-                <div class="col-6 col-lg-2 d-flex justify-content-end align-items-center gap-2">
-                    <label for="perPageSelect" class="small text-muted text-nowrap fw-semibold">Show:</label>
-                    <select id="perPageSelect" class="form-select form-select-sm w-auto rounded-2">
+                <div class="col-6 col-xl-1 d-flex justify-content-end align-items-center gap-1">
+                    <select id="perPageSelect" class="form-select form-select-sm w-auto rounded-2" title="Show per page">
                         <option value="10">10</option>
                         <option value="20" selected>20</option>
                         <option value="50">50</option>
@@ -165,20 +174,21 @@
                     <thead class="table-light text-secondary text-uppercase border-bottom" style="font-size: 0.72rem; letter-spacing: 0.05em;">
                         <tr>
                             <th class="text-center py-3 text-nowrap" style="width: 45px;">#</th>
-                            <th class="py-3 text-nowrap" style="min-width: 100px;">Order #</th>
-                            <th class="py-3 text-nowrap" style="min-width: 140px;">Order Date</th>
-                            <th class="py-3 text-nowrap" style="min-width: 160px;">Customer</th>
-                            <th class="py-3 text-nowrap" style="min-width: 130px;">Supplier / Store</th>
-                            <th class="py-3 text-nowrap" style="min-width: 180px;">Items</th>
-                            <th class="py-3 text-nowrap" style="min-width: 110px;">Payment</th>
-                            <th class="py-3 text-nowrap text-end" style="min-width: 100px;">Total</th>
-                            <th class="py-3 text-nowrap text-center" style="min-width: 130px;">Status</th>
-                            <th class="py-3 text-nowrap text-end pe-3" style="width: 90px;">Action</th>
+                            <th class="py-3 text-nowrap" style="min-width: 95px;">Order #</th>
+                            <th class="py-3 text-nowrap" style="min-width: 135px;">Order Date</th>
+                            <th class="py-3 text-nowrap" style="min-width: 150px;">Customer</th>
+                            <th class="py-3 text-nowrap" style="min-width: 140px;">Order From Supplier</th>
+                            <th class="py-3 text-nowrap" style="min-width: 140px;">Product Supplier</th>
+                            <th class="py-3 text-nowrap" style="min-width: 170px;">Items</th>
+                            <th class="py-3 text-nowrap" style="min-width: 100px;">Payment</th>
+                            <th class="py-3 text-nowrap text-end" style="min-width: 95px;">Total</th>
+                            <th class="py-3 text-nowrap text-center" style="min-width: 120px;">Status</th>
+                            <th class="py-3 text-nowrap text-end pe-3" style="width: 80px;">Action</th>
                         </tr>
                     </thead>
                     <tbody id="ordersTableBody">
                         <tr>
-                            <td colspan="10" class="text-center py-5 text-muted">
+                            <td colspan="11" class="text-center py-5 text-muted">
                                 <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
                                 Loading website orders...
                             </td>
@@ -236,7 +246,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const paginationNav = document.getElementById('paginationNav');
     const paginationSummary = document.getElementById('paginationSummary');
     const searchInput = document.getElementById('orderSearch');
-    const supplierFilter = document.getElementById('supplierFilter');
+    const orderFromSupplierFilter = document.getElementById('orderFromSupplierFilter');
+    const productSupplierFilter = document.getElementById('productSupplierFilter');
     const statusFilter = document.getElementById('statusFilter');
     const dateFilter = document.getElementById('dateFilter');
     const btnClearDate = document.getElementById('btnClearDate');
@@ -306,7 +317,7 @@ document.addEventListener('DOMContentLoaded', function () {
         currentPage = page;
         tableBody.innerHTML = `
             <tr>
-                <td colspan="10" class="text-center py-5 text-muted">
+                <td colspan="11" class="text-center py-5 text-muted">
                     <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
                     Loading website orders...
                 </td>
@@ -317,7 +328,8 @@ document.addEventListener('DOMContentLoaded', function () {
             page: page,
             per_page: perPageSelect.value,
             search: searchInput.value.trim(),
-            supplier_id: supplierFilter ? supplierFilter.value : 'all',
+            order_from_supplier_id: orderFromSupplierFilter ? orderFromSupplierFilter.value : 'all',
+            product_supplier_id: productSupplierFilter ? productSupplierFilter.value : 'all',
             status: statusFilter.value,
             date_from: dateFilter.value,
             date_to: dateFilter.value
@@ -327,7 +339,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(res => res.json())
             .then(response => {
                 if (!response.success) {
-                    tableBody.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-danger">${response.message || 'Error loading data.'}</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="11" class="text-center py-4 text-danger">${response.message || 'Error loading data.'}</td></tr>`;
                     return;
                 }
 
@@ -351,7 +363,7 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .catch(err => {
                 console.error('Error fetching orders:', err);
-                tableBody.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-danger">Failed to connect to server.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="11" class="text-center py-4 text-danger">Failed to connect to server.</td></tr>`;
             });
     }
 
@@ -359,7 +371,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!items || items.length === 0) {
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="10" class="text-center py-5 text-muted">
+                    <td colspan="11" class="text-center py-5 text-muted">
                         <div class="mb-2"><i class="bi bi-inbox fs-2 text-secondary"></i></div>
                         <h6 class="fw-semibold text-secondary">No Website Orders Found</h6>
                         <p class="small text-muted mb-0">No orders match your active search or filters.</p>
@@ -380,15 +392,23 @@ document.addEventListener('DOMContentLoaded', function () {
             const itemsHtml = `
                 <div class="d-flex align-items-center gap-1.5">
                     <span class="badge bg-light text-dark border fw-semibold text-nowrap">${count} ${count > 1 ? 'Items' : 'Item'}</span>
-                    <span class="small text-muted text-truncate d-inline-block align-middle" style="max-width: 170px;" title="${firstItemName}">${firstItemName}</span>
+                    <span class="small text-muted text-truncate d-inline-block align-middle" style="max-width: 160px;" title="${firstItemName}">${firstItemName}</span>
                 </div>
             `;
 
-            // Clean store badge
-            const storeName = order.selling_supplier_name || order.source_store || 'Direct Store';
-            const storeBadge = `
-                <span class="badge bg-light text-dark border fw-normal py-1 px-2 text-truncate d-inline-block" style="max-width: 150px;" title="${storeName}">
-                    <i class="bi bi-shop me-1 text-primary"></i>${storeName}
+            // Order From Supplier (Store) badge
+            const orderFromName = order.order_from_supplier_name || order.selling_supplier_name || order.source_store || 'Store';
+            const orderFromBadge = `
+                <span class="badge bg-light text-dark border fw-medium py-1 px-2 text-truncate d-inline-block" style="max-width: 140px;" title="${orderFromName}">
+                    <i class="bi bi-shop me-1 text-primary"></i>${orderFromName}
+                </span>
+            `;
+
+            // Product Supplier badge
+            const productSupName = order.product_supplier_names || 'In-house';
+            const productSupBadge = `
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-medium py-1 px-2 text-truncate d-inline-block" style="max-width: 140px;" title="${productSupName}">
+                    <i class="bi bi-building me-1"></i>${productSupName}
                 </span>
             `;
 
@@ -407,11 +427,14 @@ document.addEventListener('DOMContentLoaded', function () {
                         <div class="small fw-semibold text-dark">${order.order_date}</div>
                     </td>
                     <td>
-                        <div class="fw-semibold text-dark text-truncate" style="max-width: 180px;" title="${order.customer_name}">${order.customer_name}</div>
-                        <div class="small text-muted text-truncate" style="max-width: 180px;" title="${customerSub}">${customerSub}</div>
+                        <div class="fw-semibold text-dark text-truncate" style="max-width: 170px;" title="${order.customer_name}">${order.customer_name}</div>
+                        <div class="small text-muted text-truncate" style="max-width: 170px;" title="${customerSub}">${customerSub}</div>
                     </td>
                     <td>
-                        ${storeBadge}
+                        ${orderFromBadge}
+                    </td>
+                    <td>
+                        ${productSupBadge}
                     </td>
                     <td>
                         ${itemsHtml}
@@ -496,8 +519,11 @@ document.addEventListener('DOMContentLoaded', function () {
         searchTimer = setTimeout(() => loadOrders(1), 350);
     });
 
-    if (supplierFilter) {
-        supplierFilter.addEventListener('change', () => loadOrders(1));
+    if (orderFromSupplierFilter) {
+        orderFromSupplierFilter.addEventListener('change', () => loadOrders(1));
+    }
+    if (productSupplierFilter) {
+        productSupplierFilter.addEventListener('change', () => loadOrders(1));
     }
     statusFilter.addEventListener('change', () => loadOrders(1));
     dateFilter.addEventListener('change', () => loadOrders(1));
