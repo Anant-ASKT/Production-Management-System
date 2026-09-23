@@ -7946,6 +7946,25 @@ body {
                     hasNewImages ||
                     hasExistingImages;
 
+                /*
+                |--------------------------------------------------------------------------
+                | SUPPLIER PRODUCT WITH SKU
+                |--------------------------------------------------------------------------
+                | A supplier product with a SKU follows the backend stock-only path.
+                | Normal Design Specification fields and images are not required.
+                |--------------------------------------------------------------------------
+                */
+                const supplierProductSkuForSave =
+                    String(
+                        selectedSupplierProduct?.product_sku ||
+                        selectedSupplierProduct?.sku ||
+                        document.getElementById('sku')?.value ||
+                        ''
+                    ).trim();
+
+                const hasSupplierSkuForSave =
+                    supplierProductSkuForSave !== '';
+
 
                 /*
                 |--------------------------------------------------------------------------
@@ -7957,7 +7976,7 @@ body {
                 //     showSpecificationAlertAndFocus('Please select Item Name.', 'item_name');
                 //     return;
                 // }
-                if (!itemName) {
+                if (!hasSupplierSkuForSave && !itemName) {
                     showSpecificationAlertAndFocus(
                         'Please select Item Name.',
                         'item_name'
@@ -7967,7 +7986,7 @@ body {
 
                 const itemNameCode = getMasterCode('item_name');
 
-                if (!itemNameCode || !itemNameCode.trim()) {
+                if (!hasSupplierSkuForSave && (!itemNameCode || !itemNameCode.trim())) {
                     showSpecificationAlertAndFocus(
                         'Selected Item Name does not have a Code. Please update the Item Name master and add a Code.',
                         'item_name'
@@ -7975,37 +7994,37 @@ body {
                     return;
                 }
 
-                if (!itemType) {
+                if (!hasSupplierSkuForSave && !itemType) {
                     showSpecificationAlertAndFocus('Please select Item Type.', 'item_type');
                     return;
                 }
 
-                if (!designer) {
+                if (!hasSupplierSkuForSave && !designer) {
                     showSpecificationAlertAndFocus('Please select Designer.', 'designer_name');
                     return;
                 }
 
-                if (!gender) {
+                if (!hasSupplierSkuForSave && !gender) {
                     showSpecificationAlertAndFocus('Please select Gender.', 'gender_type');
                     return;
                 }
 
-                if (!composition) {
+                if (!hasSupplierSkuForSave && !composition) {
                     showSpecificationAlertAndFocus('Please select Composition.', 'composition');
                     return;
                 }
 
-                if (!colour) {
+                if (!hasSupplierSkuForSave && !colour) {
                     showSpecificationAlertAndFocus('Please select Colour.', 'colour');
                     return;
                 }
 
-                if (!sizes) {
+                if (!hasSupplierSkuForSave && !sizes) {
                     showSpecificationAlertAndFocus('Please select Size.', 'sizes');
                     return;
                 }
 
-                if (!manufacturingProcess) {
+                if (!hasSupplierSkuForSave && !manufacturingProcess) {
                     showSpecificationAlertAndFocus(
                         'Please select Manufacturing Process.',
                         'manufacturing_process'
@@ -8013,14 +8032,14 @@ body {
                     return;
                 }
 
-                if (!collectionField) {
+                if (!hasSupplierSkuForSave && !collectionField) {
                     showSpecificationAlert(
                         'Collection field is not found.'
                     );
                     return;
                 }
 
-                if (!collection) {
+                if (!hasSupplierSkuForSave && !collection) {
                     showSpecificationAlertAndFocus(
                         'Please select Collection.',
                         collectionField
@@ -8028,7 +8047,7 @@ body {
                     return;
                 }
 
-                if (!manufacture) {
+                if (!hasSupplierSkuForSave && !manufacture) {
                     showSpecificationAlertAndFocus(
                         'Please select Manufacture.',
                         'cmbmanufacture'
@@ -8036,7 +8055,7 @@ body {
                     return;
                 }
 
-                if (!hasDesignImages) {
+                if (!hasSupplierSkuForSave && !hasDesignImages) {
                     showSpecificationAlertAndFocus(
                         'Please select at least one design image.',
                         'filenew'
@@ -8487,6 +8506,25 @@ body {
                     hasNewImagesForValidation ||
                     hasExistingImagesForValidation;
 
+                /*
+                |--------------------------------------------------------------------------
+                | SUPPLIER PRODUCT WITH SKU
+                |--------------------------------------------------------------------------
+                | A supplier product with a SKU uses the backend stock-only path.
+                | Normal Design Specification fields and images are not required.
+                |--------------------------------------------------------------------------
+                */
+                const supplierProductSkuForSubmit =
+                    String(
+                        selectedSupplierProduct?.product_sku ||
+                        selectedSupplierProduct?.sku ||
+                        sku ||
+                        ''
+                    ).trim();
+
+                const hasSupplierSkuForSubmit =
+                    supplierProductSkuForSubmit !== '';
+
 
                 /*
                 |--------------------------------------------------------------------------
@@ -8494,7 +8532,7 @@ body {
                 |--------------------------------------------------------------------------
                 */
 
-                if (!itemName) {
+                if (!hasSupplierSkuForSubmit && !itemName) {
 
                     showSpecificationAlertAndFocus(
                         'Please select Item Name.',
@@ -8505,7 +8543,7 @@ body {
                 }
 
 
-                if (!itemType) {
+                if (!hasSupplierSkuForSubmit && !itemType) {
 
                     showSpecificationAlertAndFocus(
                         'Please select Item Type.',
@@ -8516,7 +8554,7 @@ body {
                 }
 
 
-                if (!designer) {
+                if (!hasSupplierSkuForSubmit && !designer) {
 
                     showSpecificationAlertAndFocus(
                         'Please select Designer.',
@@ -8527,7 +8565,7 @@ body {
                 }
 
 
-                if (!gender) {
+                if (!hasSupplierSkuForSubmit && !gender) {
 
                     showSpecificationAlertAndFocus(
                         'Please select Gender.',
@@ -8538,7 +8576,7 @@ body {
                 }
 
 
-                if (!composition) {
+                if (!hasSupplierSkuForSubmit && !composition) {
 
                     showSpecificationAlertAndFocus(
                         'Please select Composition.',
@@ -8549,7 +8587,7 @@ body {
                 }
 
 
-                if (!colour) {
+                if (!hasSupplierSkuForSubmit && !colour) {
 
                     showSpecificationAlertAndFocus(
                         'Please select Colour.',
@@ -8560,7 +8598,7 @@ body {
                 }
 
 
-                if (!sizes) {
+                if (!hasSupplierSkuForSubmit && !sizes) {
 
                     showSpecificationAlertAndFocus(
                         'Please select Size.',
@@ -8570,7 +8608,7 @@ body {
                     return;
                 }
 
-                if (!manufacturingProcess) {
+                if (!hasSupplierSkuForSubmit && !manufacturingProcess) {
 
                     showSpecificationAlertAndFocus(
                         'Please select Manufacturing Process.',
@@ -8580,7 +8618,7 @@ body {
                     return;
                 }
 
-                if (!collectionField) {
+                if (!hasSupplierSkuForSubmit && !collectionField) {
 
                     showSpecificationAlert(
                         'Collection field is not found.'
@@ -8589,7 +8627,7 @@ body {
                     return;
                 }
 
-                if (!collection) {
+                if (!hasSupplierSkuForSubmit && !collection) {
 
                     showSpecificationAlertAndFocus(
                         'Please select Collection.',
@@ -8599,7 +8637,7 @@ body {
                     return;
                 }
 
-                if (!manufacture) {
+                if (!hasSupplierSkuForSubmit && !manufacture) {
 
                     showSpecificationAlertAndFocus(
                         'Please select Manufacture.',
@@ -8609,7 +8647,7 @@ body {
                     return;
                 }
 
-                if (!hasDesignImagesForValidation) {
+                if (!hasSupplierSkuForSubmit && !hasDesignImagesForValidation) {
 
                     showSpecificationAlertAndFocus(
                         'Please select at least one design image.',
@@ -12714,6 +12752,9 @@ document.addEventListener(
                 let currentPerPage = 20;
                 let currentSearch = '';
                 let searchTimer = null;
+                window.persistentBarcodeSelections =
+                window.persistentBarcodeSelections ||
+                new Map();
 
                 const pagination =
                     document.getElementById(
@@ -13433,6 +13474,17 @@ document.addEventListener(
                         return;
                     }
 
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | IMPORTANT
+                    |--------------------------------------------------------------------------
+                    | Before removing the current cards, remember every checked product.
+                    */
+
+                    rememberVisibleBarcodeSelections(allSpecifications);
+
+
                     currentPage = page;
 
                     cardsContainer.innerHTML = '';
@@ -13529,6 +13581,77 @@ document.addEventListener(
                                 meta = responseData;
 
                             }
+
+                            /* ============================================================
+                     ADD PERSISTENTLY SELECTED PRODUCTS
+                ------------------------------------------------------------
+                If search is active, checked products must remain visible
+                even when they do not match the search text.
+                ============================================================ */
+
+                if (
+                    currentSearch &&
+                    window.persistentBarcodeSelections &&
+                    window.persistentBarcodeSelections.size > 0
+                ) {
+
+                    const existingIds =
+                        new Set(
+                            data.map(
+                                function (item) {
+
+                                    return String(
+                                        item.sno ||
+                                        item.id ||
+                                        ''
+                                    ).trim();
+
+                                }
+                            )
+                        );
+
+
+                    window.persistentBarcodeSelections
+                        .forEach(
+                            function (selectedData, specificationId) {
+
+                                if (
+                                    !existingIds.has(
+                                        String(
+                                            specificationId
+                                        ).trim()
+                                    )
+                                ) {
+
+                                    data.push(
+                                        selectedData.specification
+                                    );
+
+                                }
+
+                            }
+                        );
+
+                }
+
+
+                /*
+                | Store final visible specifications
+                */
+
+                allSpecifications = data;
+
+
+                loading.style.display = 'none';
+
+
+                renderSpecifications(
+                    allSpecifications,
+                    meta
+                );
+
+
+                renderPagination(meta);
 
                             allSpecifications = data;
 
@@ -22114,6 +22237,101 @@ function setSupplierSkuFieldState(hasSupplierSku) {
         'SUPPLIER SKU FIELD STATE APPLIED:',
         hasSupplierSku
     );
+}
+/* ============================================================
+   REMEMBER CURRENTLY CHECKED BARCODE PRODUCTS
+   ============================================================ */
+/* ============================================================
+   REMEMBER CURRENTLY CHECKED BARCODE PRODUCTS
+   ============================================================ */
+
+function rememberVisibleBarcodeSelections(
+    specifications
+) {
+
+    specifications =
+        Array.isArray(specifications)
+            ? specifications
+            : [];
+
+    document
+        .querySelectorAll(
+            '.barcode-select-checkbox:checked'
+        )
+        .forEach(function (checkbox) {
+
+            const specificationId =
+                String(
+                    checkbox.dataset.id || ''
+                ).trim();
+
+            if (!specificationId) {
+                return;
+            }
+
+
+            /*
+            | Find complete specification data
+            */
+
+            const specification =
+                specifications.find(
+                    function (item) {
+
+                        return String(
+                            item.sno ||
+                            item.id ||
+                            ''
+                        ).trim() ===
+                        specificationId;
+
+                    }
+                );
+
+
+            if (!specification) {
+                return;
+            }
+
+
+            const card =
+                checkbox.closest(
+                    '.specification-card'
+                );
+
+
+            const qtyInput =
+                card
+                    ? card.querySelector(
+                        '.barcode-qty-input'
+                    )
+                    : null;
+
+
+            const quantity =
+                qtyInput
+                    ? (
+                        parseInt(
+                            qtyInput.value,
+                            10
+                        ) || 1
+                    )
+                    : 1;
+
+
+            window.persistentBarcodeSelections.set(
+                specificationId,
+                {
+                    specification:
+                        specification,
+
+                    quantity:
+                        quantity
+                }
+            );
+
+        });
+
 }
 </script>
 @endsection

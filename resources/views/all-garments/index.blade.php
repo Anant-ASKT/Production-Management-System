@@ -33,113 +33,113 @@
 
 
     {{-- =========================================================
-
-        PROJECT FILTER
-
-        Project = Supplier
-
+        GARMENT FILTERS
+        Supplier + Product Type + Product Name + Composition + Gender
     ========================================================== --}}
 
     <div class="card border-0 shadow-sm mb-4">
-
         <div class="card-body">
 
             <div class="row g-3 align-items-end">
 
-                <div class="col-md-6">
-
-                    <label
-
-                        for="garmentProject"
-
-                        class="form-label fw-semibold"
-
-                    >
-
+                <div class="col-md-6 col-xl">
+                    <label for="garmentProject" class="form-label fw-semibold">
                         Suppliers
-
                     </label>
-
-                    <select
-
-                        id="garmentProject"
-
-                        class="form-select"
-
-                    >
-
-                        <option value="">
-
-                            All Suppliers
-
-                        </option>
-
+                    <select id="garmentProject" class="form-select garment-filter-select">
+                        <option value="">All Suppliers</option>
                         @foreach($projects as $project)
-
                             <option
-
                                 value="{{ $project->projectid }}"
-
                                 data-company-id="{{ $project->companyid }}"
-
                                 data-subcompany-id="{{ $project->subcompanyid }}"
-
                             >
-
                                 {{ $project->projectname }}
-
                             </option>
-
                         @endforeach
-
                     </select>
-
                 </div>
 
+                <div class="col-md-6 col-xl">
+                    <label for="garmentItemType" class="form-label fw-semibold">
+                        Product Type
+                    </label>
+                    <select id="garmentItemType" class="form-select garment-filter-select">
+                        <option value="">All Product Types</option>
+                        @isset($itemTypes)
+                            @foreach($itemTypes as $itemType)
+                                <option value="{{ $itemType->id }}">
+                                    {{ $itemType->itemtype }}
+                                </option>
+                            @endforeach
+                        @endisset
+                    </select>
+                </div>
 
+                <div class="col-md-6 col-xl">
+                    <label for="garmentItemName" class="form-label fw-semibold">
+                        Product Name
+                    </label>
+                    <select id="garmentItemName" class="form-select garment-filter-select">
+                        <option value="">All Product Names</option>
+                        @isset($itemNames)
+                            @foreach($itemNames as $itemName)
+                                <option value="{{ $itemName->id }}">
+                                    {{ $itemName->itemname }}
+                                </option>
+                            @endforeach
+                        @endisset
+                    </select>
+                </div>
 
-                <div class="col-md-auto">
+                <div class="col-md-6 col-xl">
+                    <label for="garmentComposition" class="form-label fw-semibold">
+                        Composition
+                    </label>
+                    <select id="garmentComposition" class="form-select garment-filter-select">
+                        <option value="">All Compositions</option>
+                        @isset($compositions)
+                            @foreach($compositions as $composition)
+                                <option value="{{ $composition->id }}">
+                                    {{ $composition->composition_details }}
+                                </option>
+                            @endforeach
+                        @endisset
+                    </select>
+                </div>
 
-                    <button
-
-                        type="button"
-
-                        id="btnApplyGarmentFilter"
-
-                        class="btn btn-primary"
-
-                    >
-
-                        <i class="bi bi-funnel me-1"></i>
-
-                        Apply Filter
-
-                    </button>
-
-
-
-                    <button
-
-                        type="button"
-
-                        id="btnClearGarmentFilter"
-
-                        class="btn btn-outline-secondary"
-
-                    >
-
-                        Clear
-
-                    </button>
-
+                <div class="col-md-6 col-xl">
+                    <label for="garmentGender" class="form-label fw-semibold">
+                        Gender Type
+                    </label>
+                    <select id="garmentGender" class="form-select garment-filter-select">
+                        <option value="">All Gender Types</option>
+                        @isset($genders)
+                            @foreach($genders as $gender)
+                                <option value="{{ $gender->id }}">
+                                    {{ $gender->name }}
+                                </option>
+                            @endforeach
+                        @endisset
+                    </select>
                 </div>
 
             </div>
 
+            <div class="mt-3 d-flex flex-wrap gap-2">
+                <button type="button" id="btnApplyGarmentFilter" class="btn btn-primary">
+                    <i class="bi bi-funnel me-1"></i>
+                    Apply Filter
+                </button>
+
+                <button type="button" id="btnClearGarmentFilter" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-clockwise me-1"></i>
+                    Clear
+                </button>
+            </div>
+
         </div>
-
     </div>
-
 
 
     {{-- =========================================================
@@ -178,6 +178,50 @@
 
     </div>
 
+
+
+    {{-- =========================================================
+        IMAGE DOWNLOAD TOOLBAR
+    ========================================================== --}}
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+
+            <div>
+                <strong>
+                    <i class="bi bi-images me-1"></i>
+                    Product Image Download
+                </strong>
+
+                <div id="garmentSelectedImageInfo" class="small text-muted mt-1">
+                    0 products selected
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+                <button
+                    type="button"
+                    id="btnDownloadSelectedGarmentImages"
+                    class="btn btn-success"
+                    disabled
+                >
+                    <i class="bi bi-download me-1"></i>
+                    Download Selected Images
+                </button>
+
+                <button
+                    type="button"
+                    id="btnClearSelectedGarmentImages"
+                    class="btn btn-outline-secondary"
+                    disabled
+                >
+                    <i class="bi bi-x-circle me-1"></i>
+                    Clear Selected
+                </button>
+            </div>
+
+        </div>
+    </div>
 
 
     {{-- =========================================================
@@ -913,6 +957,8 @@
 
 @push('scripts')
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
 <script>
 
 document.addEventListener(
@@ -939,6 +985,30 @@ document.addEventListener(
 
                 'garmentProject'
 
+            );
+
+
+        const itemTypeSelect =
+            document.getElementById(
+                'garmentItemType'
+            );
+
+
+        const itemNameSelect =
+            document.getElementById(
+                'garmentItemName'
+            );
+
+
+        const compositionSelect =
+            document.getElementById(
+                'garmentComposition'
+            );
+
+
+        const genderSelect =
+            document.getElementById(
+                'garmentGender'
             );
 
 
@@ -1012,6 +1082,27 @@ document.addEventListener(
             );
 
 
+        const downloadSelectedButton =
+            document.getElementById(
+                'btnDownloadSelectedGarmentImages'
+            );
+
+
+        const clearSelectedButton =
+            document.getElementById(
+                'btnClearSelectedGarmentImages'
+            );
+
+
+        const selectedImageInfo =
+            document.getElementById(
+                'garmentSelectedImageInfo'
+            );
+
+
+        const selectedGarments = new Map();
+
+
 
         /*
 
@@ -1065,176 +1156,284 @@ document.addEventListener(
 
         */
 
+        function parseImageValues(value) {
+
+            if (
+                value === null ||
+                value === undefined ||
+                value === ''
+            ) {
+                return [];
+            }
+
+            if (Array.isArray(value)) {
+                return value.flatMap(function (item) {
+                    return parseImageValues(item);
+                });
+            }
+
+            if (typeof value === 'object') {
+                return parseImageValues(
+                    value.path ||
+                    value.url ||
+                    value.image ||
+                    ''
+                );
+            }
+
+            let text = String(value).trim();
+
+            if (!text) {
+                return [];
+            }
+
+            if (
+                text.startsWith('[') &&
+                text.endsWith(']')
+            ) {
+                try {
+                    const parsed = JSON.parse(text);
+
+                    if (Array.isArray(parsed)) {
+                        return parsed.flatMap(function (item) {
+                            return parseImageValues(item);
+                        });
+                    }
+                } catch (error) {
+                    console.warn(
+                        'Image JSON parse error:',
+                        error
+                    );
+                }
+            }
+
+            return [text];
+        }
+
+
+
         function getImageUrl(image) {
 
             if (
-
                 !image ||
-
                 image === null ||
-
                 image === undefined
-
             ) {
-
                 return '';
-
             }
 
-
-
-            image =
-
-                String(image).trim();
-
-
-
             /*
-
             |--------------------------------------------------------------------------
-
-            | JSON ARRAY
-
+            | NEW IMAGE DATA CAN BE JSON
             |--------------------------------------------------------------------------
-
+            | Example:
+            | ["ItemsDesigner_Masterwithbarcode/912.../SKU.jpeg"]
+            |
+            | Older data can be a relative barcode-folder path:
+            | ../../ItemsDesigner_Masterwithbarcode/147.../
+            |--------------------------------------------------------------------------
             */
 
-            if (
+            if (Array.isArray(image)) {
+                const values = image.flatMap(function (item) {
+                    return parseImageValues(item);
+                });
 
-                image.startsWith('[') &&
-
-                image.endsWith(']')
-
-            ) {
-
-                try {
-
-                    const parsed =
-
-                        JSON.parse(image);
-
-
-
-                    if (
-
-                        Array.isArray(parsed) &&
-
-                        parsed.length > 0
-
-                    ) {
-
-                        image =
-
-                            parsed[0];
-
-                    }
-
-                }
-
-                catch (error) {
-
-                    console.warn(
-
-                        'Image JSON parse error:',
-
-                        error
-
+                const firstFile = values.find(function (item) {
+                    return /\.[a-zA-Z0-9]{2,5}(?:[?#].*)?$/.test(
+                        String(item || '').trim()
                     );
+                });
 
+                return firstFile
+                    ? getImageUrl(firstFile)
+                    : '';
+            }
+
+            let text = String(image).trim();
+
+            if (!text) {
+                return '';
+            }
+
+            /*
+            | JSON string stored in the database.
+            */
+            if (
+                text.startsWith('[') &&
+                text.endsWith(']')
+            ) {
+                const values = parseImageValues(text);
+
+                const firstFile = values.find(function (item) {
+                    return /\.[a-zA-Z0-9]{2,5}(?:[?#].*)?$/.test(
+                        String(item || '').trim()
+                    );
+                });
+
+                if (firstFile) {
+                    return getImageUrl(firstFile);
                 }
 
-            }
-
-
-
-            image =
-
-                String(image).trim();
-
-
-
-            if (!image) {
-
                 return '';
-
             }
-
-
-
-            /*
-
-            |--------------------------------------------------------------------------
-
-            | FULL URL
-
-            |--------------------------------------------------------------------------
-
-            */
 
             if (
-
-                image.startsWith('http://') ||
-
-                image.startsWith('https://') ||
-
-                image.startsWith('data:')
-
+                text.startsWith('http://') ||
+                text.startsWith('https://') ||
+                text.startsWith('data:')
             ) {
-
-                return image;
-
+                return text;
             }
 
-
-
             /*
-
             |--------------------------------------------------------------------------
-
-            | CLEAN PATH
-
+            | NORMALIZE OLD + NEW PATHS
             |--------------------------------------------------------------------------
-
+            | Both of these are converted to the same public-root URL:
+            |
+            | ../../ItemsDesigner_Masterwithbarcode/147.../
+            | ItemsDesigner_Masterwithbarcode/912.../SKU.jpeg
+            |
+            | Result:
+            | /ItemsDesigner_Masterwithbarcode/...
+            |--------------------------------------------------------------------------
             */
 
-            image =
+            text = text.replace(
+                /^\s*["']+|["']+\s*$/g,
+                ''
+            );
 
-                image.replace(
+            text = text.replace(
+                /^(?:\.\.\/|\.\/)+/g,
+                ''
+            );
 
-                    /^\/+/,
+            text = text.replace(
+                /^\/+/,
+                ''
+            );
 
-                    ''
+            text = text.replace(
+                /^public\/+/i,
+                ''
+            );
 
-                );
-
-
-
-            image =
-
-                image.replace(
-
-                    /^public\/+/i,
-
-                    ''
-
-                );
-
-
-
-            /*
-
-            |--------------------------------------------------------------------------
-
-            | LARAVEL PUBLIC PATH
-
-            |--------------------------------------------------------------------------
-
-            */
-
-            return "{{ asset('') }}" + image;
-
+            return "{{ asset('') }}" + text;
         }
 
+
+
+        function getGarmentImages(garment) {
+
+            if (!garment) {
+                return [];
+            }
+
+            const candidates = [
+                garment.img_path,
+                garment.subimg_path,
+                garment.image,
+                garment.image_path,
+                garment.main_image,
+                garment.design_image,
+                garment.oc_main_img,
+                garment.sub_images,
+                garment.sub_images_path,
+                garment.images
+            ];
+
+            const rawImages = [];
+
+            candidates.forEach(function (value) {
+                parseImageValues(value).forEach(function (image) {
+                    const clean = String(image || '').trim();
+
+                    if (clean) {
+                        rawImages.push(clean);
+                    }
+                });
+            });
+
+            const seen = new Set();
+            const result = [];
+
+            rawImages.forEach(function (image) {
+                const key = image.toLowerCase();
+
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    result.push(image);
+                }
+            });
+
+            /*
+            |--------------------------------------------------------------------------
+            | Prefer real image files over old barcode-folder paths.
+            |--------------------------------------------------------------------------
+            | Old records can contain only:
+            | ../../ItemsDesigner_Masterwithbarcode/147.../
+            | while the actual filename can be present in another image field.
+            |--------------------------------------------------------------------------
+            */
+
+            const fileImages = result.filter(function (image) {
+                return /\.[a-zA-Z0-9]{2,5}(?:[?#].*)?$/.test(
+                    String(image || '').trim()
+                );
+            });
+
+            if (fileImages.length) {
+                return fileImages;
+            }
+
+            return result;
+        }
+
+
+
+        function getFileExtension(url) {
+
+            try {
+                const cleanUrl =
+                    String(url || '')
+                        .split('?')[0]
+                        .split('#')[0];
+
+                const match =
+                    cleanUrl.match(
+                        /\.([a-zA-Z0-9]{2,5})$/
+                    );
+
+                if (match) {
+                    return match[1].toLowerCase();
+                }
+            } catch (error) {
+                // JPG fallback.
+            }
+
+            return 'jpg';
+        }
+
+
+
+        function sanitizeFileName(value) {
+
+            const name =
+                String(value || 'garment')
+                    .trim()
+                    .replace(
+                        /[<>:"\\/|?*\x00-\x1F]/g,
+                        '_'
+                    )
+                    .replace(
+                        /\s+/g,
+                        '_'
+                    );
+
+            return name || 'garment';
+        }
 
 
         /*
@@ -1465,6 +1664,58 @@ document.addEventListener(
 
                     search
 
+                );
+
+            }
+
+
+            if (
+                itemTypeSelect &&
+                itemTypeSelect.value
+            ) {
+
+                params.set(
+                    'item_type',
+                    itemTypeSelect.value
+                );
+
+            }
+
+
+            if (
+                itemNameSelect &&
+                itemNameSelect.value
+            ) {
+
+                params.set(
+                    'item_name',
+                    itemNameSelect.value
+                );
+
+            }
+
+
+            if (
+                compositionSelect &&
+                compositionSelect.value
+            ) {
+
+                params.set(
+                    'composition',
+                    compositionSelect.value
+                );
+
+            }
+
+
+            if (
+                genderSelect &&
+                genderSelect.value
+            ) {
+
+                params.set(
+                    'gender',
+                    genderSelect.value
                 );
 
             }
@@ -1951,14 +2202,29 @@ document.addEventListener(
                     |--------------------------------------------------------------------------
                     */
 
-                    let image =
-                        garment.img_path ||
-                        garment.image ||
-                        garment.image_path ||
-                        garment.main_image ||
-                        garment.design_image ||
-                        garment.oc_main_img ||
-                        '';
+                    /*
+                    |--------------------------------------------------------------------------
+                    | IMAGE
+                    |--------------------------------------------------------------------------
+                    | Always use getGarmentImages() here because img_path may be:
+                    |
+                    | 1. JSON array:
+                    |    ["ItemsDesigner_Masterwithbarcode/.../SKU.jpeg"]
+                    |
+                    | 2. Old relative barcode-folder path:
+                    |    ../../ItemsDesigner_Masterwithbarcode/147.../
+                    |
+                    | The helper normalizes both formats.
+                    |--------------------------------------------------------------------------
+                    */
+
+                    const garmentImages =
+                        getGarmentImages(garment);
+
+                    const image =
+                        garmentImages.length
+                            ? garmentImages[0]
+                            : '';
 
                     const imageUrl =
                         getImageUrl(image);
@@ -1996,6 +2262,12 @@ document.addEventListener(
                     const gender =
                         garment.gender_text ||
                         garment.gender ||
+                        '-';
+
+
+                    const composition =
+                        garment.composition_text ||
+                        garment.composition ||
                         '-';
 
                     const designer =
@@ -2050,7 +2322,7 @@ document.addEventListener(
                             <div class="card-body p-0">
 
                                 <div
-                                    class="specification-image-wrapper"
+                                    class="specification-image-wrapper position-relative"
                                     style="
                                         height:240px;
                                         overflow:hidden;
@@ -2079,20 +2351,15 @@ document.addEventListener(
                                                 <div
                                                     class="d-flex align-items-center justify-content-center h-100 text-muted"
                                                 >
-
                                                     <div class="text-center">
-
                                                         <i
                                                             class="bi bi-image"
                                                             style="font-size:40px;"
                                                         ></i>
-
                                                         <div class="small mt-2">
                                                             No Image
                                                         </div>
-
                                                     </div>
-
                                                 </div>
                                             `
                                     }
@@ -2133,6 +2400,17 @@ document.addEventListener(
                                         </strong>
 
                                         ${escapeHtml(itemType)}
+
+                                    </div>
+
+
+                                    <div class="small text-muted mb-1">
+
+                                        <strong>
+                                            Composition:
+                                        </strong>
+
+                                        ${escapeHtml(composition)}
 
                                     </div>
 
@@ -2232,7 +2510,7 @@ document.addEventListener(
                                     
 
                                     <div
-                                        class="specification-actions mt-3"
+                                        class="specification-actions mt-3 d-flex flex-wrap align-items-center gap-2"
                                     >
 
                                         <button
@@ -2240,12 +2518,48 @@ document.addEventListener(
                                             class="btn btn-sm btn-outline-primary btn-view-spec"
                                             data-id="${escapeHtml(specificationId)}"
                                         >
-
                                             <i class="bi bi-eye me-1"></i>
-
                                             View
-
                                         </button>
+
+
+                                        <button
+                                            type="button"
+                                            class="btn btn-sm btn-outline-success btn-download-garment-image"
+                                            data-id="${escapeHtml(specificationId)}"
+                                            title="Download product image"
+                                            ${
+                                                imageUrl
+                                                    ? ''
+                                                    : 'disabled'
+                                            }
+                                        >
+                                            <i class="bi bi-download me-1"></i>
+                                            Download
+                                        </button>
+
+
+                                        <label
+                                            class="btn btn-sm btn-outline-secondary mb-0 d-inline-flex align-items-center gap-1"
+                                            title="Select this product for multiple image download"
+                                            style="cursor:pointer;"
+                                        >
+                                            <input
+                                                class="form-check-input garment-image-checkbox m-0"
+                                                type="checkbox"
+                                                data-id="${escapeHtml(specificationId)}"
+                                                ${
+                                                    selectedGarments.has(
+                                                        String(
+                                                            specificationId
+                                                        )
+                                                    )
+                                                        ? 'checked'
+                                                        : ''
+                                                }
+                                            >
+                                            <span>Select</span>
+                                        </label>
 
                                     </div>
 
@@ -2256,6 +2570,20 @@ document.addEventListener(
                         </div>
 
                     `;
+
+                    const garmentCard =
+                        col.querySelector(
+                            '.specification-card'
+                        );
+
+
+                    if (garmentCard) {
+
+                        garmentCard.__garmentData =
+                            garment;
+
+                    }
+
 
 
                     /*
@@ -2350,6 +2678,498 @@ document.addEventListener(
 
         /*
         |--------------------------------------------------------------------------
+                /*
+        |--------------------------------------------------------------------------
+        | SELECTED IMAGE DOWNLOAD HELPERS
+        |--------------------------------------------------------------------------
+        */
+
+        function updateSelectedImageControls() {
+
+            const count = selectedGarments.size;
+
+            if (selectedImageInfo) {
+                selectedImageInfo.textContent =
+                    count +
+                    (
+                        count === 1
+                            ? ' product selected'
+                            : ' products selected'
+                    );
+            }
+
+            if (downloadSelectedButton) {
+                downloadSelectedButton.disabled =
+                    count === 0;
+            }
+
+            if (clearSelectedButton) {
+                clearSelectedButton.disabled =
+                    count === 0;
+            }
+        }
+
+
+        async function downloadSingleGarmentImage(garment) {
+
+            const images = getGarmentImages(garment);
+
+            if (!images.length) {
+
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'No Image',
+                        text: 'No image is available for this product.',
+                        confirmButtonText: 'OK'
+                    });
+                }
+
+                return;
+            }
+
+            const sku = sanitizeFileName(
+                garment.sku ||
+                garment.barcode ||
+                'garment'
+            );
+
+            const rawImage = images[0];
+            const imageUrl = getImageUrl(rawImage);
+
+            if (!imageUrl) {
+                return;
+            }
+
+            const extension = getFileExtension(rawImage);
+
+            try {
+
+                const response = await fetch(
+                    imageUrl,
+                    {
+                        method: 'GET',
+                        credentials: 'same-origin'
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error(
+                        'Unable to download image.'
+                    );
+                }
+
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+
+                const anchor =
+                    document.createElement('a');
+
+                anchor.href = blobUrl;
+                anchor.download =
+                    sku + '.' + extension;
+
+                document.body.appendChild(anchor);
+                anchor.click();
+                anchor.remove();
+
+                setTimeout(function () {
+                    URL.revokeObjectURL(blobUrl);
+                }, 1000);
+
+            } catch (error) {
+
+                console.error(
+                    'Single image download error:',
+                    error
+                );
+
+                /*
+                |--------------------------------------------------------------------------
+                | FALLBACK
+                |--------------------------------------------------------------------------
+                */
+
+                const anchor =
+                    document.createElement('a');
+
+                anchor.href = imageUrl;
+                anchor.download =
+                    sku + '.' + extension;
+
+                document.body.appendChild(anchor);
+                anchor.click();
+                anchor.remove();
+            }
+        }
+
+
+        async function downloadSelectedGarmentImages() {
+
+            const garments =
+                Array.from(
+                    selectedGarments.values()
+                );
+
+            if (!garments.length) {
+                return;
+            }
+
+            if (typeof JSZip === 'undefined') {
+
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Download Library Missing',
+                        text:
+                            'JSZip could not be loaded. Please refresh the page and try again.',
+                        confirmButtonText: 'OK'
+                    });
+                }
+
+                return;
+            }
+
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: 'Preparing Images',
+                    text:
+                        'Please wait while the selected images are prepared.',
+                    allowOutsideClick: false,
+                    didOpen: function () {
+                        Swal.showLoading();
+                    }
+                });
+            }
+
+            try {
+
+                const zip = new JSZip();
+                const usedNames = new Set();
+
+                let downloadedCount = 0;
+
+                for (
+                    let productIndex = 0;
+                    productIndex < garments.length;
+                    productIndex++
+                ) {
+
+                    const garment =
+                        garments[productIndex];
+
+                    const images =
+                        getGarmentImages(garment);
+
+                    if (!images.length) {
+                        continue;
+                    }
+
+                    const sku =
+                        sanitizeFileName(
+                            garment.sku ||
+                            garment.barcode ||
+                            'garment_' +
+                            (productIndex + 1)
+                        );
+
+                    for (
+                        let imageIndex = 0;
+                        imageIndex < images.length;
+                        imageIndex++
+                    ) {
+
+                        const rawImage =
+                            images[imageIndex];
+
+                        const imageUrl =
+                            getImageUrl(rawImage);
+
+                        if (!imageUrl) {
+                            continue;
+                        }
+
+                        try {
+
+                            const response =
+                                await fetch(
+                                    imageUrl,
+                                    {
+                                        method: 'GET',
+                                        credentials: 'same-origin'
+                                    }
+                                );
+
+                            if (!response.ok) {
+                                throw new Error(
+                                    'HTTP ' +
+                                    response.status
+                                );
+                            }
+
+                            const blob =
+                                await response.blob();
+
+                            const extension =
+                                getFileExtension(
+                                    rawImage
+                                );
+
+                            let fileName =
+                                sku +
+                                (
+                                    images.length > 1
+                                        ? '_' +
+                                          (imageIndex + 1)
+                                        : ''
+                                ) +
+                                '.' +
+                                extension;
+
+                            let baseName =
+                                fileName.replace(
+                                    /\.[^.]+$/,
+                                    ''
+                                );
+
+                            let counter = 2;
+
+                            while (
+                                usedNames.has(
+                                    fileName.toLowerCase()
+                                )
+                            ) {
+
+                                fileName =
+                                    baseName +
+                                    '_' +
+                                    counter +
+                                    '.' +
+                                    extension;
+
+                                counter++;
+                            }
+
+                            usedNames.add(
+                                fileName.toLowerCase()
+                            );
+
+                            zip.file(
+                                fileName,
+                                blob
+                            );
+
+                            downloadedCount++;
+
+                        } catch (imageError) {
+
+                            console.warn(
+                                'Unable to add image to ZIP:',
+                                imageUrl,
+                                imageError
+                            );
+                        }
+                    }
+                }
+
+                if (!downloadedCount) {
+                    throw new Error(
+                        'No downloadable images were found for the selected products.'
+                    );
+                }
+
+                const zipBlob =
+                    await zip.generateAsync({
+                        type: 'blob'
+                    });
+
+                const zipUrl =
+                    URL.createObjectURL(zipBlob);
+
+                const anchor =
+                    document.createElement('a');
+
+                anchor.href = zipUrl;
+                anchor.download =
+                    'garment-images.zip';
+
+                document.body.appendChild(anchor);
+                anchor.click();
+                anchor.remove();
+
+                setTimeout(function () {
+                    URL.revokeObjectURL(zipUrl);
+                }, 2000);
+
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Download Ready',
+                        text:
+                            downloadedCount +
+                            (
+                                downloadedCount === 1
+                                    ? ' image'
+                                    : ' images'
+                            ) +
+                            ' added to garment-images.zip.',
+                        confirmButtonText: 'OK'
+                    });
+                }
+
+            } catch (error) {
+
+                console.error(
+                    'Selected image download error:',
+                    error
+                );
+
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Download Failed',
+                        text:
+                            error.message ||
+                            'Unable to download selected images.',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            }
+        }
+
+
+        if (downloadSelectedButton) {
+
+            downloadSelectedButton.addEventListener(
+                'click',
+                function () {
+                    downloadSelectedGarmentImages();
+                }
+            );
+
+        }
+
+
+        if (clearSelectedButton) {
+
+            clearSelectedButton.addEventListener(
+                'click',
+                function () {
+
+                    selectedGarments.clear();
+
+                    document
+                        .querySelectorAll(
+                            '.garment-image-checkbox'
+                        )
+                        .forEach(function (checkbox) {
+                            checkbox.checked = false;
+                        });
+
+                    updateSelectedImageControls();
+                }
+            );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CHECKBOX / DOWNLOAD EVENTS
+        |--------------------------------------------------------------------------
+        */
+
+        document.addEventListener(
+            'change',
+            function (event) {
+
+                const checkbox =
+                    event.target.closest(
+                        '.garment-image-checkbox'
+                    );
+
+                if (!checkbox) {
+                    return;
+                }
+
+                const id =
+                    String(
+                        checkbox.dataset.id || ''
+                    ).trim();
+
+                if (!id) {
+                    return;
+                }
+
+                const card =
+                    checkbox.closest(
+                        '.specification-card'
+                    );
+
+                const garment =
+                    card
+                        ? card.__garmentData
+                        : null;
+
+                if (checkbox.checked) {
+
+                    if (garment) {
+                        selectedGarments.set(
+                            id,
+                            garment
+                        );
+                    }
+
+                } else {
+
+                    selectedGarments.delete(id);
+
+                }
+
+                updateSelectedImageControls();
+            }
+        );
+
+
+        document.addEventListener(
+            'click',
+            function (event) {
+
+                const button =
+                    event.target.closest(
+                        '.btn-download-garment-image'
+                    );
+
+                if (!button) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                const card =
+                    button.closest(
+                        '.specification-card'
+                    );
+
+                if (!card) {
+                    return;
+                }
+
+                const garment =
+                    card.__garmentData;
+
+                if (!garment) {
+                    return;
+                }
+
+                downloadSingleGarmentImage(
+                    garment
+                );
+            }
+        );
+
+
+        /*
         | VIEW GARMENT MODAL
         |--------------------------------------------------------------------------
         */
@@ -2610,14 +3430,13 @@ document.addEventListener(
 
             if (imageContainer) {
 
+                const garmentImages =
+                    getGarmentImages(garment);
+
                 const image =
-                    garment.img_path ||
-                    garment.image ||
-                    garment.image_path ||
-                    garment.main_image ||
-                    garment.design_image ||
-                    garment.oc_main_img ||
-                    '';
+                    garmentImages.length
+                        ? garmentImages[0]
+                        : '';
 
                 const imageUrl =
                     getImageUrl(image);
@@ -3418,6 +4237,37 @@ document.addEventListener(
                     }
 
 
+                    if (itemTypeSelect) {
+                        itemTypeSelect.value = '';
+                    }
+
+                    if (itemNameSelect) {
+                        itemNameSelect.value = '';
+                    }
+
+                    if (compositionSelect) {
+                        compositionSelect.value = '';
+                    }
+
+                    if (genderSelect) {
+                        genderSelect.value = '';
+                    }
+
+
+                    if (
+                        typeof jQuery !== 'undefined' &&
+                        jQuery.fn.select2
+                    ) {
+
+                        jQuery(
+                            '#garmentItemType, #garmentItemName, #garmentComposition, #garmentGender'
+                        )
+                        .val('')
+                        .trigger('change');
+
+                    }
+
+
 
                     loadGarments(
 
@@ -3534,6 +4384,36 @@ document.addEventListener(
         |
 
         */
+
+        /*
+        |--------------------------------------------------------------------------
+        | SELECT2 FILTERS
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            typeof jQuery !== 'undefined' &&
+            jQuery.fn.select2
+        ) {
+
+            jQuery(
+                '#garmentProject, #garmentItemType, #garmentItemName, #garmentComposition, #garmentGender'
+            ).select2({
+                width: '100%',
+                allowClear: true
+            });
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | INITIAL LOAD
+        |--------------------------------------------------------------------------
+        */
+
+        updateSelectedImageControls();
+
 
         loadGarments(
 

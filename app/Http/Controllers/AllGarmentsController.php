@@ -56,10 +56,73 @@ class AllGarmentsController extends Controller
         ]);
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | SAME MASTER FILTER DATA USED BY
+        | SHOW ALL PRODUCT SPECIFICATION MASTER
+        |--------------------------------------------------------------------------
+        */
+
+        $itemTypes = DB::table(
+            'auto_itemtype_master'
+        )
+        ->orderBy(
+            'itemtype',
+            'asc'
+        )
+        ->get([
+            'id',
+            'itemtype'
+        ]);
+
+
+        $itemNames = DB::table(
+            'auto_itemname_master'
+        )
+        ->orderBy(
+            'itemname',
+            'asc'
+        )
+        ->get([
+            'id',
+            'itemname'
+        ]);
+
+
+        $compositions = DB::table(
+            'auto_composition_master_stock'
+        )
+        ->orderBy(
+            'composition_details',
+            'asc'
+        )
+        ->get([
+            'id',
+            'composition_details'
+        ]);
+
+
+        $genders = DB::table(
+            'auto_gender_master'
+        )
+        ->orderBy(
+            'name',
+            'asc'
+        )
+        ->get([
+            'id',
+            'name'
+        ]);
+
+
         return view(
             'all-garments.index',
             compact(
-                'projects'
+                'projects',
+                'itemTypes',
+                'itemNames',
+                'compositions',
+                'genders'
             )
         );
     }
@@ -140,6 +203,32 @@ class AllGarmentsController extends Controller
 
         $subCompanyId = $request->filled('subcompany_id')
             ? (int) $request->input('subcompany_id')
+            : null;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PRODUCT FILTERS
+        |--------------------------------------------------------------------------
+        */
+
+        $itemTypeId = $request->filled('item_type')
+            ? (int) $request->input('item_type')
+            : null;
+
+
+        $itemNameId = $request->filled('item_name')
+            ? (int) $request->input('item_name')
+            : null;
+
+
+        $compositionId = $request->filled('composition')
+            ? (int) $request->input('composition')
+            : null;
+
+
+        $genderId = $request->filled('gender')
+            ? (int) $request->input('gender')
             : null;
 
 
@@ -440,6 +529,70 @@ class AllGarmentsController extends Controller
             $query->where(
                 'dsm.projectid',
                 $projectId
+            );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PRODUCT TYPE FILTER
+        |--------------------------------------------------------------------------
+        */
+
+        if ($itemTypeId !== null) {
+
+            $query->where(
+                'dsm.item_type',
+                $itemTypeId
+            );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PRODUCT NAME FILTER
+        |--------------------------------------------------------------------------
+        */
+
+        if ($itemNameId !== null) {
+
+            $query->where(
+                'dsm.item_name',
+                $itemNameId
+            );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | COMPOSITION FILTER
+        |--------------------------------------------------------------------------
+        */
+
+        if ($compositionId !== null) {
+
+            $query->where(
+                'dsm.composition',
+                $compositionId
+            );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | GENDER FILTER
+        |--------------------------------------------------------------------------
+        */
+
+        if ($genderId !== null) {
+
+            $query->where(
+                'dsm.gender',
+                $genderId
             );
 
         }

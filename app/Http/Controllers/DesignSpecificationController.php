@@ -1284,10 +1284,11 @@ public function findBySupplierSku(Request $request)
         |--------------------------------------------------------------------------
         */
 
-        ->where(
-            'dsm.sku',
-            $supplierSku
-        )
+        ->where(function ($query) use ($supplierSku) {
+            $query
+                ->whereRaw('TRIM(dsm.sku_supplier) = ?', [$supplierSku])
+                ->orWhereRaw('TRIM(dsm.sku) = ?', [$supplierSku]);
+        })
 
         /*
         |--------------------------------------------------------------------------
