@@ -296,7 +296,12 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <span class="font-monospace text-dark">{{ $item['resolved_sku'] ?: ($item['sku'] ?: '—') }}</span>
+                                    <span class="font-monospace text-dark fw-semibold">{{ $item['resolved_sku'] ?: ($item['sku'] ?: '—') }}</span>
+                                    @if(!empty($item['barcode']))
+                                        <div class="small text-muted font-monospace mt-1" style="font-size: 0.72rem;" title="Item Barcode">
+                                            <i class="bi bi-upc-scan me-1 text-secondary"></i>{{ $item['barcode'] }}
+                                        </div>
+                                    @endif
                                 </td>
                                 <td>
                                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-medium px-2 py-1">

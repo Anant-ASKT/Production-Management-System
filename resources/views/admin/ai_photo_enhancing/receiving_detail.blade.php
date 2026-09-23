@@ -184,18 +184,20 @@
          NORMAL PAGE HEADER (SCROLLS NATURALLY)
     ==================================================== --}}
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-3 border-bottom">
-        <div class="d-flex align-items-center gap-3">
-            <a href="{{ route('admin.ai-photo-enhancing.receiving') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1.5 fw-semibold">
-                <i class="bi bi-arrow-left me-1"></i> Back to List
-            </a>
-            <div>
-                <h4 class="fw-bold mb-0 text-dark">{{ $spec->sku ?: ('Product #' . $spec->sno) }}</h4>
-                <div class="text-muted small mt-1">
-                    @if($spec->barcode) <span class="me-3"><strong>Barcode:</strong> {{ $spec->barcode }}</span> @endif
-                    @if($spec->color) <span class="me-3"><strong>Color:</strong> {{ $spec->color }}</span> @endif
-                    @if($spec->supplier_name) <span><strong>Supplier:</strong> {{ $spec->supplier_name }}</span> @endif
-                </div>
+        <div>
+            <h4 class="fw-bold mb-1 text-dark">{{ $spec->sku ?: ('Product #' . $spec->sno) }}</h4>
+            <div class="text-muted small d-flex flex-wrap align-items-center gap-3">
+                @if($spec->barcode) <span><strong class="text-secondary">Barcode:</strong> {{ $spec->barcode }}</span> @endif
+                @if($spec->color) <span><strong class="text-secondary">Color:</strong> {{ $spec->color }}</span> @endif
+                @if($spec->supplier_name) <span><strong class="text-secondary">Supplier:</strong> {{ $spec->supplier_name }}</span> @endif
             </div>
+        </div>
+
+        <div>
+            <a href="{{ route('admin.ai-photo-enhancing.receiving') }}" class="btn btn-primary btn-sm rounded-pill px-3.5 py-2 fw-semibold shadow-sm d-inline-flex align-items-center gap-1.5">
+                <i class="bi bi-arrow-left"></i>
+                <span>Back to List</span>
+            </a>
         </div>
     </div>
 
@@ -270,6 +272,16 @@
     <form action="{{ route('admin.ai-photo-enhancing.receiving.review-batch', $spec->sno) }}" method="POST" id="batchReviewForm">
         @csrf
 
+        {{-- Dynamic Frontend Validation Alert --}}
+        <div id="validationAlertBox" class="alert alert-danger rounded-3 shadow-sm mb-3 p-3 d-none">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-exclamation-triangle-fill fs-4 text-danger flex-shrink-0"></i>
+                <div id="validationAlertMessage" class="fw-semibold">
+                    Please choose a status (Approved, Need More, or Reject) for all photos before saving.
+                </div>
+            </div>
+        </div>
+
         <div class="d-flex align-items-center justify-content-between mb-3 pt-2 border-top">
             <div>
                 <h5 class="fw-bold mb-0 text-dark">
@@ -290,12 +302,17 @@
 
                     {{-- Exactly 2 Images Per Row --}}
                     <div class="col-12 col-md-6">
-                        <div class="photo-card d-flex flex-column h-100" id="card_{{ $sub->sno }}">
+                        <div class="photo-card enhanced-photo-card d-flex flex-column h-100 position-relative" id="card_{{ $sub->sno }}">
 
                             {{-- Card Header --}}
                             <div class="px-2.5 py-1.5 bg-light d-flex align-items-center justify-content-between border-bottom">
                                 <strong class="small text-dark">Photo #{{ $index + 1 }}</strong>
                                 <small class="text-muted">{{ $sub->enhancer_first_name }}</small>
+                            </div>
+
+                            {{-- Unselected Warning Badge --}}
+                            <div class="unselected-warning alert alert-danger py-1 px-2.5 mx-2 my-1.5 small fw-bold text-center d-none" style="font-size: 0.75rem;">
+                                <i class="bi bi-exclamation-circle-fill me-1"></i> Please choose a status (Approved, Need More, or Reject)!
                             </div>
 
                             {{-- Simple Status Label --}}
@@ -403,10 +420,28 @@
             </div>
 
             {{-- ===================================================
+                 MAIN / OVERALL COMMENT FOR ALL PHOTOS
+            ==================================================== --}}
+            <div class="card border-0 shadow-sm rounded-3 mb-4 overflow-hidden">
+                <div class="card-header bg-white py-2.5 px-3 border-bottom d-flex align-items-center justify-content-between">
+                    <div>
+                        <h6 class="fw-bold mb-0 text-dark">
+                            <i class="bi bi-chat-square-quote-fill text-primary me-1.5"></i> Main Comment / Overall Feedback for AI Enhancer
+                        </h6>
+                        <small class="text-muted">This comment applies to all photos and will be prominently shown to the AI photo enhancer.</small>
+                    </div>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">Visible to AI Enhancer</span>
+                </div>
+                <div class="card-body p-3 bg-light-subtle">
+                    <textarea name="main_comment" id="main_comment" class="form-control rounded-2" rows="3" placeholder="Enter overall feedback, instructions, or corrections for the AI enhancer (e.g. 'Good lighting, but please sharpen edges and make background pure white across all photos')...">{{ old('main_comment', $assignment->admin_comment ?? '') }}</textarea>
+                </div>
+            </div>
+
+            {{-- ===================================================
                  SIMPLE SAVE BUTTON AT THE END
             ==================================================== --}}
             <div class="text-center py-4 my-3 border-top">
-                <button type="submit" class="btn btn-primary btn-lg px-5 py-2.5 fw-bold rounded-pill shadow-sm">
+                <button type="submit" class="btn btn-primary btn-lg px-5 py-2.5 fw-bold rounded-pill shadow-sm" id="saveDecisionsBtn">
                     <i class="bi bi-save2-fill me-1"></i> Save Decisions
                 </button>
             </div>
@@ -423,11 +458,67 @@
 </div>
 
 <script>
+    // Form submit validation: Ensure EVERY enhanced photo has a decision chosen
+    document.getElementById('batchReviewForm')?.addEventListener('submit', function(e) {
+        const photoCards = document.querySelectorAll('#batchReviewForm .enhanced-photo-card');
+        if (photoCards.length === 0) return;
+
+        let unselectedCards = [];
+
+        photoCards.forEach(card => {
+            const subId = card.id.replace('card_', '');
+            const checkedRadio = card.querySelector(`input[name="reviews[${subId}][status]"]:checked`);
+            const warnBadge = card.querySelector('.unselected-warning');
+
+            if (!checkedRadio) {
+                unselectedCards.push(card);
+                card.classList.add('border-danger', 'border-2');
+                if (warnBadge) warnBadge.classList.remove('d-none');
+            } else {
+                card.classList.remove('border-danger', 'border-2');
+                if (warnBadge) warnBadge.classList.add('d-none');
+            }
+        });
+
+        if (unselectedCards.length > 0) {
+            e.preventDefault();
+
+            // Display top alert banner
+            const alertBox = document.getElementById('validationAlertBox');
+            const alertMsg = document.getElementById('validationAlertMessage');
+            if (alertBox && alertMsg) {
+                alertMsg.innerHTML = `<strong>Incomplete Review:</strong> Please choose a status (Approved, Need More, or Reject) for all <strong>${photoCards.length}</strong> photo(s) before saving. (${unselectedCards.length} photo(s) remaining)`;
+                alertBox.classList.remove('d-none');
+                alertBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                unselectedCards[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    });
+
     // Handle decision selection
     function setDecision(id, decision) {
         const roleBox = document.getElementById(`role_box_${id}`);
         const noteBox = document.getElementById(`note_box_${id}`);
         const label = document.getElementById(`status_label_${id}`);
+        const card = document.getElementById(`card_${id}`);
+
+        // Clear unselected error highlight on this card
+        if (card) {
+            card.classList.remove('border-danger', 'border-2');
+            const warnBadge = card.querySelector('.unselected-warning');
+            if (warnBadge) warnBadge.classList.add('d-none');
+        }
+
+        // Check if all cards now have a decision to hide the alert box
+        const anyUnselected = Array.from(document.querySelectorAll('#batchReviewForm .enhanced-photo-card')).some(c => {
+            const cId = c.id.replace('card_', '');
+            return !c.querySelector(`input[name="reviews[${cId}][status]"]:checked`);
+        });
+        if (!anyUnselected) {
+            const alertBox = document.getElementById('validationAlertBox');
+            if (alertBox) alertBox.classList.add('d-none');
+        }
 
         if (decision === 'approved') {
             roleBox.classList.remove('d-none');
