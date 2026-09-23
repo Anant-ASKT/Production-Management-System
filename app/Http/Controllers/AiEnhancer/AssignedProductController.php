@@ -58,6 +58,7 @@ class AssignedProductController extends Controller
             ->select(
                 'apa.id as assignment_id',
                 'apa.status as assignment_status',
+                'apa.admin_comment',
                 'apa.created_at as assigned_date',
                 'spec.sno as spec_id',
                 'spec.barcode',

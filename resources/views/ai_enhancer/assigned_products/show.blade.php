@@ -47,6 +47,26 @@
     </div>
 @endif
 
+{{-- Overall / Main Note from Admin --}}
+@if(!empty($product->admin_comment))
+    <div class="alert alert-warning border border-warning-subtle shadow-sm rounded-4 p-3.5 mb-4">
+        <div class="d-flex align-items-start gap-3">
+            <div class="rounded-circle bg-warning text-dark p-2 d-flex align-items-center justify-content-center shadow-xs flex-shrink-0" style="width: 40px; height: 40px;">
+                <i class="bi bi-chat-square-quote-fill fs-5"></i>
+            </div>
+            <div class="flex-grow-1">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                    <strong class="text-dark fw-bold fs-6">
+                        <i class="bi bi-shield-check text-primary me-1"></i> Main Note / Overall Feedback from Admin
+                    </strong>
+                    <span class="badge bg-warning text-dark border border-warning-subtle px-2 py-1">Applies to All Photos</span>
+                </div>
+                <div class="text-dark fw-medium" style="white-space: pre-line; font-size: 0.95rem;">{{ $product->admin_comment }}</div>
+            </div>
+        </div>
+    </div>
+@endif
+
 {{-- ===================================================
      PRODUCT SUMMARY (SIMPLE CARDS)
 ==================================================== --}}

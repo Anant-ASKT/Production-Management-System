@@ -189,16 +189,45 @@ class AdminAiPhotoReceivingController extends Controller
             ->orderBy('eps.created_at', 'desc')
             ->get();
 
-        return view('admin.ai_photo_enhancing.receiving_detail', compact('spec', 'submissions'));
+        $assignment = DB::table('ai_photo_enhancer_assignments')
+            ->where('specification_id', $spec->sno)
+            ->first();
+
+        return view('admin.ai_photo_enhancing.receiving_detail', compact('spec', 'submissions', 'assignment'));
     }
 
     public function reviewBatch(Request $request, $id)
     {
-        $reviews = $request->input('reviews', []);
+        $specId = (int) $id;
+        $allSubmissions = DB::table('enhanced_product_submissions')
+            ->where('specification_id', $specId)
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-        if (empty($reviews) || !is_array($reviews)) {
-            return redirect()->back()->withErrors(['error' => 'No reviews submitted.']);
+        if ($allSubmissions->isEmpty()) {
+            return redirect()->back()->withErrors(['error' => 'No photos found for this product.']);
         }
+
+        $reviews = $request->input('reviews', []);
+        if (empty($reviews) || !is_array($reviews)) {
+            return redirect()->back()->withInput()->withErrors(['error' => 'No reviews submitted.']);
+        }
+
+        // VALIDATION: Ensure every single submitted photo has a status selected!
+        $unselectedPhotos = [];
+        foreach ($allSubmissions as $index => $sub) {
+            $selectedStatus = $reviews[$sub->sno]['status'] ?? null;
+            if (empty($selectedStatus) || !in_array($selectedStatus, ['approved', 'approved_need_version', 'rejected'])) {
+                $unselectedPhotos[] = 'Photo #' . ($index + 1);
+            }
+        }
+
+        if (!empty($unselectedPhotos)) {
+            $msg = 'Please choose a status (Approved, Need More, or Reject) for all photos before saving. Missing decision for: ' . implode(', ', $unselectedPhotos) . '.';
+            return redirect()->back()->withInput()->withErrors(['error' => $msg]);
+        }
+
+        $mainComment = $request->filled('main_comment') ? trim($request->input('main_comment')) : null;
 
         DB::beginTransaction();
         try {
@@ -291,10 +320,12 @@ class AdminAiPhotoReceivingController extends Controller
             // Recalculate and update overall assignment status
             $specId = (int) $id;
             $allSubmissions = DB::table('enhanced_product_submissions')->where('specification_id', $specId)->get();
-            $pendingCount = $allSubmissions->where('status', 'pending')->count();
-            $approvedCount = $allSubmissions->where('status', 'approved')->count();
-            $rejectedCount = $allSubmissions->where('status', 'rejected')->count();
-            $needVersionCount = $allSubmissions->where('status', 'approved_need_version')->count();
+            // Recalculate status from fresh DB submissions
+            $freshSubmissions = DB::table('enhanced_product_submissions')->where('specification_id', $specId)->get();
+            $pendingCount = $freshSubmissions->where('status', 'pending')->count();
+            $approvedCount = $freshSubmissions->where('status', 'approved')->count();
+            $rejectedCount = $freshSubmissions->where('status', 'rejected')->count();
+            $needVersionCount = $freshSubmissions->where('status', 'approved_need_version')->count();
 
             $newAssignmentStatus = 'in_review';
             if ($pendingCount === 0) {
@@ -308,8 +339,9 @@ class AdminAiPhotoReceivingController extends Controller
             DB::table('ai_photo_enhancer_assignments')
                 ->where('specification_id', $specId)
                 ->update([
-                    'status'     => $newAssignmentStatus,
-                    'updated_at' => now(),
+                    'status'        => $newAssignmentStatus,
+                    'admin_comment' => $mainComment,
+                    'updated_at'    => now(),
                 ]);
 
             DB::commit();

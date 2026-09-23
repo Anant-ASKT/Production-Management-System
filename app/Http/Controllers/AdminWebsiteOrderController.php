@@ -972,6 +972,9 @@ class AdminWebsiteOrderController extends Controller
         $record->payload = $payload;
         $record->save();
 
+        // Synchronize vendor_stock_web and vendor_stock on status/shipping update
+        $this->syncVendorStockStatus($record, $newStatus, $courierName, $trackingId, $shippedAt);
+
         // Determine action name for audit log
         $action = 'Order Updated';
         if ($statusChanged && $shippingChanged) {
@@ -1087,6 +1090,208 @@ class AdminWebsiteOrderController extends Controller
         }
 
         return redirect()->route('admin.website-orders.show', $record->id)->with('success', $flashMsg);
+    }
+
+    /**
+     * Synchronize vendor_stock_web and vendor_stock when order status or shipping details change.
+     */
+    protected function syncVendorStockStatus(OrderWebhookPayload $record, string $status, ?string $courierName, ?string $trackingId, $shippedAt = null)
+    {
+        try {
+            $payload = is_array($record->payload) ? $record->payload : (json_decode($record->payload, true) ?? []);
+            $orderId = (string) ($record->order_id ?: ($payload['id'] ?? ''));
+            $orderNumber = (string) ($payload['number'] ?? $record->order_id ?? '');
+            $statusLower = strtolower(trim($status));
+            $dispatchDate = $shippedAt ?: now();
+
+            if (empty($orderId) && empty($orderNumber)) {
+                return;
+            }
+
+            // 1. Fetch reserved rows from vendor_stock_web for this order
+            $reservedWebRows = DB::table('vendor_stock_web')
+                ->where(function ($q) use ($orderId, $orderNumber) {
+                    if (!empty($orderId)) {
+                        $q->where('orderid', $orderId);
+                    }
+                    if (!empty($orderNumber)) {
+                        $q->orWhere('orderno', $orderNumber);
+                    }
+                })
+                ->get();
+
+            // 2. Handle Cancelled / Refunded / Failed: restore stock
+            if (in_array($statusLower, ['cancelled', 'refunded', 'failed'])) {
+                if ($reservedWebRows->isNotEmpty()) {
+                    DB::table('vendor_stock_web')
+                        ->whereIn('sno', $reservedWebRows->pluck('sno'))
+                        ->update([
+                            'send_qty' => 0,
+                            'avilable_qty' => 1,
+                            'orderstatus' => $statusLower,
+                            'shipmentno' => null,
+                            'shipmentreparks' => null,
+                            'updated_at' => now(),
+                        ]);
+                }
+
+                DB::table('vendor_stock')
+                    ->where(function ($q) use ($orderId, $orderNumber) {
+                        if (!empty($orderId)) $q->where('orderid', $orderId);
+                        if (!empty($orderNumber)) $q->orWhere('orderno', $orderNumber);
+                    })
+                    ->update([
+                        'send_qty' => 0,
+                        'avilable_qty' => 1,
+                        'orderstatus' => $statusLower,
+                        'shipmentno' => null,
+                        'shipmentreparks' => null,
+                        'updated_at' => now(),
+                    ]);
+
+                return;
+            }
+
+            // 3. Status is SHIPPED (or Delivered)
+            if (in_array($statusLower, ['shipped', 'delivered'])) {
+                // A. Update ONLY the existing reserved row(s) in vendor_stock_web (no new rows inserted)
+                if ($reservedWebRows->isNotEmpty()) {
+                    $updateWebData = [
+                        'orderstatus' => $statusLower,
+                        'updated_at' => now(),
+                    ];
+                    if (!empty($trackingId)) {
+                        $updateWebData['shipmentno'] = $trackingId;
+                    }
+                    if (!empty($courierName)) {
+                        $updateWebData['shipmentreparks'] = $courierName;
+                    }
+                    if (!empty($dispatchDate)) {
+                        $updateWebData['stockremovaldate'] = $dispatchDate;
+                    }
+
+                    DB::table('vendor_stock_web')
+                        ->whereIn('sno', $reservedWebRows->pluck('sno'))
+                        ->update($updateWebData);
+                }
+
+                // B. Update vendor_stock (main ERP stock table)
+                // First check if vendor_stock already has rows with this orderid/orderno
+                $existingVsRows = DB::table('vendor_stock')
+                    ->where(function ($q) use ($orderId, $orderNumber) {
+                        if (!empty($orderId)) $q->where('orderid', $orderId);
+                        if (!empty($orderNumber)) $q->orWhere('orderno', $orderNumber);
+                    })
+                    ->get();
+
+                if ($existingVsRows->isNotEmpty()) {
+                    $vsUpdate = [
+                        'send_qty' => 1,
+                        'avilable_qty' => 0,
+                        'orderstatus' => $statusLower,
+                        'updated_at' => now(),
+                    ];
+                    if (!empty($trackingId)) $vsUpdate['shipmentno'] = $trackingId;
+                    if (!empty($courierName)) $vsUpdate['shipmentreparks'] = $courierName;
+                    if (!empty($dispatchDate)) $vsUpdate['stockremovaldate'] = $dispatchDate;
+
+                    DB::table('vendor_stock')
+                        ->whereIn('sno', $existingVsRows->pluck('sno'))
+                        ->update($vsUpdate);
+                } else {
+                    // Match in vendor_stock by the exact reserved barcode(s) or SKU(s)
+                    $barcodes = $reservedWebRows->pluck('barcode')->filter()->unique()->toArray();
+                    $skus = $reservedWebRows->pluck('batch_no')->filter()->unique()->toArray();
+                    $itemIds = $reservedWebRows->pluck('item_id')->filter()->unique()->toArray();
+
+                    $totalQtyNeeded = 0;
+                    if (!empty($payload['line_items'])) {
+                        foreach ($payload['line_items'] as $item) {
+                            $totalQtyNeeded += (int) ($item['quantity'] ?? 1);
+                            if (empty($skus) && !empty($item['sku'])) {
+                                $skus[] = trim($item['sku']);
+                            }
+                        }
+                    }
+                    if ($totalQtyNeeded <= 0) {
+                        $totalQtyNeeded = max(1, count($barcodes) ?: 1);
+                    }
+
+                    $targetVsRows = DB::table('vendor_stock')
+                        ->where(function ($q) use ($barcodes, $skus, $itemIds) {
+                            $hasCond = false;
+                            if (!empty($barcodes)) {
+                                $q->whereIn('barcode', $barcodes);
+                                $hasCond = true;
+                            }
+                            if (!empty($skus)) {
+                                if ($hasCond) {
+                                    $q->orWhereIn('batch_no', $skus);
+                                } else {
+                                    $q->whereIn('batch_no', $skus);
+                                    $hasCond = true;
+                                }
+                            }
+                            if (!empty($itemIds)) {
+                                if ($hasCond) {
+                                    $q->orWhereIn('item_id', $itemIds);
+                                } else {
+                                    $q->whereIn('item_id', $itemIds);
+                                }
+                            }
+                        })
+                        ->where(function ($q) {
+                            $q->where('send_qty', 0)
+                              ->orWhereNull('send_qty')
+                              ->orWhere('avilable_qty', '>', 0);
+                        })
+                        ->orderBy('sno', 'asc')
+                        ->limit($totalQtyNeeded)
+                        ->pluck('sno');
+
+                    if ($targetVsRows->isNotEmpty()) {
+                        $vsUpdate = [
+                            'send_qty' => 1,
+                            'avilable_qty' => 0,
+                            'orderid' => (string) $orderId,
+                            'orderno' => (string) $orderNumber,
+                            'orderstatus' => $statusLower,
+                            'updated_at' => now(),
+                        ];
+                        if (!empty($trackingId)) $vsUpdate['shipmentno'] = $trackingId;
+                        if (!empty($courierName)) $vsUpdate['shipmentreparks'] = $courierName;
+                        if (!empty($dispatchDate)) $vsUpdate['stockremovaldate'] = $dispatchDate;
+
+                        DB::table('vendor_stock')
+                            ->whereIn('sno', $targetVsRows)
+                            ->update($vsUpdate);
+                    }
+                }
+            } elseif (in_array($statusLower, ['order confirmed', 'order_confirmed', 'processing'])) {
+                // If reverting back to Confirmed
+                if ($reservedWebRows->isNotEmpty()) {
+                    DB::table('vendor_stock_web')
+                        ->whereIn('sno', $reservedWebRows->pluck('sno'))
+                        ->update([
+                            'orderstatus' => 'order confirmed',
+                            'updated_at' => now(),
+                        ]);
+                }
+                DB::table('vendor_stock')
+                    ->where(function ($q) use ($orderId, $orderNumber) {
+                        if (!empty($orderId)) $q->where('orderid', $orderId);
+                        if (!empty($orderNumber)) $q->orWhere('orderno', $orderNumber);
+                    })
+                    ->update([
+                        'orderstatus' => 'order confirmed',
+                        'updated_at' => now(),
+                    ]);
+            }
+        } catch (\Throwable $e) {
+            Log::error("Failed to sync vendor stock on status update for Order #{$record->id}: " . $e->getMessage(), [
+                'exception' => $e
+            ]);
+        }
     }
 
     /**
