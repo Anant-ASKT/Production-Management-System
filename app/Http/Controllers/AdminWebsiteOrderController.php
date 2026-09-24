@@ -1199,7 +1199,7 @@ class AdminWebsiteOrderController extends Controller
                         ->whereIn('sno', $existingVsRows->pluck('sno'))
                         ->update($vsUpdate);
                 } else {
-                    // Match in vendor_stock by the exact reserved barcode(s) or SKU(s)
+                    // Match in vendor_stock by the exact reserved barcode(s), SKU(s), or item ID(s)
                     $barcodes = $reservedWebRows->pluck('barcode')->filter()->unique()->toArray();
                     $skus = $reservedWebRows->pluck('batch_no')->filter()->unique()->toArray();
                     $itemIds = $reservedWebRows->pluck('item_id')->filter()->unique()->toArray();
@@ -1208,8 +1208,38 @@ class AdminWebsiteOrderController extends Controller
                     if (!empty($payload['line_items'])) {
                         foreach ($payload['line_items'] as $item) {
                             $totalQtyNeeded += (int) ($item['quantity'] ?? 1);
-                            if (empty($skus) && !empty($item['sku'])) {
-                                $skus[] = trim($item['sku']);
+                            $itemSku = trim($item['sku'] ?? '');
+                            if (!empty($itemSku) && !in_array($itemSku, $skus)) {
+                                $skus[] = $itemSku;
+                            }
+                            $wcPid = (int) ($item['product_id'] ?? 0);
+                            if (!empty($itemSku) || !empty($wcPid)) {
+                                $spec = null;
+                                if (!empty($itemSku)) {
+                                    $spec = DB::table('auto_designer_specification_master')
+                                        ->where('sku', $itemSku)
+                                        ->orWhere('sku_supplier', $itemSku)
+                                        ->first();
+                                }
+                                if (!$spec && !empty($wcPid)) {
+                                    $pub = DB::table('published_products')
+                                        ->where('woocommerce_product_id', $wcPid)
+                                        ->first();
+                                    if ($pub && !empty($pub->specification_id)) {
+                                        $spec = DB::table('auto_designer_specification_master')
+                                            ->where('sno', $pub->specification_id)
+                                            ->first();
+                                    }
+                                }
+                                if ($spec) {
+                                    if (!empty($spec->barcode) && !in_array($spec->barcode, $barcodes)) {
+                                        $barcodes[] = $spec->barcode;
+                                    }
+                                    $sId = $spec->id ?: $spec->sno;
+                                    if (!empty($sId) && !in_array($sId, $itemIds)) {
+                                        $itemIds[] = $sId;
+                                    }
+                                }
                             }
                         }
                     }
@@ -1217,54 +1247,70 @@ class AdminWebsiteOrderController extends Controller
                         $totalQtyNeeded = max(1, count($barcodes) ?: 1);
                     }
 
-                    $targetVsRows = DB::table('vendor_stock')
-                        ->where(function ($q) use ($barcodes, $skus, $itemIds) {
-                            $hasCond = false;
-                            if (!empty($barcodes)) {
-                                $q->whereIn('barcode', $barcodes);
-                                $hasCond = true;
-                            }
-                            if (!empty($skus)) {
-                                if ($hasCond) {
-                                    $q->orWhereIn('batch_no', $skus);
-                                } else {
-                                    $q->whereIn('batch_no', $skus);
+                    // If product has identifiers, check vendor_stock; if not found, simply skip without error
+                    if (!empty($barcodes) || !empty($skus) || !empty($itemIds)) {
+                        $targetVsRows = DB::table('vendor_stock')
+                            ->where(function ($q) use ($barcodes, $skus, $itemIds) {
+                                $hasCond = false;
+                                if (!empty($barcodes)) {
+                                    $q->whereIn('barcode', $barcodes);
                                     $hasCond = true;
                                 }
-                            }
-                            if (!empty($itemIds)) {
-                                if ($hasCond) {
-                                    $q->orWhereIn('item_id', $itemIds);
-                                } else {
-                                    $q->whereIn('item_id', $itemIds);
+                                if (!empty($skus)) {
+                                    if ($hasCond) {
+                                        $q->orWhereIn('batch_no', $skus);
+                                    } else {
+                                        $q->whereIn('batch_no', $skus);
+                                        $hasCond = true;
+                                    }
                                 }
-                            }
-                        })
-                        ->where(function ($q) {
-                            $q->where('send_qty', 0)
-                              ->orWhereNull('send_qty')
-                              ->orWhere('avilable_qty', '>', 0);
-                        })
-                        ->orderBy('sno', 'asc')
-                        ->limit($totalQtyNeeded)
-                        ->pluck('sno');
+                                if (!empty($itemIds)) {
+                                    if ($hasCond) {
+                                        $q->orWhereIn('item_id', $itemIds);
+                                    } else {
+                                        $q->whereIn('item_id', $itemIds);
+                                        $hasCond = true;
+                                    }
+                                }
+                                if (!$hasCond) {
+                                    $q->whereRaw('1 = 0');
+                                }
+                            })
+                            ->where(function ($q) {
+                                $q->where('send_qty', 0)
+                                  ->orWhereNull('send_qty')
+                                  ->orWhere('avilable_qty', '>', 0);
+                            })
+                            ->orderBy('sno', 'asc')
+                            ->limit($totalQtyNeeded)
+                            ->pluck('sno');
 
-                    if ($targetVsRows->isNotEmpty()) {
-                        $vsUpdate = [
-                            'send_qty' => 1,
-                            'avilable_qty' => 0,
-                            'orderid' => (string) $orderId,
-                            'orderno' => (string) $orderNumber,
-                            'orderstatus' => $statusLower,
-                            'updated_at' => now(),
-                        ];
-                        if (!empty($trackingId)) $vsUpdate['shipmentno'] = $trackingId;
-                        if (!empty($courierName)) $vsUpdate['shipmentreparks'] = $courierName;
-                        if (!empty($dispatchDate)) $vsUpdate['stockremovaldate'] = $dispatchDate;
+                        if ($targetVsRows->isNotEmpty()) {
+                            $vsUpdate = [
+                                'send_qty' => 1,
+                                'avilable_qty' => 0,
+                                'orderid' => (string) $orderId,
+                                'orderno' => (string) $orderNumber,
+                                'orderstatus' => $statusLower,
+                                'updated_at' => now(),
+                            ];
+                            if (!empty($trackingId)) $vsUpdate['shipmentno'] = $trackingId;
+                            if (!empty($courierName)) $vsUpdate['shipmentreparks'] = $courierName;
+                            if (!empty($dispatchDate)) $vsUpdate['stockremovaldate'] = $dispatchDate;
 
-                        DB::table('vendor_stock')
-                            ->whereIn('sno', $targetVsRows)
-                            ->update($vsUpdate);
+                            DB::table('vendor_stock')
+                                ->whereIn('sno', $targetVsRows)
+                                ->update($vsUpdate);
+
+                            Log::info("vendor_stock updated to {$statusLower} for Order #{$orderNumber} (sno: " . implode(',', $targetVsRows->toArray()) . ")");
+                        } else {
+                            // Product not found in vendor_stock (exists only in vendor_stock_web).
+                            // Skip vendor_stock update cleanly without throwing or showing any error.
+                            Log::info("Product for Order #{$orderNumber} not found in vendor_stock. Cleanly skipped vendor_stock update without error.");
+                        }
+                    } else {
+                        // No matching product identifiers for vendor_stock, skip cleanly
+                        Log::info("No product identifiers for vendor_stock found for Order #{$orderNumber}. Cleanly skipped vendor_stock update.");
                     }
                 }
             } elseif (in_array($statusLower, ['order confirmed', 'order_confirmed', 'processing'])) {
