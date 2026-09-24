@@ -308,6 +308,16 @@
                 </a>
             </li>
 
+          <li>
+            <a
+                href="javascript:void(0)"
+                id="btnOpenStockStatus"
+            >
+                <i class="bi bi-box-seam"></i>
+                <span>Stock Status</span>
+            </a>
+        </li>
+
             <li>
                 <a href="{{ route('inventory.pattern-test-fit-stock') }}">
 

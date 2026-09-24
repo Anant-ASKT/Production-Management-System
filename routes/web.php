@@ -14,6 +14,7 @@ use App\Http\Controllers\ProductSpecificationMasterController;
 
 use App\Http\Controllers\TraderSpecificationController;
 use App\Http\Controllers\TraderProductSpecificationMasterController;
+use App\Http\Controllers\StockStatusController;
 
 
 
@@ -630,6 +631,37 @@ Route::middleware('auth')->group(function () {
     Route::post('admin/sampling-companies/{company}/users', [AdminSamplingCompanyController::class, 'addUser'])->name('admin.sampling-companies.users.store');
     Route::put('admin/sampling-companies/{company}/users/{user}', [AdminSamplingCompanyController::class, 'updateUser'])->name('admin.sampling-companies.users.update');
     Route::delete('admin/sampling-companies/{company}/users/{user}', [AdminSamplingCompanyController::class, 'deleteUser'])->name('admin.sampling-companies.users.destroy');
+});
+
+Route::middleware('auth')->group(function () {
+
+    /*
+    |--------------------------------------------------------------------------
+    | STOCK STATUS
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        '/admin/stock-status/filters',
+        [
+            StockStatusController::class,
+            'filters'
+        ]
+    )->name(
+        'stock-status.filters'
+    );
+
+
+    Route::get(
+        '/admin/stock-status/report',
+        [
+            StockStatusController::class,
+            'report'
+        ]
+    )->name(
+        'stock-status.report'
+    );
+
 });
 
 
