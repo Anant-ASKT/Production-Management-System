@@ -225,8 +225,8 @@ class WooCommerceService
             $metaData[] = ['key' => 'rank_math_focus_keyword', 'value' => $cleanKeywords];
         }
 
-        // 11. Fetch price and stock from vendor_stock_web
-        $vswQuery = DB::table('vendor_stock_web')
+        // 11. Fetch price and stock from vendor_stock_web according to which supplier uploaded this product
+        $vswBaseQuery = DB::table('vendor_stock_web')
             ->where(function($q) use ($product) {
                 $q->where('item_id', $product->spec_id);
                 if (!empty($product->sku)) {
@@ -237,10 +237,29 @@ class WooCommerceService
                 }
             });
 
-        if (!empty($targetSupplierId)) {
-            $vswTarget = (clone $vswQuery)->where('vendor_id', $targetSupplierId);
-            if ($vswTarget->exists()) {
-                $vswQuery = $vswTarget;
+        $uploadSupplierId = null;
+        $vswCandidate = (clone $vswBaseQuery)
+            ->whereNotNull('vendor_id')
+            ->where('vendor_id', '>', 0)
+            ->orderBy('sno', 'desc')
+            ->first();
+
+        if ($vswCandidate && !empty($vswCandidate->vendor_id)) {
+            $uploadSupplierId = (int) $vswCandidate->vendor_id;
+        } elseif (!empty($product->origin_supplier_id)) {
+            $uploadSupplierId = (int) $product->origin_supplier_id;
+        } elseif (!empty($product->supplier_product_id)) {
+            $sp = DB::table('supplier_products')->where('sno', $product->supplier_product_id)->first();
+            if ($sp && !empty($sp->supplier_id)) {
+                $uploadSupplierId = (int) $sp->supplier_id;
+            }
+        }
+
+        $vswQuery = clone $vswBaseQuery;
+        if (!empty($uploadSupplierId)) {
+            $vswSupplierQuery = (clone $vswBaseQuery)->where('vendor_id', $uploadSupplierId);
+            if ($vswSupplierQuery->exists()) {
+                $vswQuery = $vswSupplierQuery;
             }
         }
 
@@ -252,8 +271,22 @@ class WooCommerceService
         })->count();
 
         if ($vswLatest) {
-            $regularPrice = !empty($vswLatest->purchase_price) ? (string) $vswLatest->purchase_price : (!empty($product->price) ? (string) $product->price : '5999');
-            $salePrice = !empty($vswLatest->sale_price) ? (string) $vswLatest->sale_price : (!empty($product->sale_price) ? (string) $product->sale_price : '');
+            $vswPurchase = (!empty($vswLatest->purchase_price) && (float) $vswLatest->purchase_price > 0) ? (float) $vswLatest->purchase_price : null;
+            $vswSale = (!empty($vswLatest->sale_price) && (float) $vswLatest->sale_price > 0) ? (float) $vswLatest->sale_price : null;
+
+            if ($vswPurchase && $vswSale && $vswSale < $vswPurchase) {
+                $regularPrice = (string) $vswPurchase;
+                $salePrice = (string) $vswSale;
+            } elseif ($vswSale) {
+                $regularPrice = (string) $vswSale;
+                $salePrice = '';
+            } elseif ($vswPurchase) {
+                $regularPrice = (string) $vswPurchase;
+                $salePrice = '';
+            } else {
+                $regularPrice = !empty($product->price) ? (string) $product->price : '5999';
+                $salePrice = !empty($product->sale_price) ? (string) $product->sale_price : '';
+            }
             $minPrice = !empty($product->min_price) ? (string) $product->min_price : '';
             $stockQty = $vswAvailableStock;
         } else {
@@ -262,9 +295,9 @@ class WooCommerceService
             if (!empty($product->supplier_product_id)) {
                 $sp = DB::table('supplier_products')->where('sno', $product->supplier_product_id)->first();
             }
-            if (!$sp && !empty($targetSupplierId)) {
+            if (!$sp && !empty($uploadSupplierId)) {
                 $sp = DB::table('supplier_products')
-                    ->where('supplier_id', $targetSupplierId)
+                    ->where('supplier_id', $uploadSupplierId)
                     ->where(function($q) use ($product) {
                         if (!empty($product->item_type)) {
                             $q->where('item_type', $product->item_type);
@@ -273,7 +306,7 @@ class WooCommerceService
                     ->first();
 
                 if (!$sp) {
-                    $sp = DB::table('supplier_products')->where('supplier_id', $targetSupplierId)->first();
+                    $sp = DB::table('supplier_products')->where('supplier_id', $uploadSupplierId)->first();
                 }
             }
             if (!$sp && !empty($product->origin_supplier_id)) {

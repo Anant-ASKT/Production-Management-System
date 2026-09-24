@@ -113,7 +113,7 @@ class AdminPublishProductsController extends Controller
             'composition.composition_details as composition_name',
             'colour.colourname as colour_name',
             'size.size as size_name',
-            DB::raw("COALESCE(supplier.name, (SELECT s_vsw.name FROM vendor_stock_web vsw JOIN suppliers s_vsw ON s_vsw.sno = vsw.vendor_id WHERE (vsw.item_id = dsm.id OR vsw.item_id = dsm.sno OR vsw.batch_no = dsm.sku) ORDER BY vsw.sno DESC LIMIT 1)) as supplier_name"),
+            DB::raw("COALESCE((SELECT s_vsw.name FROM vendor_stock_web vsw JOIN suppliers s_vsw ON s_vsw.sno = vsw.vendor_id WHERE (vsw.item_id = dsm.id OR vsw.item_id = dsm.sno OR vsw.batch_no = dsm.sku) ORDER BY vsw.sno DESC LIMIT 1), supplier.name) as supplier_name"),
             'designer.designername as designer_name'
         ]);
 
@@ -251,69 +251,8 @@ class AdminPublishProductsController extends Controller
 
         $product->clean_product_name = $this->cleanAiTitle($product->AI_product_name ?: $product->master_product_name);
 
-        // Fetch vendor_stock_web pricing and available stock
-        $vswQuery = DB::table('vendor_stock_web')
-            ->where(function($q) use ($product) {
-                $q->where('item_id', $product->display_id ?: $product->spec_id)
-                  ->orWhere('item_id', $product->spec_id);
-                if (!empty($product->sku)) {
-                    $q->orWhere('batch_no', $product->sku);
-                }
-                if (!empty($product->barcode)) {
-                    $q->orWhere('barcode', $product->barcode);
-                }
-            });
-
-        $vswLatest = (clone $vswQuery)->orderBy('sno', 'desc')->first();
-        $vswAvailableStock = (clone $vswQuery)->where(function($q) {
-            $q->where('send_qty', 0)->orWhereNull('send_qty');
-        })->where(function($q) {
-            $q->where('avilable_qty', '>', 0)->orWhereNull('avilable_qty');
-        })->count();
-
-        if ($vswLatest) {
-            if (empty($product->supplier_id) || !DB::table('suppliers')->where('sno', $product->supplier_id)->exists()) {
-                $product->supplier_id = $vswLatest->vendor_id;
-                $vswSupplier = DB::table('suppliers')->where('sno', $vswLatest->vendor_id)->first();
-                if ($vswSupplier) {
-                    $product->supplier_name = $vswSupplier->name;
-                }
-            }
-            $product->regular_price = !empty($vswLatest->purchase_price) ? (float) $vswLatest->purchase_price : (!empty($product->price) ? (float) $product->price : null);
-            $product->sale_price = !empty($vswLatest->sale_price) ? (float) $vswLatest->sale_price : (!empty($product->sale_price) ? (float) $product->sale_price : null);
-            $product->min_price = !empty($product->min_price) ? (float) $product->min_price : null;
-            $product->stock_qty = $vswAvailableStock;
-        } else {
-            // Fetch supplier product pricing and stock fallback
-            $supplierProduct = null;
-            if (!empty($product->supplier_product_id)) {
-                $supplierProduct = DB::table('supplier_products')
-                    ->where('sno', $product->supplier_product_id)
-                    ->first();
-            }
-
-            if (!$supplierProduct && !empty($product->supplier_id)) {
-                $supplierProduct = DB::table('supplier_products')
-                    ->where('supplier_id', $product->supplier_id)
-                    ->where(function($q) use ($product) {
-                        if (!empty($product->item_type)) {
-                            $q->where('item_type', $product->item_type);
-                        }
-                    })
-                    ->first();
-
-                if (!$supplierProduct) {
-                    $supplierProduct = DB::table('supplier_products')
-                        ->where('supplier_id', $product->supplier_id)
-                        ->first();
-                }
-            }
-
-            $product->regular_price = !empty($product->price) ? (float) $product->price : (!empty($supplierProduct->price) ? (float) $supplierProduct->price : null);
-            $product->sale_price = !empty($product->sale_price) ? (float) $product->sale_price : (!empty($supplierProduct->sale_price) ? (float) $supplierProduct->sale_price : null);
-            $product->min_price = !empty($product->min_price) ? (float) $product->min_price : (!empty($supplierProduct->min_price) ? (float) $supplierProduct->min_price : null);
-            $product->stock_qty = isset($supplierProduct->stock) ? (int) $supplierProduct->stock : 25;
-        }
+        // Fetch vendor_stock_web pricing and available stock according to which supplier uploaded this product
+        $this->populateSupplierPricingAndStock($product, $id);
 
         // Approved enhanced images (only main and sub, exclude extra)
         $approvedImages = DB::table('approved_enhanced_images')
@@ -407,65 +346,8 @@ class AdminPublishProductsController extends Controller
 
         $product->clean_product_name = $this->cleanAiTitle($product->AI_product_name ?: $product->master_product_name);
 
-        // Fetch vendor_stock_web pricing and available stock
-        $vswQuery = DB::table('vendor_stock_web')
-            ->where(function($q) use ($product) {
-                $q->where('item_id', $product->display_id ?: $product->spec_id)
-                  ->orWhere('item_id', $product->spec_id);
-                if (!empty($product->sku)) {
-                    $q->orWhere('batch_no', $product->sku);
-                }
-                if (!empty($product->barcode)) {
-                    $q->orWhere('barcode', $product->barcode);
-                }
-            });
-
-        $vswLatest = (clone $vswQuery)->orderBy('sno', 'desc')->first();
-        $vswAvailableStock = (clone $vswQuery)->where(function($q) {
-            $q->where('send_qty', 0)->orWhereNull('send_qty');
-        })->where(function($q) {
-            $q->where('avilable_qty', '>', 0)->orWhereNull('avilable_qty');
-        })->count();
-
-        if ($vswLatest) {
-            if (empty($product->supplier_id) || !DB::table('suppliers')->where('sno', $product->supplier_id)->exists()) {
-                $product->supplier_id = $vswLatest->vendor_id;
-            }
-            $product->regular_price = !empty($vswLatest->purchase_price) ? (float) $vswLatest->purchase_price : (!empty($product->price) ? (float) $product->price : null);
-            $product->sale_price = !empty($vswLatest->sale_price) ? (float) $vswLatest->sale_price : (!empty($product->sale_price) ? (float) $product->sale_price : null);
-            $product->min_price = !empty($product->min_price) ? (float) $product->min_price : null;
-            $product->stock_qty = $vswAvailableStock;
-        } else {
-            // Fetch supplier product pricing and stock fallback
-            $supplierProduct = null;
-            if (!empty($product->supplier_product_id)) {
-                $supplierProduct = DB::table('supplier_products')
-                    ->where('sno', $product->supplier_product_id)
-                    ->first();
-            }
-
-            if (!$supplierProduct && !empty($product->supplier_id)) {
-                $supplierProduct = DB::table('supplier_products')
-                    ->where('supplier_id', $product->supplier_id)
-                    ->where(function($q) use ($product) {
-                        if (!empty($product->item_type)) {
-                            $q->where('item_type', $product->item_type);
-                        }
-                    })
-                    ->first();
-
-                if (!$supplierProduct) {
-                    $supplierProduct = DB::table('supplier_products')
-                        ->where('supplier_id', $product->supplier_id)
-                        ->first();
-                }
-            }
-
-            $product->regular_price = !empty($product->price) ? (float) $product->price : (!empty($supplierProduct->price) ? (float) $supplierProduct->price : null);
-            $product->sale_price = !empty($product->sale_price) ? (float) $product->sale_price : (!empty($supplierProduct->sale_price) ? (float) $supplierProduct->sale_price : null);
-            $product->min_price = !empty($product->min_price) ? (float) $product->min_price : (!empty($supplierProduct->min_price) ? (float) $supplierProduct->min_price : null);
-            $product->stock_qty = isset($supplierProduct->stock) ? (int) $supplierProduct->stock : 25;
-        }
+        // Fetch vendor_stock_web pricing and available stock according to which supplier uploaded this product
+        $uploadSupplierId = $this->populateSupplierPricingAndStock($product, $id);
 
         // Fetch all approved enhanced images (only main and sub, exclude extra)
         $approvedImages = DB::table('approved_enhanced_images')
@@ -494,12 +376,141 @@ class AdminPublishProductsController extends Controller
             ->get();
 
         // Fetch categories for initial target supplier (default to product origin supplier or first supplier)
-        $defaultTargetSupplierId = $product->supplier_id ?? ($suppliers->first()->sno ?? null);
+        $defaultTargetSupplierId = $uploadSupplierId ?? ($product->supplier_id ?? ($suppliers->first()->sno ?? null));
         $categories = $defaultTargetSupplierId 
             ? DB::table('categories')->where('supplier_id', $defaultTargetSupplierId)->orderBy('name', 'asc')->get() 
             : collect();
 
         return view('admin.publish_products.show', compact('product', 'approvedImages', 'suppliers', 'publishedRecords', 'categories', 'defaultTargetSupplierId'));
+    }
+
+    /**
+     * Resolve the uploading supplier, pricing, and stock from vendor_stock_web.
+     */
+    private function populateSupplierPricingAndStock(&$product, $specificationId)
+    {
+        // 1. Resolve which supplier uploaded this product
+        $uploadSupplierId = null;
+
+        // Check vendor_stock_web first (where stock & pricing was uploaded by the supplier)
+        $vswCandidate = DB::table('vendor_stock_web')
+            ->where(function($q) use ($product) {
+                $q->where('item_id', $product->display_id ?: $product->spec_id)
+                  ->orWhere('item_id', $product->spec_id);
+                if (!empty($product->sku)) {
+                    $q->orWhere('batch_no', $product->sku);
+                }
+                if (!empty($product->barcode)) {
+                    $q->orWhere('barcode', $product->barcode);
+                }
+            })
+            ->whereNotNull('vendor_id')
+            ->where('vendor_id', '>', 0)
+            ->orderBy('sno', 'desc')
+            ->first();
+
+        if ($vswCandidate && !empty($vswCandidate->vendor_id)) {
+            $uploadSupplierId = (int) $vswCandidate->vendor_id;
+        } elseif (!empty($product->supplier_id)) {
+            $uploadSupplierId = (int) $product->supplier_id;
+        } elseif (!empty($product->supplier_product_id)) {
+            $sp = DB::table('supplier_products')->where('sno', $product->supplier_product_id)->first();
+            if ($sp && !empty($sp->supplier_id)) {
+                $uploadSupplierId = (int) $sp->supplier_id;
+            }
+        }
+
+        if ($uploadSupplierId) {
+            $uploadSupplier = DB::table('suppliers')->where('sno', $uploadSupplierId)->first();
+            if ($uploadSupplier) {
+                $product->supplier_id = $uploadSupplier->sno;
+                $product->supplier_name = $uploadSupplier->name;
+                if (property_exists($product, 'store_url')) {
+                    $product->store_url = $uploadSupplier->store_url;
+                }
+            }
+        }
+
+        // 2. Query vendor_stock_web according to which supplier uploaded this product
+        $vswQuery = DB::table('vendor_stock_web')
+            ->where(function($q) use ($product) {
+                $q->where('item_id', $product->display_id ?: $product->spec_id)
+                  ->orWhere('item_id', $product->spec_id);
+                if (!empty($product->sku)) {
+                    $q->orWhere('batch_no', $product->sku);
+                }
+                if (!empty($product->barcode)) {
+                    $q->orWhere('barcode', $product->barcode);
+                }
+            });
+
+        if (!empty($uploadSupplierId)) {
+            $vswSupplierQuery = (clone $vswQuery)->where('vendor_id', $uploadSupplierId);
+            if ($vswSupplierQuery->exists()) {
+                $vswQuery = $vswSupplierQuery;
+            }
+        }
+
+        $vswLatest = (clone $vswQuery)->orderBy('sno', 'desc')->first();
+        $vswAvailableStock = (clone $vswQuery)->where(function($q) {
+            $q->where('send_qty', 0)->orWhereNull('send_qty');
+        })->where(function($q) {
+            $q->where('avilable_qty', '>', 0)->orWhereNull('avilable_qty');
+        })->count();
+
+        if ($vswLatest) {
+            $vswPurchase = (!empty($vswLatest->purchase_price) && (float) $vswLatest->purchase_price > 0) ? (float) $vswLatest->purchase_price : null;
+            $vswSale = (!empty($vswLatest->sale_price) && (float) $vswLatest->sale_price > 0) ? (float) $vswLatest->sale_price : null;
+
+            if ($vswPurchase && $vswSale && $vswSale < $vswPurchase) {
+                $product->regular_price = $vswPurchase;
+                $product->sale_price = $vswSale;
+            } elseif ($vswSale) {
+                $product->regular_price = $vswSale;
+                $product->sale_price = null;
+            } elseif ($vswPurchase) {
+                $product->regular_price = $vswPurchase;
+                $product->sale_price = null;
+            } else {
+                $product->regular_price = !empty($product->price) ? (float) $product->price : null;
+                $product->sale_price = !empty($product->sale_price) ? (float) $product->sale_price : null;
+            }
+
+            $product->min_price = !empty($product->min_price) ? (float) $product->min_price : null;
+            $product->stock_qty = $vswAvailableStock;
+        } else {
+            // Fallback to supplier_products if not found in vendor_stock_web
+            $supplierProduct = null;
+            if (!empty($product->supplier_product_id)) {
+                $supplierProduct = DB::table('supplier_products')
+                    ->where('sno', $product->supplier_product_id)
+                    ->first();
+            }
+
+            if (!$supplierProduct && !empty($uploadSupplierId)) {
+                $supplierProduct = DB::table('supplier_products')
+                    ->where('supplier_id', $uploadSupplierId)
+                    ->where(function($q) use ($product) {
+                        if (!empty($product->item_type)) {
+                            $q->where('item_type', $product->item_type);
+                        }
+                    })
+                    ->first();
+
+                if (!$supplierProduct) {
+                    $supplierProduct = DB::table('supplier_products')
+                        ->where('supplier_id', $uploadSupplierId)
+                        ->first();
+                }
+            }
+
+            $product->regular_price = !empty($product->price) ? (float) $product->price : (!empty($supplierProduct->price) ? (float) $supplierProduct->price : null);
+            $product->sale_price = !empty($product->sale_price) ? (float) $product->sale_price : (!empty($supplierProduct->sale_price) ? (float) $supplierProduct->sale_price : null);
+            $product->min_price = !empty($product->min_price) ? (float) $product->min_price : (!empty($supplierProduct->min_price) ? (float) $supplierProduct->min_price : null);
+            $product->stock_qty = isset($supplierProduct->stock) ? (int) $supplierProduct->stock : 25;
+        }
+
+        return $uploadSupplierId;
     }
 
     /**
