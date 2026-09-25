@@ -29,4 +29,20 @@ class Supplier extends Authenticatable
     {
         return $this->hasMany(SupplierUser::class, 'supplier_id', 'sno');
     }
+
+    /**
+     * Determine if this entity is a supplier.
+     */
+    public function isSupplier(): bool
+    {
+        return ($this->type ?? 'supplier') === 'supplier';
+    }
+
+    /**
+     * Determine if this entity is a retailer.
+     */
+    public function isRetailer(): bool
+    {
+        return ($this->type ?? 'supplier') === 'retailer';
+    }
 }
