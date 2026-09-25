@@ -49,13 +49,15 @@
                     </div>
 
                     <div class="col-md-6 mb-3">
-                        <label class="form-label fw-bold">Company Email *</label>
-                        <input type="email" name="company_email" class="form-control" value="{{ old('company_email') }}" placeholder="e.g. info@company.com" required>
-                    </div>
-
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label fw-bold">Company Phone</label>
-                        <input type="text" name="phone" class="form-control" value="{{ old('phone') }}" placeholder="e.g. +91 9876543210">
+                        <label class="form-label fw-bold">Is Supplier or Retailer? *</label>
+                        <select name="type" id="type" class="form-select @error('type') is-invalid @enderror" required>
+                            <option value="supplier" {{ old('type', 'supplier') == 'supplier' ? 'selected' : '' }}>Supplier</option>
+                            <option value="retailer" {{ old('type') == 'retailer' ? 'selected' : '' }}>Retailer</option>
+                        </select>
+                        <small class="text-muted">Select whether this account is a Supplier or Retailer (Default: Supplier)</small>
+                        @error('type')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
                     </div>
 
                     <div class="col-md-6 mb-3">
@@ -68,6 +70,16 @@
                     </div>
 
                     <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Company Email *</label>
+                        <input type="email" name="company_email" class="form-control" value="{{ old('company_email') }}" placeholder="e.g. info@company.com" required>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Company Phone</label>
+                        <input type="text" name="phone" class="form-control" value="{{ old('phone') }}" placeholder="e.g. +91 9876543210">
+                    </div>
+
+                    <div class="col-md-12 mb-3">
                         <label class="form-label fw-bold">Address</label>
                         <textarea name="address" class="form-control" rows="2" placeholder="Full company address">{{ old('address') }}</textarea>
                     </div>

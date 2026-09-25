@@ -33,6 +33,7 @@
                             <th style="width: 70px;">S.No</th>
                             <th>Supplier Name</th>
                             <th>Nick Name</th>
+                            <th>Type</th>
                             <th>Email</th>
                             <th>Integration</th>
                             <th>Users</th>
@@ -50,6 +51,17 @@
                                     <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 fw-bold">
                                         {{ $supplier->nickname ?? '-' }}
                                     </span>
+                                </td>
+                                <td>
+                                    @if(($supplier->type ?? 'supplier') === 'retailer')
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1">
+                                            <i class="bi bi-shop me-1"></i> Retailer
+                                        </span>
+                                    @else
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                                            <i class="bi bi-truck me-1"></i> Supplier
+                                        </span>
+                                    @endif
                                 </td>
                                 <td>{{ $supplier->email ?? '-' }}</td>
                                 <td>
@@ -78,7 +90,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="text-center py-4 text-muted">No suppliers found.</td>
+                                <td colspan="10" class="text-center py-4 text-muted">No suppliers found.</td>
                             </tr>
                         @endforelse
                     </tbody>

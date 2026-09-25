@@ -10,6 +10,15 @@
         <div>
             <div class="d-flex align-items-center gap-2">
                 <h4 class="m-0">{{ $supplier->name }}</h4>
+                @if(($supplier->type ?? 'supplier') === 'retailer')
+                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1">
+                        <i class="bi bi-shop me-1"></i> Retailer
+                    </span>
+                @else
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                        <i class="bi bi-truck me-1"></i> Supplier
+                    </span>
+                @endif
                 @if($supplier->is_integrated)
                     <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
                         <i class="bi bi-link-45deg me-1"></i> Integrated
@@ -68,6 +77,18 @@
                             <label class="form-label fw-bold">Nick Name (3 Letters) *</label>
                             <input type="text" name="nickname" class="form-control text-uppercase" maxlength="3" minlength="3" pattern="[A-Za-z]{3}" value="{{ old('nickname', $supplier->nickname) }}" placeholder="e.g. ABC" title="Exactly 3 letters" style="text-transform:uppercase;" required>
                             <small class="text-muted">Unique 3-letter code (e.g. ABC)</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Is Supplier or Retailer? *</label>
+                            <select name="type" id="type" class="form-select @error('type') is-invalid @enderror" required>
+                                <option value="supplier" {{ old('type', $supplier->type ?? 'supplier') == 'supplier' ? 'selected' : '' }}>Supplier</option>
+                                <option value="retailer" {{ old('type', $supplier->type ?? 'supplier') == 'retailer' ? 'selected' : '' }}>Retailer</option>
+                            </select>
+                            <small class="text-muted">Select whether this organization is a Supplier or Retailer (Default: Supplier)</small>
+                            @error('type')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
                         
                         <div class="mb-3">
