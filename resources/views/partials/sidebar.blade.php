@@ -203,6 +203,14 @@
 
         <ul class="sidebar-menu">
 
+        <li>
+            <a href="{{ route('all-garments.ai-enhancer.index') }}"
+            class="{{ request()->routeIs('all-garments.ai-enhancer.*') ? 'active' : '' }}">
+                <i class="bi bi-stars"></i>
+                <span>Send Image To AI Enhancer</span>
+            </a>
+        </li>
+
             <li>
 
                 <a
@@ -213,7 +221,7 @@
                     <i class="bi bi-grid-3x3-gap"></i>
 
                     <span>
-                        All Garments
+                        All Garments For AI Images
                     </span>
 
                 </a>
@@ -309,14 +317,11 @@
             </li>
 
           <li>
-            <a
-                href="javascript:void(0)"
-                id="btnOpenStockStatus"
-            >
-                <i class="bi bi-box-seam"></i>
-                <span>Stock Status</span>
-            </a>
-        </li>
+    <a href="{{ route('stock-status.index') }}">
+        <i class="bi bi-box-seam"></i>
+        <span>Stock Status</span>
+    </a>
+</li>
 
             <li>
                 <a href="{{ route('inventory.pattern-test-fit-stock') }}">

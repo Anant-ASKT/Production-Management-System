@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 
 class AllGarmentsController extends Controller
 {
@@ -230,6 +231,25 @@ class AllGarmentsController extends Controller
         $genderId = $request->filled('gender')
             ? (int) $request->input('gender')
             : null;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | AI IMAGES FILTER
+        |--------------------------------------------------------------------------
+        | all = all products
+        | yes = products which already have uploaded AI images
+        | no  = products which do not have uploaded AI images
+        */
+
+        $aiUploaded = strtolower(trim((string) $request->input(
+            'ai_uploaded',
+            'all'
+        )));
+
+        if (!in_array($aiUploaded, ['all', 'yes', 'no'], true)) {
+            $aiUploaded = 'all';
+        }
 
 
         /*
@@ -531,6 +551,8 @@ class AllGarmentsController extends Controller
                 $projectId
             );
 
+            
+
         }
 
 
@@ -594,6 +616,53 @@ class AllGarmentsController extends Controller
                 'dsm.gender',
                 $genderId
             );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEDIT FILTER
+        |--------------------------------------------------------------------------
+        | Only show records where tedit is NULL or empty.
+        */
+
+        $query->where(function ($q) {
+            $q->whereNull('dsm.tedit')
+              ->orWhere('dsm.tedit', '');
+        });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | AI IMAGES FILTER
+        |--------------------------------------------------------------------------
+        | The AI upload table uses barcode as well as garment_id.
+        | COLLATE is used because the two barcode columns may have
+        | different MySQL collations in existing databases.
+        */
+
+        if ($aiUploaded === 'yes') {
+
+            $query->whereExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('ai_enhanced_images_uploded as aiup')
+                    ->whereColumn('aiup.garment_id', 'dsm.sno')
+                    ->whereRaw(
+                        'aiup.barcode COLLATE utf8mb4_unicode_ci = dsm.barcode COLLATE utf8mb4_unicode_ci'
+                    );
+            });
+
+        } elseif ($aiUploaded === 'no') {
+
+            $query->whereNotExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('ai_enhanced_images_uploded as aiup')
+                    ->whereColumn('aiup.garment_id', 'dsm.sno')
+                    ->whereRaw(
+                        'aiup.barcode COLLATE utf8mb4_unicode_ci = dsm.barcode COLLATE utf8mb4_unicode_ci'
+                    );
+            });
 
         }
 
@@ -777,6 +846,29 @@ class AllGarmentsController extends Controller
 
             /*
             |--------------------------------------------------------------------------
+            | AI UPLOADED STATUS
+            |--------------------------------------------------------------------------
+            | This field is used by the Blade page to highlight products
+            | which already have AI images uploaded.
+            */
+
+            DB::raw("
+                CASE
+                    WHEN EXISTS (
+                        SELECT 1
+                        FROM ai_enhanced_images_uploded as aiup
+                        WHERE aiup.garment_id = dsm.sno
+                          AND aiup.barcode COLLATE utf8mb4_unicode_ci =
+                              dsm.barcode COLLATE utf8mb4_unicode_ci
+                    )
+                    THEN 1
+                    ELSE 0
+                END AS ai_images_uploaded
+            "),
+
+
+            /*
+            |--------------------------------------------------------------------------
             | AI DATA
             |--------------------------------------------------------------------------
             */
@@ -821,6 +913,165 @@ class AllGarmentsController extends Controller
                 $perPage
             );
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | RESOLVE PRODUCT IMAGES
+        |--------------------------------------------------------------------------
+        |
+        | Supports BOTH old and new image formats:
+        |
+        | OLD:
+        | ../../ItemsDesigner_Masterwithbarcode/1479293301111/
+        |
+        | NEW:
+        | ["ItemsDesigner_Masterwithbarcode/91245452291412/1LJ-IDI-2112-8pu5D81097.jpeg"]
+        |
+        | An old value may point only to a directory. In that case we scan
+        | the directory under public/ and return every real image file.
+        |--------------------------------------------------------------------------
+        */
+        $garments->getCollection()->transform(function ($garment) {
+
+            $rawValues = [
+                $garment->img_path ?? null,
+                $garment->subimg_path ?? null,
+                $garment->image ?? null,
+                $garment->image_path ?? null,
+                $garment->main_image ?? null,
+                $garment->design_image ?? null,
+                $garment->oc_main_img ?? null,
+                $garment->sub_images ?? null,
+                $garment->sub_images_path ?? null,
+                $garment->images ?? null,
+            ];
+
+            $imageUrls = [];
+            $seen = [];
+
+            $addImage = function ($relativePath) use (&$imageUrls, &$seen) {
+                $relativePath = trim(str_replace('\\', '/', (string) $relativePath));
+                if ($relativePath === '') {
+                    return;
+                }
+
+                // Find the real public path marker even when old data starts with ../../
+                $marker = 'ItemsDesigner_Masterwithbarcode/';
+                $markerPosition = stripos($relativePath, $marker);
+
+                if ($markerPosition !== false) {
+                    $relativePath = substr($relativePath, $markerPosition);
+                } else {
+                    $relativePath = preg_replace(
+                        '#^(?:\.\./|\.\/|/|public/)+#i',
+                        '',
+                        $relativePath
+                    );
+                }
+
+                $relativePath = ltrim($relativePath, '/');
+                if ($relativePath === '') {
+                    return;
+                }
+
+                $publicAbsolute = public_path($relativePath);
+
+                // If the DB value is a directory, add every image inside it.
+                if (is_dir($publicAbsolute)) {
+                    foreach (File::files($publicAbsolute) as $file) {
+                        $extension = strtolower($file->getExtension());
+
+                        if (!in_array($extension, [
+                            'jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg', 'avif', 'heic'
+                        ], true)) {
+                            continue;
+                        }
+
+                        $fileRelative = str_replace(
+                            '\\',
+                            '/',
+                            $file->getRelativePathname()
+                        );
+
+                        $key = strtolower($relativePath . $fileRelative);
+
+                        if (!isset($seen[$key])) {
+                            $seen[$key] = true;
+                            $imageUrls[] = asset(
+                                $relativePath . $fileRelative
+                            );
+                        }
+                    }
+
+                    return;
+                }
+
+                // If it is an actual image file, use it directly.
+                $extension = strtolower(pathinfo($relativePath, PATHINFO_EXTENSION));
+
+                if (in_array($extension, [
+                    'jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg', 'avif', 'heic'
+                ], true)) {
+                    $key = strtolower($relativePath);
+
+                    if (!isset($seen[$key])) {
+                        $seen[$key] = true;
+                        $imageUrls[] = asset($relativePath);
+                    }
+                }
+            };
+
+            $walk = function ($value) use (&$walk, $addImage) {
+                if ($value === null || $value === '') {
+                    return;
+                }
+
+                if (is_array($value)) {
+                    foreach ($value as $item) {
+                        $walk($item);
+                    }
+                    return;
+                }
+
+                if (is_object($value)) {
+                    foreach (['path', 'url', 'image'] as $key) {
+                        if (isset($value->{$key})) {
+                            $walk($value->{$key});
+                            return;
+                        }
+                    }
+                    return;
+                }
+
+                $text = trim((string) $value);
+
+                if (
+                    strlen($text) >= 2 &&
+                    $text[0] === '[' &&
+                    substr($text, -1) === ']'
+                ) {
+                    $decoded = json_decode($text, true);
+
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                        foreach ($decoded as $item) {
+                            $walk($item);
+                        }
+                        return;
+                    }
+                }
+
+                $addImage($text);
+            };
+
+            foreach ($rawValues as $value) {
+                $walk($value);
+            }
+
+            // This is the new canonical field consumed by the Blade page.
+            $garment->image_urls = array_values($imageUrls);
+
+            return $garment;
+        });
 
         /*
         |--------------------------------------------------------------------------
