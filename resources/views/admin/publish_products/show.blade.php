@@ -151,10 +151,13 @@
                         </button>
 
                         @if($publishedRecords->count() > 0)
-                            @php $latestPublish = $publishedRecords->first(); @endphp
+                            @php 
+                                $latestPublish = $publishedRecords->first(); 
+                                $latestDomain = !empty($latestPublish->target_store_url) ? parse_url($latestPublish->target_store_url, PHP_URL_HOST) : null;
+                            @endphp
                             @if($latestPublish->permalink)
                                 <a href="{{ $latestPublish->permalink }}" target="_blank" class="btn btn-outline-secondary px-3 py-2.5 fw-medium rounded-2 small d-inline-flex align-items-center" style="min-height: 44px;">
-                                    <i class="bi bi-box-arrow-up-right me-1.5"></i> View Live ({{ $latestPublish->target_supplier_name }})
+                                    <i class="bi bi-box-arrow-up-right me-1.5"></i> View Live ({{ $latestDomain ?: $latestPublish->target_supplier_name }})
                                 </a>
                             @endif
                         @endif
@@ -382,24 +385,36 @@
                 {{-- Form Controls --}}
                 <div class="mb-3">
                     <label class="form-label fw-bold small text-dark">
-                        Target Supplier / Store <span class="text-danger">*</span>
+                        Target Domain / Store <span class="text-danger">*</span>
                     </label>
                     <select id="modalTargetSupplierSelect" class="form-select rounded-3">
                         @foreach($suppliers as $s)
                             @php
                                 $hasCreds = !empty($s->store_url) && !empty($s->consumer_key) && !empty($s->consumer_secret);
                                 $isOrigin = ($s->sno == ($product->supplier_id ?? null));
+                                $rawUrl = trim($s->store_url ?? '');
+                                $parsedHost = parse_url($rawUrl, PHP_URL_HOST);
+                                if (!$parsedHost && !empty($rawUrl)) {
+                                    $parsedHost = parse_url('https://' . preg_replace('#^https?://#i', '', $rawUrl), PHP_URL_HOST);
+                                }
+                                $domain = $parsedHost ?: (!empty($rawUrl) ? preg_replace('#^https?://#i', '', rtrim($rawUrl, '/')) : null);
+                            @endphp
+                            @php
+                                $typeLabel = ucfirst($s->type ?? 'supplier');
                             @endphp
                             <option value="{{ $s->sno }}" 
                                     data-has-creds="{{ $hasCreds ? '1' : '0' }}"
                                     data-store-url="{{ $s->store_url }}"
+                                    data-domain="{{ $domain ?: '' }}"
+                                    data-type="{{ $typeLabel }}"
                                     data-name="{{ $s->name }}"
                                     {{ $s->sno == $defaultTargetSupplierId ? 'selected' : '' }}>
-                                {{ $s->name }} {{ $isOrigin ? '(Origin Supplier)' : '' }} {{ !$hasCreds ? '⚠️ (No API Keys)' : '' }}
+                                {{ $domain ?: 'No Domain' }} - {{ $s->name }} - {{ $typeLabel }}{{ $isOrigin ? ' (Origin)' : '' }}{{ !$hasCreds ? ' ⚠️ (No API Keys)' : '' }}
                             </option>
                         @endforeach
                     </select>
-                    <small class="text-muted" style="font-size: 0.75rem;">Select which supplier's connected WooCommerce store to publish this product to.</small>
+                    <div id="modalTargetDomainInfo" class="mt-1 small" style="font-size: 0.75rem;"></div>
+                    <small class="text-muted d-block mt-0.5" style="font-size: 0.75rem;">Select target store domain to publish or update this product to on WooCommerce.</small>
                 </div>
 
                 <div class="mb-3">
@@ -504,15 +519,28 @@ function onModalSupplierChanged(supplierId, preselectedCatId = null) {
     const modalCategorySelect = document.getElementById('modalTargetCategorySelect');
     const spinner = document.getElementById('modalCategorySpinner');
     const btnText = document.getElementById('modalPublishBtnText');
+    const domainInfo = document.getElementById('modalTargetDomainInfo');
 
     const existingPublish = publishedRecordsBySupplier[supplierId];
     const selectedOpt = document.querySelector(`#modalTargetSupplierSelect option[value="${supplierId}"]`);
     const supplierName = selectedOpt ? selectedOpt.getAttribute('data-name') : 'Store';
+    const storeUrl = selectedOpt ? selectedOpt.getAttribute('data-store-url') : '';
+    const storeDomain = selectedOpt ? selectedOpt.getAttribute('data-domain') : '';
+
+    if (domainInfo) {
+        if (storeUrl) {
+            domainInfo.innerHTML = `<span class="text-success"><i class="bi bi-globe me-1"></i><strong>Target Domain:</strong> <a href="${escapeHtml(storeUrl)}" target="_blank" class="text-success fw-medium text-decoration-underline">${escapeHtml(storeDomain || storeUrl)}</a></span>`;
+        } else {
+            domainInfo.innerHTML = `<span class="text-muted"><i class="bi bi-exclamation-triangle text-warning me-1"></i>No store domain configured for this supplier.</span>`;
+        }
+    }
+
+    const targetLabel = storeDomain || supplierName;
 
     if (existingPublish && existingPublish.woocommerce_product_id) {
-        btnText.textContent = 'Update on ' + (existingPublish.target_supplier_name || supplierName);
+        btnText.textContent = 'Update on ' + (storeDomain || existingPublish.target_supplier_name || supplierName);
     } else {
-        btnText.textContent = 'Publish to ' + supplierName;
+        btnText.textContent = 'Publish to ' + targetLabel;
     }
 
     if (!supplierId) {
