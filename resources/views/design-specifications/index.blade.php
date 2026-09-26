@@ -14568,13 +14568,16 @@ document.addEventListener(
                                     this.src
                                 )"
                                 onerror="
-                                    this.parentElement.innerHTML =
-                                    '<div class=&quot;no-image&quot;>
-                                        <i class=&quot;bi bi-image&quot;></i>
-                                        <span>Image unavailable</span>
-                                    </div>';
+                                    if (!this.dataset.triedRemote && this.src.includes('ItemsDesigner_Masterwithbarcode')) {
+                                        this.dataset.triedRemote = 'true';
+                                        var p = this.src.indexOf('ItemsDesigner_Masterwithbarcode');
+                                        this.src = 'https://idi.amanaccounting.in/' + this.src.substring(p);
+                                    } else {
+                                        this.parentElement.innerHTML = '<div class=&quot;no-image&quot;><i class=&quot;bi bi-image&quot;></i><span>Image unavailable</span></div>';
+                                    }
                                 "
                             >
+
 
                         `;
 

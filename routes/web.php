@@ -891,6 +891,23 @@ Route::get(
     [AdminPublishedProductsController::class, 'data']
 )->name('admin.published-products.data');
 
+Route::get(
+    '/admin/published-products/{id}',
+    [AdminPublishedProductsController::class, 'show']
+)->name('admin.published-products.show');
+
+Route::delete(
+    '/admin/published-products/{id}',
+    [AdminPublishedProductsController::class, 'destroy']
+)->name('admin.published-products.destroy');
+
+Route::post(
+    '/admin/published-products/{id}/withdraw-stock',
+    [AdminPublishedProductsController::class, 'withdrawStock']
+)->name('admin.published-products.withdraw-stock');
+
+
+
 /*
 |--------------------------------------------------------------------------
 | UPDATE PRODUCT (STOCK & PRICE SYNC WITH WOOCOMMERCE & ERP) ROUTES
@@ -971,5 +988,68 @@ Route::middleware('auth')->group(function () {
 */
 Route::post('/order_webhook_payloads', [App\Http\Controllers\OrderWebhookController::class, 'handle'])->name('order.webhook.payloads');
 Route::post('/webhook/orders', [App\Http\Controllers\OrderWebhookController::class, 'handle']);
+
+/*
+|--------------------------------------------------------------------------
+| ItemsDesigner_Masterwithbarcode Image Proxy / Fallback
+|--------------------------------------------------------------------------
+| Serves local design images, or fetches from remote live server and
+| caches locally if not yet present on local machine.
+*/
+Route::get('/ItemsDesigner_Masterwithbarcode/{path}', function ($path) {
+    $cleanPath = ltrim($path, '/');
+    $localFile = public_path('ItemsDesigner_Masterwithbarcode/' . $cleanPath);
+
+    // If file exists locally on disk, serve it
+    if (is_file($localFile)) {
+        return response()->file($localFile);
+    }
+
+    // If directory exists locally, look for any valid image inside
+    if (is_dir($localFile)) {
+        $files = @scandir($localFile);
+        if ($files) {
+            foreach ($files as $file) {
+                if ($file === '.' || $file === '..') continue;
+                $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+                if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) {
+                    return response()->file($localFile . '/' . $file);
+                }
+            }
+        }
+    }
+
+    // If requesting a specific image file, try fetching from remote live server
+    $ext = strtolower(pathinfo($cleanPath, PATHINFO_EXTENSION));
+    if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) {
+        $remoteUrl = 'https://idi.amanaccounting.in/ItemsDesigner_Masterwithbarcode/' . $cleanPath;
+        try {
+            $context = stream_context_create([
+                'http' => [
+                    'timeout' => 5,
+                    'ignore_errors' => true,
+                ],
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                ]
+            ]);
+            $content = @file_get_contents($remoteUrl, false, $context);
+            if ($content !== false && !empty($content) && (isset($http_response_header[0]) && str_contains($http_response_header[0], '200'))) {
+                $dir = dirname($localFile);
+                if (!is_dir($dir)) {
+                    @mkdir($dir, 0755, true);
+                }
+                @file_put_contents($localFile, $content);
+                return response()->file($localFile);
+            }
+        } catch (\Throwable $e) {}
+
+        return redirect($remoteUrl);
+    }
+
+    abort(404);
+})->where('path', '.*');
+
 
 
