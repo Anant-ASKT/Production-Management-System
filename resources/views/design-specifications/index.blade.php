@@ -8774,11 +8774,6 @@ body {
                         supplierUserId
                     );
 
-                    formData.append(
-                        'login_supplier_stock',
-                        supplierStock
-                    );
-
                     const stockQtyField =
                         document.getElementById(
                             'stock_qty'
@@ -8790,6 +8785,10 @@ body {
                             ? stockQtyField.value
                             : supplierStock;
 
+                    formData.append(
+                        'login_supplier_stock',
+                        stockQty
+                    );
 
                     formData.append(
                         'stock_qty',
@@ -9013,6 +9012,13 @@ body {
                     minprice
                 );
 
+                const stockQtyInput = document.getElementById('stock_qty');
+                if (stockQtyInput && stockQtyInput.value !== '') {
+                    formData.set('stock_qty', stockQtyInput.value);
+                    if (!formData.has('login_supplier_stock')) {
+                        formData.set('login_supplier_stock', stockQtyInput.value);
+                    }
+                }
 
                 formData.append(
                     'clientreference',
