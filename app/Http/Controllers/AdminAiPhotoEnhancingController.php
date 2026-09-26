@@ -742,126 +742,42 @@ class AdminAiPhotoEnhancingController extends Controller
 */
 
 $specifications->getCollection()->transform(function ($item) {
-
-    $item->image_url = null;
-
-    if (empty($item->img_path)) {
-        return $item;
+    // 1. Check if supplier product exists with a newly uploaded image for this SKU or barcode
+    $supplierProduct = null;
+    if (!empty($item->sku) || !empty($item->barcode)) {
+        $supplierProduct = DB::table('supplier_products')
+            ->where(function ($q) use ($item) {
+                if (!empty($item->sku)) {
+                    $q->where('product_sku', $item->sku);
+                }
+                if (!empty($item->barcode)) {
+                    $q->orWhere('product_sku', $item->barcode);
+                }
+            })
+            ->whereNotNull('main_image')
+            ->where('main_image', '!=', '')
+            ->orderByDesc('sno')
+            ->first();
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Example database value
-    |--------------------------------------------------------------------------
-    |
-    | ../../ItemsDesigner_Masterwithbarcode/147921111111/
-    |
-    */
-
-    $imgPath = str_replace('\\', '/', trim($item->img_path));
-
-    /*
-    |--------------------------------------------------------------------------
-    | Find ItemsDesigner_Masterwithbarcode
-    |--------------------------------------------------------------------------
-    */
-
-    $marker = 'ItemsDesigner_Masterwithbarcode/';
-
-    $position = strpos($imgPath, $marker);
-
-    if ($position === false) {
-        return $item;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Get barcode folder
-    |--------------------------------------------------------------------------
-    */
-
-    $barcodeFolder = substr(
-        $imgPath,
-        $position + strlen($marker)
-    );
-
-    $barcodeFolder = trim($barcodeFolder, '/');
-
-    if ($barcodeFolder === '') {
-        return $item;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Physical folder
-    |--------------------------------------------------------------------------
-    */
-
-    $folderPath = public_path(
-        'ItemsDesigner_Masterwithbarcode/' . $barcodeFolder
-    );
-
-    /*
-    |--------------------------------------------------------------------------
-    | Check folder exists
-    |--------------------------------------------------------------------------
-    */
-
-    if (!is_dir($folderPath)) {
-        return $item;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Find image
-    |--------------------------------------------------------------------------
-    */
-
-    $files = scandir($folderPath);
-
-    foreach ($files as $file) {
-
-        if ($file === '.' || $file === '..') {
-            continue;
-        }
-
-        $extension = strtolower(
-            pathinfo($file, PATHINFO_EXTENSION)
-        );
-
-        if (
-            in_array(
-                $extension,
-                [
-                    'jpg',
-                    'jpeg',
-                    'png',
-                    'webp',
-                    'gif'
-                ],
-                true
-            )
-        ) {
-
-            /*
-            |--------------------------------------------------------------------------
-            | Browser URL
-            |--------------------------------------------------------------------------
-            */
-
-            $item->image_url = asset(
-                'ItemsDesigner_Masterwithbarcode/' .
-                $barcodeFolder .
-                '/' .
-                $file
-            );
-
-            break;
+    if ($supplierProduct && !empty($supplierProduct->main_image)) {
+        $resolved = self::resolveSpecificationImage($supplierProduct->main_image, $item->barcode);
+        if ($resolved) {
+            $item->image_url = $resolved;
+            $item->supplier_product_id = $supplierProduct->sno;
+            $item->supplier_product_image = $resolved;
+            if (!empty($supplierProduct->sub_images)) {
+                $item->subimg_path = $supplierProduct->sub_images;
+            }
+            return $item;
         }
     }
 
+    // 2. Fallback to master design specification image
+    $item->image_url = self::resolveSpecificationImage($item->img_path, $item->barcode);
     return $item;
 });
+
 
     /*
     |--------------------------------------------------------------------------
@@ -957,4 +873,114 @@ $specifications->getCollection()->transform(function ($item) {
         }
     }
 
+    /**
+     * Resolve specification image URL reliably from various formats:
+     * - JSON array / object
+     * - Direct image file path (local or remote live server)
+     * - Directory containing image files
+     * - Barcode directory fallback
+     * - Storage / raw_products path
+     */
+    public static function resolveSpecificationImage($rawImgPath, $barcode = null)
+    {
+        if (empty($rawImgPath) && empty($barcode)) {
+            return null;
+        }
+
+        // 1. JSON decode if array / object
+        if (is_string($rawImgPath) && (str_starts_with(trim($rawImgPath), '[') || str_starts_with(trim($rawImgPath), '{'))) {
+            $decoded = json_decode(trim($rawImgPath), true);
+            if (is_array($decoded) && !empty($decoded)) {
+                $rawImgPath = is_array($decoded[0]) ? ($decoded[0]['url'] ?? $decoded[0]['path'] ?? reset($decoded[0])) : $decoded[0];
+            }
+        }
+
+        if (empty($rawImgPath) || !is_string($rawImgPath)) {
+            $rawImgPath = '';
+        }
+
+        $imgPath = trim(str_replace('\\', '/', $rawImgPath));
+
+        // 2. Full URL
+        if (str_starts_with($imgPath, 'http://') || str_starts_with($imgPath, 'https://') || str_starts_with($imgPath, 'data:')) {
+            return $imgPath;
+        }
+
+        // 3. Storage / Raw products
+        if (str_starts_with($imgPath, 'storage/') || str_starts_with($imgPath, '/storage/')) {
+            return asset(ltrim($imgPath, '/'));
+        }
+        if (str_starts_with($imgPath, 'raw_products/')) {
+            if (is_file(public_path($imgPath))) {
+                return asset($imgPath);
+            }
+            if (is_file(storage_path('app/public/' . $imgPath))) {
+                return asset('storage/' . $imgPath);
+            }
+            return asset($imgPath);
+        }
+
+        // 4. ItemsDesigner_Masterwithbarcode
+        $marker = 'ItemsDesigner_Masterwithbarcode/';
+        $pos = strpos($imgPath, $marker);
+        if ($pos !== false) {
+            $relativePath = ltrim(substr($imgPath, $pos), '/');
+            $physicalPath = public_path($relativePath);
+
+            // Exact file exists locally
+            if (is_file($physicalPath)) {
+                return asset($relativePath);
+            }
+
+            // Folder exists locally: find first valid image
+            if (is_dir($physicalPath)) {
+                $files = @scandir($physicalPath);
+                if ($files) {
+                    foreach ($files as $file) {
+                        if ($file === '.' || $file === '..') continue;
+                        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+                        if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) {
+                            return asset(rtrim($relativePath, '/') . '/' . $file);
+                        }
+                    }
+                }
+            }
+
+            // If it's a specific file with image extension, asset() will be served/cached by our route
+            $ext = strtolower(pathinfo($relativePath, PATHINFO_EXTENSION));
+            if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) {
+                return asset($relativePath);
+            }
+
+            return asset($relativePath);
+        }
+
+        // 5. Fallback by barcode
+        if ($barcode) {
+            $barcodeFolder = 'ItemsDesigner_Masterwithbarcode/' . trim($barcode);
+            $physicalFolder = public_path($barcodeFolder);
+            if (is_dir($physicalFolder)) {
+                $files = @scandir($physicalFolder);
+                if ($files) {
+                    foreach ($files as $file) {
+                        if ($file === '.' || $file === '..') continue;
+                        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+                        if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) {
+                            return asset($barcodeFolder . '/' . $file);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!empty($imgPath)) {
+            $clean = ltrim($imgPath, '/');
+            if (is_file(public_path($clean))) {
+                return asset($clean);
+            }
+            return asset($clean);
+        }
+
+        return null;
+    }
 }

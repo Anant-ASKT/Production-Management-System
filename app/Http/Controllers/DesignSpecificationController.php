@@ -5739,6 +5739,43 @@ private function generateProductSku(
             );
 
 
+        $supplierStock =
+            $request->input(
+                'stock_qty'
+            );
+
+        if ($supplierStock === null || $supplierStock === '') {
+            $supplierStock = $request->input('login_supplier_stock');
+        }
+
+        if ($supplierStock === null || $supplierStock === '') {
+            $supplierStock = $request->input('quantity');
+        }
+
+        if ($supplierStock === null || $supplierStock === '') {
+            $supplierStock = $request->input('stock');
+        }
+
+        if (
+            ($supplierStock === null || $supplierStock === '') &&
+            !empty($supplierProductId)
+        ) {
+            $supplierStock = DB::table('supplier_products')
+                ->where('sno', $supplierProductId)
+                ->value('stock');
+        }
+
+        if (
+            $supplierStock === null ||
+            $supplierStock === '' ||
+            !is_numeric($supplierStock) ||
+            (int) $supplierStock <= 0
+        ) {
+            $supplierStock = 1;
+        } else {
+            $supplierStock = (int) $supplierStock;
+        }
+
         if (
             $supplierProductId !== null &&
             $supplierProductId !== ''
@@ -5754,6 +5791,8 @@ private function generateProductSku(
             ->update([
                 'status_done' =>
                     $generatedSku,
+                'stock' =>
+                    $supplierStock,
             ]);
         }
 
@@ -5771,36 +5810,8 @@ private function generateProductSku(
         */
 
         if (
-            $hasSupplier
+            $hasSupplier || $supplierStock > 0
         ) {
-
-            $supplierStock =
-                $request->input(
-                    'login_supplier_stock'
-                );
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | Stock Qty fallback
-            |--------------------------------------------------------------------------
-            */
-
-            if (
-                $supplierStock === null ||
-                $supplierStock === '' ||
-                !is_numeric($supplierStock) ||
-                (int) $supplierStock <= 0
-            ) {
-
-                $supplierStock =
-                    1;
-
-            } else {
-
-                $supplierStock =
-                    (int) $supplierStock;
-            }
 
 
             $createatDate =
@@ -5912,6 +5923,12 @@ private function generateProductSku(
 
                     'sale_price' =>
                         $saleprice,
+
+                    'purchase_price' =>
+                        !empty($price) ? (float) $price : null,
+
+                    'total_cost' =>
+                        !empty($price) ? (float) $price : null,
 
                     'createat_date' =>
                         $createatDate,

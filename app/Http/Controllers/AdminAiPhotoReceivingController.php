@@ -138,6 +138,29 @@ class AdminAiPhotoReceivingController extends Controller
 
         // Resolve original images (Main + Sub)
         $subImagesList = [];
+
+        // Check if supplier uploaded raw images for this SKU or barcode
+        $supplierProd = DB::table('supplier_products')
+            ->where(function($q) use ($spec) {
+                if (!empty($spec->sku)) $q->where('product_sku', $spec->sku);
+                if (!empty($spec->barcode)) $q->orWhere('product_sku', $spec->barcode);
+            })
+            ->whereNotNull('main_image')
+            ->where('main_image', '!=', '')
+            ->orderByDesc('sno')
+            ->first();
+
+        if ($supplierProd) {
+            if (!empty($supplierProd->main_image)) {
+                $spec->img_path = $supplierProd->main_image;
+            }
+            if (!empty($supplierProd->sub_images)) {
+                $supplierSubs = json_decode($supplierProd->sub_images, true);
+                if (is_array($supplierSubs) && !empty($supplierSubs)) {
+                    $subImagesList = array_merge($supplierSubs, $subImagesList);
+                }
+            }
+        }
         if (!empty($spec->subimg_path)) {
             $decoded = json_decode($spec->subimg_path, true);
             if (is_array($decoded)) {

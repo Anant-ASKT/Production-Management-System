@@ -131,6 +131,29 @@ class AssignedProductController extends Controller
             }
         }
 
+        // Check if supplier uploaded raw images for this SKU or barcode
+        $supplierProd = \DB::table('supplier_products')
+            ->where(function($q) use ($product) {
+                if (!empty($product->sku)) $q->where('product_sku', $product->sku);
+                if (!empty($product->barcode)) $q->orWhere('product_sku', $product->barcode);
+            })
+            ->whereNotNull('main_image')
+            ->where('main_image', '!=', '')
+            ->orderByDesc('sno')
+            ->first();
+
+        if ($supplierProd) {
+            if (!empty($supplierProd->main_image)) {
+                $product->img_path = $supplierProd->main_image;
+            }
+            if (!empty($supplierProd->sub_images)) {
+                $supplierSubs = json_decode($supplierProd->sub_images, true);
+                if (is_array($supplierSubs) && !empty($supplierSubs)) {
+                    $subImagesList = array_merge($supplierSubs, $subImagesList);
+                }
+            }
+        }
+
         $subImagesList = array_values(array_unique(array_filter($subImagesList)));
         $product->subimg_path = !empty($subImagesList) ? json_encode($subImagesList, JSON_UNESCAPED_SLASHES) : null;
 

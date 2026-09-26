@@ -493,51 +493,39 @@ class WooCommerceService
             if (!$directUrl) {
                 $fileContent = file_get_contents($localFullPath);
 
-                // Option A: Catbox
+                // Option A: FreeImage Host (official API with multipart attachment, returns direct image CDN URL)
                 try {
-                    $catRes = Http::timeout(25)
-                        ->attach('fileToUpload', $fileContent, $fileName)
-                        ->post('https://catbox.moe/user/api.php', [
-                            'reqtype' => 'fileupload'
-                        ]);
-                    if ($catRes->successful() && str_starts_with(trim($catRes->body()), 'https://')) {
-                        $directUrl = trim($catRes->body());
-                    }
-                } catch (\Exception $e) {
-                    Log::warning('Catbox upload failed: ' . $e->getMessage());
-                }
-
-                // Option B: tmpfiles.org
-                if (!$directUrl) {
-                    try {
-                        $tmpRes = Http::timeout(25)
-                            ->attach('file', $fileContent, $fileName)
-                            ->post('https://tmpfiles.org/api/v1/upload');
-                        if ($tmpRes->successful()) {
-                            $tmpJson = $tmpRes->json();
-                            if (!empty($tmpJson['data']['url'])) {
-                                $directUrl = str_replace('tmpfiles.org/', 'tmpfiles.org/dl/', $tmpJson['data']['url']);
-                            }
-                        }
-                    } catch (\Exception $e) {
-                        Log::warning('tmpfiles upload failed: ' . $e->getMessage());
-                    }
-                }
-
-                // Option C: FreeImage host
-                if (!$directUrl) {
-                    try {
-                        $freeRes = Http::timeout(25)->post('https://freeimage.host/api/1/upload', [
+                    $freeRes = Http::timeout(25)
+                        ->attach('source', $fileContent, $fileName)
+                        ->post('https://freeimage.host/api/1/upload', [
                             'key' => '6d207e02198a847aa98d0a2a901485a5',
                             'action' => 'upload',
-                            'source' => base64_encode($fileContent),
                             'format' => 'json'
                         ]);
-                        if ($freeRes->successful()) {
-                            $directUrl = $freeRes->json()['image']['url'] ?? null;
+                    if ($freeRes->successful()) {
+                        $freeJson = $freeRes->json();
+                        $candUrl = $freeJson['image']['url'] ?? ($freeJson['image']['display_url'] ?? null);
+                        if (!empty($candUrl) && filter_var($candUrl, FILTER_VALIDATE_URL)) {
+                            $directUrl = $candUrl;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('FreeImage upload failed: ' . $e->getMessage());
+                }
+
+                // Option B: Catbox (fallback)
+                if (!$directUrl) {
+                    try {
+                        $catRes = Http::timeout(8)
+                            ->attach('fileToUpload', $fileContent, $fileName)
+                            ->post('https://catbox.moe/user/api.php', [
+                                'reqtype' => 'fileupload'
+                            ]);
+                        if ($catRes->successful() && str_starts_with(trim($catRes->body()), 'https://')) {
+                            $directUrl = trim($catRes->body());
                         }
                     } catch (\Exception $e) {
-                        Log::warning('FreeImage upload failed: ' . $e->getMessage());
+                        Log::warning('Catbox upload failed: ' . $e->getMessage());
                     }
                 }
             }

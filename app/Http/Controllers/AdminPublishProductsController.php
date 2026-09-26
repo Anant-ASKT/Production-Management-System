@@ -392,11 +392,15 @@ class AdminPublishProductsController extends Controller
         // 1. Resolve which supplier uploaded this product
         $uploadSupplierId = null;
 
+        $specItemId = !empty($product->display_id) ? $product->display_id : ($product->spec_id ?? $specificationId);
+
         // Check vendor_stock_web first (where stock & pricing was uploaded by the supplier)
         $vswCandidate = DB::table('vendor_stock_web')
-            ->where(function($q) use ($product) {
-                $q->where('item_id', $product->display_id ?: $product->spec_id)
-                  ->orWhere('item_id', $product->spec_id);
+            ->where(function($q) use ($product, $specItemId) {
+                $q->where('item_id', $specItemId);
+                if (!empty($product->spec_id)) {
+                    $q->orWhere('item_id', $product->spec_id);
+                }
                 if (!empty($product->sku)) {
                     $q->orWhere('batch_no', $product->sku);
                 }
@@ -433,9 +437,11 @@ class AdminPublishProductsController extends Controller
 
         // 2. Query vendor_stock_web according to which supplier uploaded this product
         $vswQuery = DB::table('vendor_stock_web')
-            ->where(function($q) use ($product) {
-                $q->where('item_id', $product->display_id ?: $product->spec_id)
-                  ->orWhere('item_id', $product->spec_id);
+            ->where(function($q) use ($product, $specItemId) {
+                $q->where('item_id', $specItemId);
+                if (!empty($product->spec_id)) {
+                    $q->orWhere('item_id', $product->spec_id);
+                }
                 if (!empty($product->sku)) {
                     $q->orWhere('batch_no', $product->sku);
                 }
