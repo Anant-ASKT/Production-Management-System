@@ -254,6 +254,24 @@ class AllGarmentsController extends Controller
 
         /*
         |--------------------------------------------------------------------------
+        | AI ENHANCER SENT FILTER
+        |--------------------------------------------------------------------------
+        | all = all products
+        | yes = products already sent to the AI Enhancer
+        */
+
+        $aiSent = strtolower(trim((string) $request->input(
+            'ai_sent',
+            'all'
+        )));
+
+        if (!in_array($aiSent, ['all', 'yes'], true)) {
+            $aiSent = 'all';
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
         | MAIN QUERY
         |--------------------------------------------------------------------------
         */
@@ -669,6 +687,26 @@ class AllGarmentsController extends Controller
 
         /*
         |--------------------------------------------------------------------------
+        | AI ENHANCER SENT FILTER
+        |--------------------------------------------------------------------------
+        */
+
+        if ($aiSent === 'yes') {
+
+            $query->whereExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('ai_enhancer_sent_products as asp')
+                    ->whereColumn('asp.garment_id', 'dsm.sno')
+                    ->whereRaw(
+                        'BINARY asp.barcode = BINARY dsm.barcode'
+                    );
+            });
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
         | SEARCH
         |--------------------------------------------------------------------------
         */
@@ -864,6 +902,26 @@ class AllGarmentsController extends Controller
                     THEN 1
                     ELSE 0
                 END AS ai_images_uploaded
+            "),
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | AI ENHANCER SENT STATUS
+            |--------------------------------------------------------------------------
+            */
+
+            DB::raw("
+                CASE
+                    WHEN EXISTS (
+                        SELECT 1
+                        FROM ai_enhancer_sent_products as asp
+                        WHERE asp.garment_id = dsm.sno
+                          AND BINARY asp.barcode = BINARY dsm.barcode
+                    )
+                    THEN 1
+                    ELSE 0
+                END AS ai_sent
             "),
 
 

@@ -34,31 +34,13 @@
 
     {{-- =========================================================
         GARMENT FILTERS
-        Supplier + Product Type + Product Name + Composition + Gender
+        Product Type + Product Name + Composition + Gender + AI Enhancer
     ========================================================== --}}
 
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
 
             <div class="row g-3 align-items-end">
-
-                <div class="col-md-6 col-xl">
-                    <label for="garmentProject" class="form-label fw-semibold">
-                        Suppliers
-                    </label>
-                    <select id="garmentProject" class="form-select garment-filter-select">
-                        <option value="">All Suppliers</option>
-                        @foreach($projects as $project)
-                            <option
-                                value="{{ $project->projectid }}"
-                                data-company-id="{{ $project->companyid }}"
-                                data-subcompany-id="{{ $project->subcompanyid }}"
-                            >
-                                {{ $project->projectname }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
 
                 <div class="col-md-6 col-xl">
                     <label for="garmentItemType" class="form-label fw-semibold">
@@ -125,13 +107,12 @@
                 </div>
 
                 <div class="col-md-6 col-xl">
-                    <label for="garmentAiUploaded" class="form-label fw-semibold">
-                        AI Images
+                    <label for="garmentAiSent" class="form-label fw-semibold">
+                        AI Enhancer
                     </label>
-                    <select id="garmentAiUploaded" class="form-select garment-filter-select">
-                        <option value="all">All Products</option>
-                        <option value="yes">AI Images Uploaded</option>
-                        <option value="no">AI Images Not Uploaded</option>
+                    <select id="garmentAiSent" class="form-select garment-filter-select">
+                        <option value="yes" selected>Show Only Send Product for AI Image</option>
+                        <option value="all">Show All Products</option>
                     </select>
                 </div>
 
@@ -151,7 +132,6 @@
 
         </div>
     </div>
-
 
     {{-- =========================================================
 
@@ -1386,16 +1366,6 @@ document.addEventListener(
         |--------------------------------------------------------------------------
 
         */
-
-        const projectSelect =
-
-            document.getElementById(
-
-                'garmentProject'
-
-            );
-
-
         const itemTypeSelect =
             document.getElementById(
                 'garmentItemType'
@@ -1420,9 +1390,9 @@ document.addEventListener(
             );
 
 
-        const aiUploadedSelect =
+        const aiSentSelect =
             document.getElementById(
-                'garmentAiUploaded'
+                'garmentAiSent'
             );
 
 
@@ -1626,36 +1596,50 @@ document.addEventListener(
 
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | IMAGE PATH HANDLER
+        |--------------------------------------------------------------------------
+        | Supports BOTH existing database formats:
+        |
+        | 1. Legacy:
+        |    ../../ItemsDesigner_Masterwithbarcode/1479293301111/
+        |
+        | 2. New:
+        |    ["ItemsDesigner_Masterwithbarcode/91350782350210/I1L-IDI-2109-02pEWKwn9i.jpeg"]
+        |
+        | IMPORTANT:
+        | A legacy value can be a DIRECTORY only. The browser cannot discover
+        | filenames inside a directory. Therefore image_urls (resolved by the
+        | controller) is always checked first. New JSON file paths are used
+        | directly.
+        |--------------------------------------------------------------------------
+        */
+
         function getImageUrl(image) {
 
             if (
-                !image ||
                 image === null ||
-                image === undefined
+                image === undefined ||
+                image === ''
             ) {
                 return '';
             }
-
-            /*
-            |--------------------------------------------------------------------------
-            | NEW IMAGE DATA CAN BE JSON
-            |--------------------------------------------------------------------------
-            | Example:
-            | ["ItemsDesigner_Masterwithbarcode/912.../SKU.jpeg"]
-            |
-            | Older data can be a relative barcode-folder path:
-            | ../../ItemsDesigner_Masterwithbarcode/147.../
-            |--------------------------------------------------------------------------
-            */
 
             if (Array.isArray(image)) {
                 const values = image.flatMap(function (item) {
                     return parseImageValues(item);
                 });
 
+                /*
+                | Prefer a real file, never a directory-only value.
+                */
                 const firstFile = values.find(function (item) {
-                    return /\.[a-zA-Z0-9]{2,5}(?:[?#].*)?$/.test(
-                        String(item || '').trim()
+                    const value = String(item || '').trim();
+
+                    return (
+                        value !== '' &&
+                        /\.(jpe?g|png|webp|gif|bmp|svg|avif|heic)(?:[?#].*)?$/i.test(value)
                     );
                 });
 
@@ -1671,7 +1655,8 @@ document.addEventListener(
             }
 
             /*
-            | JSON string stored in the database.
+            | JSON string:
+            | ["ItemsDesigner_Masterwithbarcode/.../file.jpeg"]
             */
             if (
                 text.startsWith('[') &&
@@ -1680,59 +1665,70 @@ document.addEventListener(
                 const values = parseImageValues(text);
 
                 const firstFile = values.find(function (item) {
-                    return /\.[a-zA-Z0-9]{2,5}(?:[?#].*)?$/.test(
-                        String(item || '').trim()
+                    const value = String(item || '').trim();
+
+                    return (
+                        value !== '' &&
+                        /\.(jpe?g|png|webp|gif|bmp|svg|avif|heic)(?:[?#].*)?$/i.test(value)
                     );
                 });
 
-                if (firstFile) {
-                    return getImageUrl(firstFile);
-                }
-
-                return '';
+                return firstFile
+                    ? getImageUrl(firstFile)
+                    : '';
             }
 
             if (
                 text.startsWith('http://') ||
                 text.startsWith('https://') ||
-                text.startsWith('data:')
+                text.startsWith('data:') ||
+                text.startsWith('blob:')
             ) {
                 return text;
             }
 
+            text = text
+                .replace(/\\/g, '/')
+                .replace(/^\s*["']+|["']+\s*$/g, '');
+
             /*
-            |--------------------------------------------------------------------------
-            | NORMALIZE OLD + NEW PATHS
-            |--------------------------------------------------------------------------
-            | Both of these are converted to the same public-root URL:
-            |
-            | ../../ItemsDesigner_Masterwithbarcode/147.../
-            | ItemsDesigner_Masterwithbarcode/912.../SKU.jpeg
-            |
-            | Result:
-            | /ItemsDesigner_Masterwithbarcode/...
-            |--------------------------------------------------------------------------
+            | Keep the complete public path after ItemsDesigner_Masterwithbarcode.
+            | This handles both:
+            | ../../ItemsDesigner_Masterwithbarcode/...
+            | ItemsDesigner_Masterwithbarcode/...
             */
+            const marker = 'ItemsDesigner_Masterwithbarcode/';
 
-            text = text.replace(
-                /^\s*["']+|["']+\s*$/g,
-                ''
-            );
+            const markerPosition = text.indexOf(marker);
 
-            text = text.replace(
-                /^(?:\.\.\/|\.\/)+/g,
-                ''
-            );
+            if (markerPosition !== -1) {
+                const publicPath = text.substring(markerPosition);
 
-            text = text.replace(
-                /^\/+/,
-                ''
-            );
+                /*
+                | Do NOT return a directory-only path as an image.
+                | It must have a real image filename.
+                */
+                if (
+                    !/\.(jpe?g|png|webp|gif|bmp|svg|avif|heic)(?:[?#].*)?$/i.test(
+                        publicPath
+                    )
+                ) {
+                    return '';
+                }
 
-            text = text.replace(
-                /^public\/+/i,
-                ''
-            );
+                return "{{ asset('') }}" + publicPath;
+            }
+
+            text = text
+                .replace(/^(?:\.\.\/|\.\/)+/g, '')
+                .replace(/^\/+/, '')
+                .replace(/^public\/+/i, '');
+
+            if (
+                !/\.(jpe?g|png|webp|gif|bmp|svg|avif|heic)(?:[?#].*)?$/i.test(text)
+            ) {
+                return '';
+            }
 
             return "{{ asset('') }}" + text;
         }
@@ -1745,10 +1741,16 @@ document.addEventListener(
                 return [];
             }
 
+            /*
+            | IMPORTANT:
+            | image_urls is controller-resolved and MUST come first.
+            | This is what allows the legacy directory format to work when
+            | the database contains only:
+            | ../../ItemsDesigner_Masterwithbarcode/1479293301111/
+            */
             const candidates = [
-                // Controller-resolved images. This contains actual files
-                // for BOTH legacy directory paths and new JSON file paths.
                 garment.image_urls,
+                garment.image_url,
 
                 garment.img_path,
                 garment.subimg_path,
@@ -1766,11 +1768,19 @@ document.addEventListener(
 
             candidates.forEach(function (value) {
                 parseImageValues(value).forEach(function (image) {
+
                     const clean = String(image || '').trim();
 
-                    if (clean) {
-                        rawImages.push(clean);
+                    if (!clean) {
+                        return;
                     }
+
+                    /*
+                    | Keep real image files.
+                    | Keep legacy directory values only as a fallback; the
+                    | controller-resolved image_urls will be selected first.
+                    */
+                    rawImages.push(clean);
                 });
             });
 
@@ -1778,6 +1788,7 @@ document.addEventListener(
             const result = [];
 
             rawImages.forEach(function (image) {
+
                 const key = image.toLowerCase();
 
                 if (!seen.has(key)) {
@@ -1786,20 +1797,8 @@ document.addEventListener(
                 }
             });
 
-            /*
-            |--------------------------------------------------------------------------
-            | Return ALL resolved image values.
-            |--------------------------------------------------------------------------
-            |
-            | The controller converts legacy directory paths into actual image
-            | URLs, while new JSON paths are also retained. Do not discard any
-            | valid image just because another image value exists.
-            |--------------------------------------------------------------------------
-            */
-
             return result;
         }
-
 
 
         function getFileExtension(url) {
@@ -1843,96 +1842,6 @@ document.addEventListener(
 
             return name || 'garment';
         }
-
-
-        /*
-
-        |--------------------------------------------------------------------------
-
-        | GET SELECTED PROJECT DATA
-
-        |--------------------------------------------------------------------------
-
-        */
-
-        function getSelectedProject() {
-
-            if (!projectSelect) {
-
-                return {
-
-                    projectId: '',
-
-                    companyId: '',
-
-                    subCompanyId: ''
-
-                };
-
-            }
-
-
-
-            const projectId =
-
-                projectSelect.value;
-
-
-
-            const selectedOption =
-
-                projectSelect.options[
-
-                    projectSelect.selectedIndex
-
-                ];
-
-
-
-            if (
-
-                !projectId ||
-
-                !selectedOption
-
-            ) {
-
-                return {
-
-                    projectId: '',
-
-                    companyId: '',
-
-                    subCompanyId: ''
-
-                };
-
-            }
-
-
-
-            return {
-
-                projectId:
-
-                    projectId,
-
-                companyId:
-
-                    selectedOption.dataset.companyId ||
-
-                    '',
-
-                subCompanyId:
-
-                    selectedOption.dataset.subcompanyId ||
-
-                    ''
-
-            };
-
-        }
-
 
 
         /*
@@ -2131,105 +2040,13 @@ document.addEventListener(
 
 
             if (
-                aiUploadedSelect &&
-                aiUploadedSelect.value
+                aiSentSelect &&
+                aiSentSelect.value
             ) {
 
                 params.set(
-                    'ai_uploaded',
-                    aiUploadedSelect.value
-                );
-
-            }
-
-
-
-            /*
-
-            |--------------------------------------------------------------------------
-
-            | PROJECT
-
-            |--------------------------------------------------------------------------
-
-            |
-
-            | Selected Project provides:
-
-            |
-
-            | project_id
-
-            | company_id
-
-            | subcompany_id
-
-            |
-
-            */
-
-            const selectedProject =
-
-                getSelectedProject();
-
-
-
-            console.log(
-
-                'Selected Project:',
-
-                selectedProject
-
-            );
-
-
-
-            /*
-
-            |--------------------------------------------------------------------------
-
-            | SEND PROJECT IDs
-
-            |--------------------------------------------------------------------------
-
-            */
-
-            if (
-
-                selectedProject.projectId !== '' &&
-
-                selectedProject.companyId !== '' &&
-
-                selectedProject.subCompanyId !== ''
-
-            ) {
-
-                params.set(
-
-                    'project_id',
-
-                    selectedProject.projectId
-
-                );
-
-
-
-                params.set(
-
-                    'company_id',
-
-                    selectedProject.companyId
-
-                );
-
-
-
-                params.set(
-
-                    'subcompany_id',
-
-                    selectedProject.subCompanyId
-
+                    'ai_sent',
+                    aiSentSelect.value
                 );
 
             }
@@ -2400,17 +2217,7 @@ document.addEventListener(
 
                                 <i class="bi bi-info-circle me-2"></i>
 
-                                No garments available
-
-                                ${
-
-                                    selectedProject.projectId
-
-                                        ? 'for the selected project.'
-
-                                        : '.'
-
-                                }
+                                No garments available.
 
                             `;
 
@@ -4895,16 +4702,6 @@ document.addEventListener(
 
                 function () {
 
-                    if (projectSelect) {
-
-                        projectSelect.value =
-
-                            '';
-
-                    }
-
-
-
                     if (searchInput) {
 
                         searchInput.value =
@@ -4930,8 +4727,8 @@ document.addEventListener(
                         genderSelect.value = '';
                     }
 
-                    if (aiUploadedSelect) {
-                        aiUploadedSelect.value = 'all';
+                    if (aiSentSelect) {
+                        aiSentSelect.value = 'all';
                     }
 
 
@@ -4945,6 +4742,10 @@ document.addEventListener(
                         )
                         .val('')
                         .trigger('change');
+
+                        jQuery('#garmentAiSent')
+                            .val('all')
+                            .trigger('change');
 
                     }
 
@@ -5008,48 +4809,6 @@ document.addEventListener(
 
         |--------------------------------------------------------------------------
 
-        | OPTIONAL:
-
-        | APPLY WHEN PROJECT CHANGES
-
-        |--------------------------------------------------------------------------
-
-        |
-
-        | If you want the list to change immediately after selecting
-
-        | a project, without clicking Apply Filter, keep this.
-
-        |
-
-        */
-
-        if (projectSelect) {
-
-            projectSelect.addEventListener(
-
-                'change',
-
-                function () {
-
-                    loadGarments(
-
-                        1
-
-                    );
-
-                }
-
-            );
-
-        }
-
-
-
-        /*
-
-        |--------------------------------------------------------------------------
-
         | INITIAL LOAD
 
         |--------------------------------------------------------------------------
@@ -5078,7 +4837,7 @@ document.addEventListener(
         ) {
 
             jQuery(
-                '#garmentProject, #garmentItemType, #garmentItemName, #garmentComposition, #garmentGender, #garmentAiUploaded'
+                '#garmentItemType, #garmentItemName, #garmentComposition, #garmentGender, #garmentAiSent'
             ).select2({
                 width: '100%',
                 allowClear: true

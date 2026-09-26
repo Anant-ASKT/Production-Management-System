@@ -203,6 +203,147 @@
         updateSelectionUi();
     }
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | IMAGE PATH HANDLER
+    |--------------------------------------------------------------------------
+    | Supports:
+    |   ../../ItemsDesigner_Masterwithbarcode/1479293301111/
+    |   ["ItemsDesigner_Masterwithbarcode/91350782350210/file.jpeg"]
+    |
+    | A legacy value may be a directory only. In that case the controller
+    | must provide the resolved filename through image_url/image_urls.
+    |--------------------------------------------------------------------------
+    */
+    function parseProductImageValues(value) {
+        if (value === null || value === undefined || value === '') {
+            return [];
+        }
+
+        if (Array.isArray(value)) {
+            return value.flatMap(function (item) {
+                return parseProductImageValues(item);
+            });
+        }
+
+        if (typeof value === 'object') {
+            return parseProductImageValues(
+                value.path || value.url || value.image || ''
+            );
+        }
+
+        const text = String(value).trim();
+
+        if (!text) {
+            return [];
+        }
+
+        if (text.startsWith('[') && text.endsWith(']')) {
+            try {
+                const parsed = JSON.parse(text);
+
+                if (Array.isArray(parsed)) {
+                    return parsed.flatMap(function (item) {
+                        return parseProductImageValues(item);
+                    });
+                }
+            } catch (error) {
+                console.warn('Product image JSON parse error:', error);
+            }
+        }
+
+        return [text];
+    }
+
+    function getProductImageUrl(product) {
+        if (!product) {
+            return '';
+        }
+
+        /*
+        | Controller-resolved image MUST be checked first.
+        */
+        const candidates = [
+            product.image_url,
+            product.image_urls,
+            product.img_path,
+            product.subimg_path,
+            product.image,
+            product.image_path,
+            product.main_image,
+            product.design_image,
+            product.oc_main_img,
+            product.sub_images,
+            product.sub_images_path,
+            product.images
+        ];
+
+        for (const candidate of candidates) {
+            const values = parseProductImageValues(candidate);
+
+            for (const value of values) {
+                let path = String(value || '').trim();
+
+                if (!path) {
+                    continue;
+                }
+
+                if (
+                    path.startsWith('http://') ||
+                    path.startsWith('https://') ||
+                    path.startsWith('data:') ||
+                    path.startsWith('blob:')
+                ) {
+                    return path;
+                }
+
+                path = path
+                    .replace(/\\/g, '/')
+                    .replace(/^\s*["']+|["']+\s*$/g, '');
+
+                const marker = 'ItemsDesigner_Masterwithbarcode/';
+                const markerPosition = path.indexOf(marker);
+
+                if (markerPosition !== -1) {
+                    const publicPath = path.substring(markerPosition);
+
+                    /*
+                    | New format has the filename.
+                    | Legacy format may contain only the directory.
+                    */
+                    if (
+                        /\.(jpe?g|png|webp|gif|bmp|svg|avif|heic)(?:[?#].*)?$/i.test(
+                            publicPath
+                        )
+                    ) {
+                        return "{{ asset('') }}" + publicPath;
+                    }
+
+                    /*
+                    | Directory-only legacy path cannot be resolved by the
+                    | browser. Continue to the next controller-provided
+                    | candidate instead of generating a broken <img> URL.
+                    */
+                    continue;
+                }
+
+                path = path
+                    .replace(/^(?:\.\.\/|\.\/)+/g, '')
+                    .replace(/^\/+/, '')
+                    .replace(/^public\/+/i, '');
+
+                if (
+                    /\.(jpe?g|png|webp|gif|bmp|svg|avif|heic)(?:[?#].*)?$/i.test(path)
+                ) {
+                    return "{{ asset('') }}" + path;
+                }
+            }
+        }
+
+        return '';
+    }
+
     function renderProducts(items) {
         cards.innerHTML = '';
         if (!items.length) {
@@ -223,7 +364,7 @@
                         <input type="checkbox" class="form-check-input ai-select-box ai-product-checkbox" data-id="${esc(p.sno)}" ${checked ? 'checked' : ''} ${sent ? 'title="Already sent to AI Enhancer"' : ''}>
                         ${sent ? '<span class="badge bg-success ai-sent-badge"><i class="bi bi-check-circle me-1"></i>Already Sent</span>' : ''}
                         <div class="ai-enhancer-image">
-                            ${p.image_url ? `<img src="${esc(p.image_url)}" alt="${esc(p.sku || p.barcode || 'Product')}" loading="lazy">` : '<div class="text-muted text-center"><i class="bi bi-image fs-1"></i><div>No Image</div></div>'}
+                            ${getProductImageUrl(p) ? `<img src="${esc(getProductImageUrl(p))}" alt="${esc(p.sku || p.barcode || 'Product')}" loading="lazy">` : '<div class="text-muted text-center"><i class="bi bi-image fs-1"></i><div>No Image</div></div>'}
                         </div>
                     </div>
                     <div class="card-body">
