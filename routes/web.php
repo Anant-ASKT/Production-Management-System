@@ -14,6 +14,9 @@ use App\Http\Controllers\ProductSpecificationMasterController;
 
 use App\Http\Controllers\TraderSpecificationController;
 use App\Http\Controllers\TraderProductSpecificationMasterController;
+use App\Http\Controllers\StockStatusController;
+use App\Http\Controllers\AllGarmentsAiImageController;
+use App\Http\Controllers\SendImageToAiEnhancerController;
 
 
 
@@ -82,6 +85,12 @@ Route::middleware('auth')->group(function () {
 
 });
 
+
+Route::prefix('all-garments')->name('all-garments.')->group(function () {
+    Route::get('/send-image-to-ai-enhancer', [SendImageToAiEnhancerController::class, 'index'])->name('ai-enhancer.index');
+    Route::get('/send-image-to-ai-enhancer/data', [SendImageToAiEnhancerController::class, 'data'])->name('ai-enhancer.data');
+    Route::post('/send-image-to-ai-enhancer/send', [SendImageToAiEnhancerController::class, 'send'])->name('ai-enhancer.send');
+});
 /*
 |--------------------------------------------------------------------------
 | Module Access
@@ -103,6 +112,20 @@ Route::middleware('auth')->group(function () {
     )
     ->middleware(['auth', 'prevent.back'])
     ->name('admin.module-access.save');
+
+});
+
+Route::middleware('auth')->group(function () {
+
+    Route::get(
+        '/admin/all-garments/ai-images',
+        [AllGarmentsAiImageController::class, 'images']
+    )->name('all-garments.ai-images');
+
+    Route::post(
+        '/admin/all-garments/ai-images/save',
+        [AllGarmentsAiImageController::class, 'save']
+    )->name('all-garments.ai-images.save');
 
 });
 
@@ -632,6 +655,44 @@ Route::middleware('auth')->group(function () {
     Route::delete('admin/sampling-companies/{company}/users/{user}', [AdminSamplingCompanyController::class, 'deleteUser'])->name('admin.sampling-companies.users.destroy');
 });
 
+Route::middleware('auth')->group(function () {
+
+    /*
+    |--------------------------------------------------------------------------
+    | STOCK STATUS PAGE
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        '/admin/stock-status',
+        [StockStatusController::class, 'index']
+    )->name('stock-status.index');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | STOCK STATUS FILTERS
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        '/admin/stock-status/filters',
+        [StockStatusController::class, 'filters']
+    )->name('stock-status.filters');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | STOCK STATUS REPORT
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        '/admin/stock-status/report',
+        [StockStatusController::class, 'report']
+    )->name('stock-status.report');
+
+});
 
 
 use App\Http\Controllers\Supplier\Auth\LoginController as SupplierLoginController;
