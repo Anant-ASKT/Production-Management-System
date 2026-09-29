@@ -45,14 +45,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'order_webhook_payloads/*',
             'orders/webhook',
             'order-webhook',
-            'order_cancel',
-            'order_cancel/*',
-            'order-cancel',
-            'order-cancel/*',
-            'cancel-order',
-            'cancel-order/*',
-            'orders/cancel',
-            'orders/cancel/*',
         ]);
 
     })
