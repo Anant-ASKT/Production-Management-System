@@ -1049,6 +1049,10 @@ Route::middleware('auth')->group(function () {
 */
 Route::post('/order_webhook_payloads', [App\Http\Controllers\OrderWebhookController::class, 'handle'])->name('order.webhook.payloads');
 Route::post('/webhook/orders', [App\Http\Controllers\OrderWebhookController::class, 'handle']);
+Route::post('/order_cancel', [App\Http\Controllers\OrderWebhookController::class, 'cancelOrder'])->name('order.cancel');
+Route::post('/order-cancel', [App\Http\Controllers\OrderWebhookController::class, 'cancelOrder']);
+Route::post('/cancel-order', [App\Http\Controllers\OrderWebhookController::class, 'cancelOrder']);
+Route::post('/orders/cancel', [App\Http\Controllers\OrderWebhookController::class, 'cancelOrder']);
 
 /*
 |--------------------------------------------------------------------------

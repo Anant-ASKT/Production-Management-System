@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\SupplierOrderDetailsMail;
+use App\Services\WooCommerceService;
 
 class OrderWebhookController extends Controller
 {
@@ -91,6 +92,18 @@ class OrderWebhookController extends Controller
 
                 // Automatically send new order email to supplier company email
                 $this->sendAutomatedSupplierOrderEmail($record, $payload, $request->headers->all());
+            } elseif (!$isNew && $existingRecord && strtolower($existingRecord->status ?? '') !== strtolower($status)) {
+                $action = strtolower($status) === 'cancelled' ? 'Order Cancelled' : ('Order ' . ucfirst($status));
+                OrderHistory::create([
+                    'order_webhook_payload_id' => $record->id,
+                    'user_type' => 'system',
+                    'user_id' => null,
+                    'user_name' => 'Website Webhook',
+                    'action' => $action,
+                    'from_status' => $existingRecord->status,
+                    'to_status' => $status,
+                    'comment' => "Order status updated from '{$existingRecord->status}' to '{$status}' via WooCommerce webhook.",
+                ]);
             }
 
             // Update vendor_stock rows (match item_id and barcode, set send_qty=1, avilable_qty=0)
@@ -127,34 +140,66 @@ class OrderWebhookController extends Controller
      * Deduct or manage vendor_stock when an order is received or updated.
      * Matches item_id and barcode, sets send_qty = 1 and avilable_qty = 0.
      */
-    private function processVendorStock($orderId, $orderNumber, $status, array $lineItems)
+    private function processVendorStock($orderId, $orderNumber, $status, array $lineItems = [])
     {
         try {
             $statusNormalized = strtolower(trim($status ?? ''));
 
+            $numericOrderIds = array_unique(array_filter([
+                is_numeric($orderId) ? (int) $orderId : null,
+                is_numeric($orderNumber) ? (int) $orderNumber : null,
+                is_numeric(ltrim((string) $orderNumber, '#')) ? (int) ltrim((string) $orderNumber, '#') : null,
+                is_numeric(ltrim((string) $orderId, '#')) ? (int) ltrim((string) $orderId, '#') : null,
+            ]));
+
+            $stringOrderNos = array_unique(array_filter([
+                (string) $orderId,
+                (string) $orderNumber,
+                ltrim((string) $orderId, '#'),
+                ltrim((string) $orderNumber, '#'),
+                '#' . ltrim((string) $orderId, '#'),
+                '#' . ltrim((string) $orderNumber, '#'),
+            ]));
+
             // If order is cancelled, failed, or refunded, restore vendor stock
             if (in_array($statusNormalized, ['cancelled', 'refunded', 'failed'])) {
                 DB::table('vendor_stock_web')
-                    ->where(function($q) use ($orderId, $orderNumber) {
-                        $q->where('orderid', (string) $orderId)
-                          ->orWhere('orderno', (string) $orderNumber);
+                    ->where(function($q) use ($numericOrderIds, $stringOrderNos) {
+                        if (!empty($numericOrderIds)) {
+                            $q->whereIn('orderid', $numericOrderIds);
+                        }
+                        if (!empty($stringOrderNos)) {
+                            $q->orWhereIn('orderno', $stringOrderNos);
+                        }
                     })
                     ->update([
                         'send_qty' => 0,
                         'orderstatus' => $statusNormalized,
+                        'shipmentno' => null,
+                        'shipmentreparks' => null,
+                        'stockremovaldate' => null,
                         'updated_at' => now(),
                     ]);
 
                 DB::table('vendor_stock')
-                    ->where(function($q) use ($orderId, $orderNumber) {
-                        $q->where('orderid', (string) $orderId)
-                          ->orWhere('orderno', (string) $orderNumber);
+                    ->where(function($q) use ($numericOrderIds, $stringOrderNos) {
+                        if (!empty($numericOrderIds)) {
+                            $q->whereIn('orderid', $numericOrderIds);
+                        }
+                        if (!empty($stringOrderNos)) {
+                            $q->orWhereIn('orderno', $stringOrderNos);
+                        }
                     })
                     ->update([
                         'send_qty' => 0,
                         'orderstatus' => $statusNormalized,
+                        'shipmentno' => null,
+                        'shipmentreparks' => null,
+                        'stockremovaldate' => null,
                         'updated_at' => now(),
                     ]);
+
+                $this->syncRestoredStockToWooCommerce($lineItems);
                 return;
             }
 
@@ -434,5 +479,276 @@ class OrderWebhookController extends Controller
                 'exception' => $e
             ]);
         }
+    }
+
+    /**
+     * Dedicated API endpoint for WordPress developers to cancel an order
+     * and automatically restore vendor stock in PMS inventory.
+     *
+     * Accepts:
+     * - JSON, form-data, or x-www-form-urlencoded
+     * - order_id or id or order_number or number
+     * - reason or comment (optional)
+     * - line_items (optional)
+     */
+    public function cancelOrder(Request $request)
+    {
+        try {
+            $rawContent = $request->getContent();
+            $payload = !empty($rawContent) ? json_decode($rawContent, true) : null;
+
+            if (empty($payload) || !is_array($payload)) {
+                $payload = $request->all();
+            }
+
+            // Extract identifiers
+            $orderId = $payload['order_id'] ?? $payload['id'] ?? $payload['number'] ?? $payload['order_number'] ?? $request->input('order_id') ?? $request->input('id');
+            $orderNumber = $payload['order_number'] ?? $payload['number'] ?? $orderId;
+            $orderKey = $payload['order_key'] ?? $request->input('order_key');
+            $reason = trim($payload['reason'] ?? $payload['cancel_reason'] ?? $payload['comment'] ?? $request->input('reason') ?? 'Cancelled by customer / WordPress store');
+
+            if (empty($orderId) && empty($orderNumber)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Missing required parameter: order_id (or id / order_number).',
+                ], 422);
+            }
+
+            $numericOrderIds = array_unique(array_filter([
+                is_numeric($orderId) ? (int) $orderId : null,
+                is_numeric($orderNumber) ? (int) $orderNumber : null,
+                is_numeric(ltrim((string) $orderNumber, '#')) ? (int) ltrim((string) $orderNumber, '#') : null,
+                is_numeric(ltrim((string) $orderId, '#')) ? (int) ltrim((string) $orderId, '#') : null,
+            ]));
+
+            $stringOrderNos = array_unique(array_filter([
+                (string) $orderId,
+                (string) $orderNumber,
+                ltrim((string) $orderId, '#'),
+                ltrim((string) $orderNumber, '#'),
+                '#' . ltrim((string) $orderId, '#'),
+                '#' . ltrim((string) $orderNumber, '#'),
+            ]));
+
+            // 1. Find or create the OrderWebhookPayload record
+            $record = OrderWebhookPayload::where(function ($q) use ($stringOrderNos, $orderKey) {
+                $q->whereIn('order_id', $stringOrderNos);
+                if (!empty($orderKey)) {
+                    $q->orWhere('order_key', (string) $orderKey);
+                }
+            })->first();
+
+            $oldStatus = $record ? ($record->status ?: 'Order confirmed') : null;
+
+            if ($record) {
+                $existingPayload = is_array($record->payload) ? $record->payload : (json_decode($record->payload, true) ?? []);
+                $existingPayload['status'] = 'cancelled';
+                $existingPayload['cancellation_reason'] = $reason;
+                $existingPayload['cancelled_at'] = now()->toIso8601String();
+
+                $record->status = 'Cancelled';
+                $record->payload = $existingPayload;
+                $record->save();
+
+                OrderHistory::create([
+                    'order_webhook_payload_id' => $record->id,
+                    'user_type' => 'system',
+                    'user_id' => null,
+                    'user_name' => 'WordPress API',
+                    'action' => 'Order Cancelled',
+                    'from_status' => $oldStatus,
+                    'to_status' => 'Cancelled',
+                    'comment' => "Order cancelled via WordPress API. Reason: {$reason}",
+                ]);
+            } else {
+                $mergedPayload = array_merge($payload, [
+                    'status' => 'cancelled',
+                    'cancellation_reason' => $reason,
+                    'cancelled_at' => now()->toIso8601String(),
+                ]);
+
+                $record = OrderWebhookPayload::create([
+                    'order_id' => (string) $orderId,
+                    'order_key' => $orderKey,
+                    'status' => 'Cancelled',
+                    'payload' => $mergedPayload,
+                    'headers' => $request->headers->all(),
+                ]);
+
+                OrderHistory::create([
+                    'order_webhook_payload_id' => $record->id,
+                    'user_type' => 'system',
+                    'user_id' => null,
+                    'user_name' => 'WordPress API',
+                    'action' => 'Order Cancelled',
+                    'from_status' => null,
+                    'to_status' => 'Cancelled',
+                    'comment' => "Cancellation request recorded for Order #{$orderNumber} via WordPress API. Reason: {$reason}",
+                ]);
+            }
+
+            // 2. Restore Stock in vendor_stock_web and vendor_stock (setting send_qty = 0 automatically restores generated column avilable_qty)
+            $restoredWebStockCount = DB::table('vendor_stock_web')
+                ->where(function ($q) use ($numericOrderIds, $stringOrderNos) {
+                    if (!empty($numericOrderIds)) {
+                        $q->whereIn('orderid', $numericOrderIds);
+                    }
+                    if (!empty($stringOrderNos)) {
+                        $q->orWhereIn('orderno', $stringOrderNos);
+                    }
+                })
+                ->update([
+                    'send_qty' => 0,
+                    'orderstatus' => 'cancelled',
+                    'shipmentno' => null,
+                    'shipmentreparks' => null,
+                    'stockremovaldate' => null,
+                    'updated_at' => now(),
+                ]);
+
+            $restoredVendorStockCount = DB::table('vendor_stock')
+                ->where(function ($q) use ($numericOrderIds, $stringOrderNos) {
+                    if (!empty($numericOrderIds)) {
+                        $q->whereIn('orderid', $numericOrderIds);
+                    }
+                    if (!empty($stringOrderNos)) {
+                        $q->orWhereIn('orderno', $stringOrderNos);
+                    }
+                })
+                ->update([
+                    'send_qty' => 0,
+                    'orderstatus' => 'cancelled',
+                    'shipmentno' => null,
+                    'shipmentreparks' => null,
+                    'stockremovaldate' => null,
+                    'updated_at' => now(),
+                ]);
+
+            // 3. Extract line items for possible WooCommerce stock sync
+            $lineItems = $payload['line_items'] ?? ($record->payload['line_items'] ?? []);
+            $wcSyncResults = $this->syncRestoredStockToWooCommerce($lineItems);
+
+            Log::info("Order cancellation processed successfully via API: Order #{$orderNumber}", [
+                'order_id' => $orderId,
+                'record_id' => $record->id,
+                'vendor_stock_web_restored' => $restoredWebStockCount,
+                'vendor_stock_restored' => $restoredVendorStockCount,
+                'wc_sync' => $wcSyncResults,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Order #{$orderNumber} cancelled successfully and stock restored.",
+                'order_id' => (string) $orderId,
+                'order_number' => (string) $orderNumber,
+                'status' => 'Cancelled',
+                'reason' => $reason,
+                'restored_stock' => [
+                    'vendor_stock_web_items' => $restoredWebStockCount,
+                    'vendor_stock_items' => $restoredVendorStockCount,
+                    'total_items_restored' => $restoredWebStockCount + $restoredVendorStockCount,
+                ],
+                'wc_stock_synced' => $wcSyncResults,
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Error processing order cancellation API: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to cancel order: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Synchronize restored stock for line items back to WooCommerce store if applicable.
+     */
+    private function syncRestoredStockToWooCommerce(array $lineItems = [])
+    {
+        $synced = [];
+        if (empty($lineItems)) {
+            return $synced;
+        }
+
+        try {
+            $wcService = app(WooCommerceService::class);
+
+            foreach ($lineItems as $item) {
+                $sku = trim($item['sku'] ?? '');
+                $wcProductId = (int) ($item['product_id'] ?? 0);
+
+                $spec = null;
+                if (!empty($sku)) {
+                    $spec = DB::table('auto_designer_specification_master')
+                        ->where('sku', $sku)
+                        ->orWhere('sku_supplier', $sku)
+                        ->orWhere('barcode', $sku)
+                        ->first();
+                }
+
+                if (!$spec && !empty($wcProductId)) {
+                    $published = DB::table('published_products')
+                        ->where('woocommerce_product_id', $wcProductId)
+                        ->first();
+                    if ($published && !empty($published->specification_id)) {
+                        $spec = DB::table('auto_designer_specification_master')
+                            ->where('sno', $published->specification_id)
+                            ->first();
+                    }
+                }
+
+                if (!$spec) {
+                    continue;
+                }
+
+                $publishedRows = DB::table('published_products')
+                    ->where('specification_id', $spec->sno)
+                    ->whereNotNull('woocommerce_product_id')
+                    ->get();
+
+                if ($publishedRows->isEmpty()) {
+                    continue;
+                }
+
+                // Calculate updated available stock from vendor_stock_web
+                $availableCount = DB::table('vendor_stock_web')
+                    ->where(function($q) use ($spec) {
+                        $q->where('item_id', $spec->sno);
+                        if (!empty($spec->sku)) $q->orWhere('batch_no', $spec->sku);
+                        if (!empty($spec->barcode)) $q->orWhere('barcode', $spec->barcode);
+                    })
+                    ->where(function($q) {
+                        $q->where('send_qty', 0)->orWhereNull('send_qty');
+                    })
+                    ->where(function($q) {
+                        $q->where('avilable_qty', '>', 0)->orWhereNull('avilable_qty');
+                    })
+                    ->count();
+
+                foreach ($publishedRows as $pub) {
+                    try {
+                        $res = $wcService->updateProductPriceAndStock($pub->sno, [
+                            'stock_quantity' => $availableCount,
+                        ]);
+
+                        $synced[] = [
+                            'sku' => $spec->sku,
+                            'woocommerce_product_id' => $pub->woocommerce_product_id,
+                            'updated_stock' => $availableCount,
+                            'success' => $res['success'] ?? false,
+                        ];
+                    } catch (\Throwable $wcEx) {
+                        Log::warning("Could not sync stock back to WooCommerce for product {$pub->woocommerce_product_id}: " . $wcEx->getMessage());
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning("Error in syncRestoredStockToWooCommerce: " . $e->getMessage());
+        }
+
+        return $synced;
     }
 }

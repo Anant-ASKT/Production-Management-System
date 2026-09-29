@@ -18,3 +18,9 @@ use App\Http\Controllers\OrderWebhookController;
 Route::post('/orders/webhook', [OrderWebhookController::class, 'handle'])->name('api.orders.webhook');
 Route::post('/order-webhook', [OrderWebhookController::class, 'handle']);
 Route::post('/order_webhook_payloads', [OrderWebhookController::class, 'handle']);
+
+// Order Cancellation Endpoints (for WordPress / WooCommerce developers)
+Route::post('/order_cancel', [OrderWebhookController::class, 'cancelOrder'])->name('api.orders.cancel');
+Route::post('/order-cancel', [OrderWebhookController::class, 'cancelOrder']);
+Route::post('/orders/cancel', [OrderWebhookController::class, 'cancelOrder']);
+Route::post('/cancel-order', [OrderWebhookController::class, 'cancelOrder']);
