@@ -50,7 +50,7 @@
                     {{-- Supplier --}}
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Supplier <span class="text-danger">*</span></label>
-                        <select name="supplier_id" class="form-select @error('supplier_id') is-invalid @enderror" required>
+                        <select name="supplier_id" id="supplier_id" class="form-select @error('supplier_id') is-invalid @enderror" required>
                             <option value="">-- Select Supplier --</option>
                             @foreach($suppliers as $supplier)
                                 <option value="{{ $supplier->sno }}" {{ old('supplier_id', $category->supplier_id) == $supplier->sno ? 'selected' : '' }}>
@@ -59,6 +59,25 @@
                             @endforeach
                         </select>
                         @error('supplier_id')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    {{-- Parent Category --}}
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Parent Category</label>
+                        <select name="parent_id" id="parent_id" class="form-select @error('parent_id') is-invalid @enderror">
+                            <option value="">-- None (This is a Main / Parent Category) --</option>
+                            @foreach($parentCategories as $parent)
+                                <option value="{{ $parent->sno }}" {{ old('parent_id', $category->parent_id) == $parent->sno ? 'selected' : '' }} data-supplier="{{ $parent->supplier_id }}">
+                                    {{ $parent->name }} @if($parent->supplier) (Supplier: {{ $parent->supplier->name }}) @endif
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="form-text text-muted">
+                            <i class="bi bi-info-circle me-1"></i>Leave as "None" for a top-level category, or select a parent category if this is a subcategory.
+                        </div>
+                        @error('parent_id')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Models\Category;
 use App\Services\WooCommerceService;
 
 class AdminPublishProductsController extends Controller
@@ -375,10 +376,10 @@ class AdminPublishProductsController extends Controller
             ->orderBy('pp.updated_at', 'desc')
             ->get();
 
-        // Fetch categories for initial target supplier (default to product origin supplier or first supplier)
+        // Fetch hierarchical categories for initial target supplier (default to product origin supplier or first supplier)
         $defaultTargetSupplierId = $uploadSupplierId ?? ($product->supplier_id ?? ($suppliers->first()->sno ?? null));
         $categories = $defaultTargetSupplierId 
-            ? DB::table('categories')->where('supplier_id', $defaultTargetSupplierId)->orderBy('name', 'asc')->get() 
+            ? Category::getHierarchicalCategories($defaultTargetSupplierId) 
             : collect();
 
         return view('admin.publish_products.show', compact('product', 'approvedImages', 'suppliers', 'publishedRecords', 'categories', 'defaultTargetSupplierId'));
@@ -524,10 +525,7 @@ class AdminPublishProductsController extends Controller
      */
     public function getCategoriesBySupplier($supplierId)
     {
-        $categories = DB::table('categories')
-            ->where('supplier_id', $supplierId)
-            ->orderBy('name', 'asc')
-            ->get();
+        $categories = Category::getHierarchicalCategories($supplierId);
 
         return response()->json([
             'success' => true,
@@ -551,7 +549,7 @@ class AdminPublishProductsController extends Controller
 
         $request->validate([
             'target_supplier_id' => 'required|exists:suppliers,sno',
-            'category_id' => 'nullable|exists:categories,sno',
+            'category_id' => 'required|exists:categories,sno',
         ]);
 
         $targetSupplierId = (int) $request->input('target_supplier_id');
