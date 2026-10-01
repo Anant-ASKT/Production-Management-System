@@ -420,22 +420,29 @@
                 <div class="mb-3">
                     <div class="d-flex justify-content-between align-items-center mb-1">
                         <label class="form-label fw-bold small text-dark mb-0">
-                            Store Category
+                            Store Category <span class="text-danger">*</span>
                         </label>
                         <div id="modalCategorySpinner" class="spinner-border spinner-border-sm text-primary d-none" role="status"></div>
                     </div>
-                    <select id="modalTargetCategorySelect" class="form-select rounded-3">
-                        <option value="">-- Default ({{ $product->product_type ?: 'Garments' }}) --</option>
+                    <select id="modalTargetCategorySelect" class="form-select rounded-3" required>
+                        <option value="">-- Select Category --</option>
                         @foreach($categories as $cat)
-                            <option value="{{ $cat->sno }}">{{ $cat->name }}</option>
+                            <option value="{{ $cat->sno }}"
+                                    data-level="{{ $cat->level ?? 0 }}"
+                                    data-parent-id="{{ $cat->parent_id ?? '' }}"
+                                    data-parent-name="{{ $cat->parent_name ?? '' }}"
+                                    data-breadcrumb="{{ $cat->breadcrumb ?? $cat->name }}">
+                                {!! $cat->display_label ?? $cat->name !!}
+                            </option>
                         @endforeach
                     </select>
-                    <small class="text-muted" style="font-size: 0.75rem;">Category created for this supplier in ERP. Defaults to "{{ $product->product_type ?: 'Garments' }}" if none selected.</small>
+                    <div id="modalCategoryHierarchyInfo" class="mt-1.5 p-2 rounded-2 bg-light border small text-primary d-none" style="font-size: 0.78rem;"></div>
+                    <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Please select a store category or subcategory. Subcategories are automatically linked under their parent on WooCommerce.</small>
                 </div>
 
                 <div class="p-3 bg-primary-subtle bg-opacity-25 rounded-3 border border-primary-subtle text-secondary" style="font-size: 0.78rem;">
                     <i class="bi bi-info-circle text-primary me-1"></i>
-                    Publishing will sync the AI-generated title, description, SEO meta tags, product attributes, pricing, stock, and approved AI images directly to WooCommerce.
+                    Publishing will sync the AI-generated title, description, SEO meta tags, product attributes, pricing, stock, category hierarchy, and approved AI images directly to WooCommerce.
                 </div>
 
             </div>
@@ -478,12 +485,12 @@
 <script>
 // Published records indexed by target_supplier_id for fast lookup in JS
 const publishedRecordsBySupplier = @json($publishedRecords->keyBy('target_supplier_id'));
-const defaultProductType = @json($product->product_type ?: 'Garments');
 
 document.addEventListener('DOMContentLoaded', function() {
     const mainImg = document.getElementById('mainImagePreview');
     const thumbBoxes = document.querySelectorAll('.thumb-box');
     const modalSupplierSelect = document.getElementById('modalTargetSupplierSelect');
+    const modalCategorySelect = document.getElementById('modalTargetCategorySelect');
 
     thumbBoxes.forEach(thumb => {
         thumb.addEventListener('click', function() {
@@ -495,6 +502,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    if (modalCategorySelect) {
+        modalCategorySelect.addEventListener('change', updateCategoryHierarchyDisplay);
+    }
+
     if (modalSupplierSelect) {
         modalSupplierSelect.addEventListener('change', function() {
             onModalSupplierChanged(this.value);
@@ -504,6 +515,31 @@ document.addEventListener('DOMContentLoaded', function() {
         onModalSupplierChanged(modalSupplierSelect.value);
     }
 });
+
+function updateCategoryHierarchyDisplay() {
+    const catSelect = document.getElementById('modalTargetCategorySelect');
+    const infoDiv = document.getElementById('modalCategoryHierarchyInfo');
+    if (!catSelect || !infoDiv) return;
+
+    const selectedOpt = catSelect.options[catSelect.selectedIndex];
+    if (!selectedOpt || !selectedOpt.value) {
+        infoDiv.classList.add('d-none');
+        infoDiv.innerHTML = '';
+        return;
+    }
+
+    const level = parseInt(selectedOpt.getAttribute('data-level') || '0', 10);
+    const breadcrumb = selectedOpt.getAttribute('data-breadcrumb') || selectedOpt.text.trim();
+    const parentName = selectedOpt.getAttribute('data-parent-name');
+
+    if (level > 0 && parentName) {
+        infoDiv.innerHTML = `<i class="bi bi-diagram-2-fill me-1 text-primary"></i><strong>WooCommerce Subcategory:</strong> <span class="text-dark">${escapeHtml(breadcrumb)}</span><br><small class="text-muted">Parent and subcategory will both be mapped & linked on WooCommerce.</small>`;
+        infoDiv.classList.remove('d-none');
+    } else {
+        infoDiv.innerHTML = `<i class="bi bi-folder-check me-1 text-success"></i><strong>WooCommerce Category:</strong> <span class="text-dark">${escapeHtml(breadcrumb)}</span> (Main Category)`;
+        infoDiv.classList.remove('d-none');
+    }
+}
 
 function openPublishModalForSupplier(supplierId, preselectedCatId = null) {
     const modalSupplierSelect = document.getElementById('modalTargetSupplierSelect');
@@ -544,7 +580,8 @@ function onModalSupplierChanged(supplierId, preselectedCatId = null) {
     }
 
     if (!supplierId) {
-        modalCategorySelect.innerHTML = `<option value="">-- Default (${defaultProductType}) --</option>`;
+        modalCategorySelect.innerHTML = `<option value="">-- Select Category --</option>`;
+        updateCategoryHierarchyDisplay();
         return;
     }
 
@@ -559,12 +596,22 @@ function onModalSupplierChanged(supplierId, preselectedCatId = null) {
     .then(res => {
         spinner.classList.add('d-none');
         if (res.success && res.data) {
-            let optionsHtml = `<option value="">-- Default (${defaultProductType}) --</option>`;
+            let optionsHtml = `<option value="">-- Select Category --</option>`;
             res.data.forEach(cat => {
-                const isSelected = (preselectedCatId && preselectedCatId == cat.sno) || (existingPublish && existingPublish.category_id == cat.sno) ? 'selected' : '';
-                optionsHtml += `<option value="${cat.sno}" ${isSelected}>${escapeHtml(cat.name)}</option>`;
+                const isSelected = (preselectedCatId && preselectedCatId == cat.sno) ? 'selected' : '';
+                const level = cat.level || 0;
+                const indent = level > 0 ? '&nbsp;&nbsp;&nbsp;'.repeat(level) + '↳ ' : '';
+                const suffix = (level > 0 && cat.parent_name) ? ` (under ${escapeHtml(cat.parent_name)})` : '';
+                const label = `${indent}${escapeHtml(cat.name)}${suffix}`;
+                optionsHtml += `<option value="${cat.sno}" 
+                    data-level="${level}" 
+                    data-parent-id="${cat.parent_id || ''}" 
+                    data-parent-name="${escapeHtml(cat.parent_name || '')}" 
+                    data-breadcrumb="${escapeHtml(cat.breadcrumb || cat.name)}" 
+                    ${isSelected}>${label}</option>`;
             });
             modalCategorySelect.innerHTML = optionsHtml;
+            updateCategoryHierarchyDisplay();
         }
     })
     .catch(err => {
@@ -588,6 +635,12 @@ function executePublishFromModal() {
 
     if (!targetSupplierId) {
         alert('Please select a Target Supplier / Store.');
+        return;
+    }
+
+    if (!categoryId) {
+        alert('Please select a Store Category from the dropdown.');
+        categorySelect.focus();
         return;
     }
 
