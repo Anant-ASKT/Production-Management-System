@@ -249,6 +249,14 @@
             col.className = 'col-4 col-md-3 col-lg-2';
 
             const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+            let sizeHtml = '';
+            if (file.size > 2 * 1024 * 1024) {
+                sizeHtml = `<div class="badge bg-warning-subtle text-dark border border-warning my-1" style="font-size:0.62rem;" title="Original: ${sizeMb} MB. Will be compressed to &lt; 1500 KB."><i class="bi bi-arrows-collapse me-1"></i>${sizeMb} MB &rarr; &lt;1.5 MB</div>`;
+            } else if (file.size > 1500 * 1024) {
+                sizeHtml = `<div class="badge bg-info-subtle text-dark border border-info my-1" style="font-size:0.62rem;" title="Original: ${sizeMb} MB. Will be compressed to &lt; 1500 KB."><i class="bi bi-arrows-collapse me-1"></i>${sizeMb} MB &rarr; &lt;1.5 MB</div>`;
+            } else {
+                sizeHtml = `<div class="text-muted" style="font-size:0.68rem;">${Math.round(file.size / 1024)} KB</div>`;
+            }
 
             const card = document.createElement('div');
             card.className = 'card p-2 border rounded-3 position-relative bg-white text-center shadow-xs';
@@ -257,7 +265,7 @@
                     <img id="h-prev-img-${index}" class="img-fluid rounded" style="max-height: 80px; object-fit: cover;">
                 </div>
                 <div class="text-truncate small fw-bold text-dark" title="${file.name}" style="font-size:0.75rem;">${file.name}</div>
-                <div class="text-muted" style="font-size:0.68rem;">${sizeMb} MB</div>
+                ${sizeHtml}
                 <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 rounded-circle p-0 d-flex align-items-center justify-content-center" style="width: 22px; height: 22px;" onclick="removeHistoryFile(${index})" title="Remove">
                     &times;
                 </button>

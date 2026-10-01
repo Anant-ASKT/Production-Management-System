@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use App\Models\Category;
 
 class WooCommerceService
 {
@@ -162,16 +163,35 @@ class WooCommerceService
             ];
         }
 
-        // 8. Resolve Category
-        $targetCategoryName = $product->product_type;
+        // 8. Resolve Category & Hierarchy for WooCommerce (Strict check: do not create new category in WooCommerce)
+        $categoryChain = [];
+        $targetCategoryName = $product->product_type ?: 'Garments';
+
         if (!empty($categoryId)) {
-            $catRecord = DB::table('categories')->where('sno', $categoryId)->first();
-            if ($catRecord) {
-                $targetCategoryName = $catRecord->name;
+            $catModel = Category::with('parent')->find($categoryId);
+            if ($catModel) {
+                $categoryChain = $catModel->getLineage();
+                $targetCategoryName = $catModel->name;
             }
         }
 
-        $categories = $this->resolveCategory($storeUrl, $consumerKey, $consumerSecret, $targetCategoryName);
+        $categoryCheck = $this->resolveCategoryHierarchy(
+            $storeUrl,
+            $consumerKey,
+            $consumerSecret,
+            $categoryChain,
+            $targetCategoryName,
+            $targetSupplier->name
+        );
+
+        if (!$categoryCheck['success']) {
+            return [
+                'success' => false,
+                'message' => $categoryCheck['message']
+            ];
+        }
+
+        $categories = $categoryCheck['categories'];
 
         // Tags
         $tags = [];
@@ -602,45 +622,141 @@ class WooCommerceService
         return filter_var($host, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) !== false;
     }
 
+    /**
+     * Resolve single or hierarchical categories on the WooCommerce store.
+     * STRICT: Does NOT create new categories on WooCommerce.
+     * If the category or subcategory does not exist on the WooCommerce store, returns an error.
+     *
+     * @param string $storeUrl
+     * @param string $consumerKey
+     * @param string $consumerSecret
+     * @param array $categoryChain Array of Category models from root to leaf
+     * @param string $fallbackName Default name if chain is empty
+     * @param string $storeName Target store name for error messages
+     * @return array ['success' => bool, 'categories' => array, 'message' => string]
+     */
+    private function resolveCategoryHierarchy($storeUrl, $consumerKey, $consumerSecret, array $categoryChain, $fallbackName = 'Garments', $storeName = 'the store')
+    {
+        // If no category chain provided, check fallback name
+        if (empty($categoryChain)) {
+            $catName = trim($fallbackName ?: 'Garments');
+            $wcId = $this->findWooCategory($storeUrl, $consumerKey, $consumerSecret, $catName, 0);
+            if (!$wcId) {
+                return [
+                    'success' => false,
+                    'message' => "Category '{$catName}' does not exist on the WooCommerce store ({$storeName}). Please create it in WooCommerce first."
+                ];
+            }
+            return [
+                'success' => true,
+                'categories' => [['id' => $wcId]]
+            ];
+        }
+
+        $wcCategoryIds = [];
+        $parentWcId = 0;
+        $prevCatName = null;
+
+        foreach ($categoryChain as $catModel) {
+            $catName = trim($catModel->name);
+            if (empty($catName)) continue;
+
+            $currentWcId = $this->findWooCategory(
+                $storeUrl,
+                $consumerKey,
+                $consumerSecret,
+                $catName,
+                $parentWcId
+            );
+
+            if (!$currentWcId) {
+                $msg = ($parentWcId > 0 && $prevCatName)
+                    ? "Subcategory '{$catName}' (under '{$prevCatName}') does not exist on the WooCommerce store ({$storeName}). Please create this subcategory in WooCommerce first."
+                    : "Category '{$catName}' does not exist on the WooCommerce store ({$storeName}). Please create this category in WooCommerce first.";
+
+                return [
+                    'success' => false,
+                    'message' => $msg
+                ];
+            }
+
+            $wcCategoryIds[] = ['id' => $currentWcId];
+            $parentWcId = $currentWcId;
+            $prevCatName = $catName;
+        }
+
+        return [
+            'success' => true,
+            'categories' => $wcCategoryIds
+        ];
+    }
+
+    /**
+     * Search WooCommerce for an existing category by name.
+     * Does NOT create any new category on WooCommerce.
+     *
+     * @param string $storeUrl
+     * @param string $consumerKey
+     * @param string $consumerSecret
+     * @param string $name
+     * @param int $parentWcId
+     * @return int|null
+     */
+    private function findWooCategory($storeUrl, $consumerKey, $consumerSecret, $name, $parentWcId = 0)
+    {
+        if (empty($name)) return null;
+
+        try {
+            $searchRes = Http::withBasicAuth($consumerKey, $consumerSecret)
+                ->timeout(15)
+                ->get($storeUrl . '/wp-json/wc/v3/products/categories', [
+                    'search' => $name,
+                    'per_page' => 50
+                ]);
+
+            if ($searchRes->successful()) {
+                $existing = $searchRes->json();
+                
+                // First pass: exact name match with exact parent match
+                foreach ($existing as $item) {
+                    if (strcasecmp(trim($item['name']), trim($name)) === 0 && (int)($item['parent'] ?? 0) === (int)$parentWcId) {
+                        return (int)$item['id'];
+                    }
+                }
+
+                // Second pass: exact name match (if parent in WC was 0, update parent to link properly)
+                foreach ($existing as $item) {
+                    if (strcasecmp(trim($item['name']), trim($name)) === 0) {
+                        $itemId = (int)$item['id'];
+                        if ($parentWcId > 0 && (int)($item['parent'] ?? 0) !== (int)$parentWcId) {
+                            try {
+                                Http::withBasicAuth($consumerKey, $consumerSecret)
+                                    ->timeout(15)
+                                    ->put($storeUrl . '/wp-json/wc/v3/products/categories/' . $itemId, [
+                                        'parent' => (int)$parentWcId
+                                    ]);
+                            } catch (\Exception $updateEx) {
+                                Log::warning("Could not update parent for WC category {$itemId}: " . $updateEx->getMessage());
+                            }
+                        }
+                        return $itemId;
+                    }
+                }
+            } else {
+                Log::warning("WooCommerce category search returned HTTP " . $searchRes->status() . " for: {$name}");
+            }
+        } catch (\Exception $e) {
+            Log::warning("Error in findWooCategory ({$name}): " . $e->getMessage());
+        }
+
+        return null;
+    }
+
     private function resolveCategory($storeUrl, $consumerKey, $consumerSecret, $categoryName)
     {
         if (empty($categoryName)) return [];
-
-        try {
-            $catRes = Http::withBasicAuth($consumerKey, $consumerSecret)
-                ->timeout(15)
-                ->get($storeUrl . '/wp-json/wc/v3/products/categories', [
-                    'search' => $categoryName,
-                    'per_page' => 10
-                ]);
-
-            if ($catRes->successful()) {
-                $categories = $catRes->json();
-                foreach ($categories as $cat) {
-                    if (strcasecmp($cat['name'], $categoryName) === 0) {
-                        return [['id' => $cat['id']]];
-                    }
-                }
-            }
-
-            // Create new category in WooCommerce if not found
-            $createRes = Http::withBasicAuth($consumerKey, $consumerSecret)
-                ->timeout(15)
-                ->post($storeUrl . '/wp-json/wc/v3/products/categories', [
-                    'name' => $categoryName
-                ]);
-
-            if ($createRes->successful()) {
-                $newCat = $createRes->json();
-                if (!empty($newCat['id'])) {
-                    return [['id' => $newCat['id']]];
-                }
-            }
-        } catch (\Exception $e) {
-            Log::warning('Category resolution failed: ' . $e->getMessage());
-        }
-
-        return [['name' => $categoryName]];
+        $wcId = $this->findWooCategory($storeUrl, $consumerKey, $consumerSecret, $categoryName, 0);
+        return $wcId ? [['id' => $wcId]] : [['name' => $categoryName]];
     }
 
     private function cleanTitle($title)
