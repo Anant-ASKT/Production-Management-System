@@ -3367,7 +3367,7 @@
                                     Createdat
                                 </th>
 
-                                <th>
+                                <th class="d-none">
                                     Main Image
                                 </th>
 
@@ -19970,7 +19970,7 @@ function appendSupplierProductRow(
             </td>
 
 
-            <td class="text-center">
+            <td class="text-center d-none">
 
                 ${imageHtml}
 
