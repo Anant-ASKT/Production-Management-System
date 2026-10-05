@@ -638,6 +638,43 @@ class AdminWebsiteOrderController extends Controller
         $orderData['default_supplier_email'] = $defaultSupplierEmail;
         $orderData['candidate_suppliers'] = $candidateSuppliers;
 
+        // Resolve Razorpay payment details and existing refunds
+        $wcRefunds = $payload['refunds'] ?? [];
+        $pmsRefunds = $payload['pms_refunds'] ?? [];
+        $totalRefunded = 0;
+        foreach ($wcRefunds as $rf) {
+            $totalRefunded += abs((float) ($rf['total'] ?? 0));
+        }
+        foreach ($pmsRefunds as $prf) {
+            if (!empty($prf['refund_id'])) {
+                $alreadyCounted = collect($wcRefunds)->contains('id', $prf['refund_id']);
+                if ($alreadyCounted) continue;
+            }
+            $totalRefunded += abs((float) ($prf['amount'] ?? 0));
+        }
+
+        $orderTotal = isset($payload['total']) ? (float) $payload['total'] : 0;
+        $remainingRefundable = max(0, round($orderTotal - $totalRefunded, 2));
+
+        $rawPayMethod = strtolower($payload['payment_method'] ?? '');
+        $payTitle = $payload['payment_method_title'] ?? ($payload['payment_method'] ?? 'N/A');
+        $isCod = in_array($rawPayMethod, ['cod', 'cash on delivery', 'cash_on_delivery']);
+        $txnId = $payload['transaction_id'] ?? null;
+        if ($txnId === '—' || empty($txnId)) $txnId = null;
+
+        $isPaidOnline = !$isCod && ($orderTotal > 0);
+        $isRazorpay = str_contains($rawPayMethod, 'razorpay') 
+            || str_contains(strtolower($payTitle), 'razorpay') 
+            || (!empty($txnId) && str_starts_with($txnId, 'pay_'));
+
+        $orderData['total_refunded'] = $totalRefunded;
+        $orderData['remaining_refundable'] = $remainingRefundable;
+        $orderData['is_fully_refunded'] = ($totalRefunded >= $orderTotal) && ($orderTotal > 0);
+        $orderData['is_paid_online'] = $isPaidOnline;
+        $orderData['is_razorpay'] = $isRazorpay;
+        $orderData['is_cod'] = $isCod;
+        $orderData['all_refunds'] = array_merge($wcRefunds, $pmsRefunds);
+
         return $orderData;
     }
 
@@ -1132,6 +1169,7 @@ class AdminWebsiteOrderController extends Controller
 
     /**
      * Cancel an order from Admin (approves customer cancel request or direct cancellation),
+     * optionally triggers automated Razorpay refund via WooCommerce REST API,
      * updates order status to Cancelled in PMS, syncs status to WooCommerce via REST API,
      * restores inventory stock, and logs audit trail.
      */
@@ -1148,14 +1186,55 @@ class AdminWebsiteOrderController extends Controller
         $reason = trim($request->input('reason', $request->input('comment', '')));
         $notifyCustomer = $request->boolean('notify_customer', true);
         $notifySupplier = $request->boolean('notify_supplier', true);
+        $processRefund = $request->boolean('process_refund', false);
+        $refundAmount = (float) $request->input('refund_amount', 0);
 
-        // 1. Resolve Selling Store Supplier and Order Number
+        // 1. Resolve Selling Store Supplier and Order Data
         $orderData = $this->buildOrderDataForRecord($record);
         $sellingSupplierId = $orderData['order_from_supplier_id'] ?? null;
+        $storeTarget = $sellingSupplierId ?: ($orderData['order_from_supplier_url'] ?? ($orderData['selling_supplier_url'] ?? null));
         $orderNumber = $orderData['order_number'];
         $wcOrderId = $record->order_id ?: ($orderData['raw_payload']['id'] ?? null);
 
-        // 2. Sync cancellation to WooCommerce store via REST API
+        // 2. Process Automated Razorpay Refund via WooCommerce REST API if requested
+        $refundSuccess = false;
+        $refundMessage = '';
+        $refundDetails = null;
+
+        if ($processRefund && $refundAmount > 0 && !empty($wcOrderId)) {
+            try {
+                $wcService = app(\App\Services\WooCommerceService::class);
+                $refundReason = !empty($reason) ? "Order cancelled: {$reason}" : "Order cancelled by PMS Admin";
+
+                $refundRes = $wcService->createOrderRefund(
+                    $storeTarget,
+                    $wcOrderId,
+                    $refundAmount,
+                    $refundReason,
+                    true // api_refund: true invokes the store's Razorpay payment gateway to process the refund
+                );
+
+                if (!empty($refundRes['success'])) {
+                    $refundSuccess = true;
+                    $refundId = $refundRes['refund_id'] ?? null;
+                    $refundDetails = [
+                        'refund_id' => $refundId,
+                        'amount' => $refundAmount,
+                        'gateway' => 'Razorpay',
+                        'refunded_at' => now()->toIso8601String(),
+                        'reason' => $refundReason,
+                    ];
+                    $refundMessage = "Automated Razorpay refund of ₹" . number_format($refundAmount, 2) . " processed successfully (Refund #{$refundId}).";
+                } else {
+                    $refundMessage = "Razorpay refund warning: " . ($refundRes['message'] ?? 'Could not complete automated gateway refund');
+                }
+            } catch (\Throwable $rfEx) {
+                Log::error("Razorpay refund exception for order #{$orderNumber}: " . $rfEx->getMessage());
+                $refundMessage = "Razorpay refund error: " . $rfEx->getMessage();
+            }
+        }
+
+        // 3. Sync cancellation to WooCommerce store via REST API
         $wcMessage = '';
         if (!empty($wcOrderId)) {
             try {
@@ -1163,9 +1242,12 @@ class AdminWebsiteOrderController extends Controller
                 $wcNote = !empty($reason) 
                     ? "Order cancelled by PMS Admin. Reason: {$reason}" 
                     : "Order cancelled by Admin via Production Management System.";
-                
+                if ($refundSuccess) {
+                    $wcNote .= " Automated Razorpay refund of ₹" . number_format($refundAmount, 2) . " issued.";
+                }
+
                 $wcResult = $wcService->updateOrderStatus(
-                    $sellingSupplierId ?: ($orderData['selling_supplier_url'] ?? null),
+                    $storeTarget,
                     $wcOrderId,
                     'cancelled',
                     $wcNote,
@@ -1183,20 +1265,30 @@ class AdminWebsiteOrderController extends Controller
             }
         }
 
-        // 3. Update database record to Cancelled
+        // 4. Update database record to Cancelled in PMS
         $record->status = 'Cancelled';
         $payload = is_array($record->payload) ? $record->payload : (json_decode($record->payload, true) ?? []);
         $payload['status'] = 'cancelled';
+        if ($refundSuccess && $refundDetails) {
+            $pmsRefunds = $payload['pms_refunds'] ?? [];
+            $pmsRefunds[] = $refundDetails;
+            $payload['pms_refunds'] = $pmsRefunds;
+        }
         $record->payload = $payload;
         $record->save();
 
-        // 4. Restore vendor stock in vendor_stock_web & vendor_stock & sync stock back to WC
+        // 5. Restore vendor stock in vendor_stock_web & vendor_stock & sync stock back to WC
         $this->syncVendorStockStatus($record, 'Cancelled', null, null, null);
 
-        // 5. Create OrderHistory audit log
+        // 6. Create OrderHistory audit log
         $comment = "Order cancelled by Admin (" . ($user->name ?? 'Admin') . ").";
         if (!empty($reason)) {
             $comment .= " Reason: " . $reason . ".";
+        }
+        if ($refundSuccess) {
+            $comment .= " [{$refundMessage}]";
+        } elseif ($processRefund && !empty($refundMessage)) {
+            $comment .= " [{$refundMessage}]";
         }
         if (!empty($wcMessage)) {
             $comment .= " [{$wcMessage}]";
@@ -1207,7 +1299,7 @@ class AdminWebsiteOrderController extends Controller
             'user_type' => 'admin',
             'user_id' => $user->id,
             'user_name' => ($user->name ?? 'Admin') . ' (Admin)',
-            'action' => 'Order Cancelled',
+            'action' => $refundSuccess ? 'Order Cancelled & Payment Refunded' : 'Order Cancelled',
             'from_status' => $oldStatus,
             'to_status' => 'Cancelled',
             'comment' => $comment,
@@ -1215,13 +1307,24 @@ class AdminWebsiteOrderController extends Controller
 
         $notifiedRecipients = [];
 
-        // 6. Notify Customer if requested
+        // 7. Notify Customer if requested
         if ($notifyCustomer) {
             $customerEmail = trim($payload['billing']['email'] ?? ($payload['shipping']['email'] ?? ''));
             if (!empty($customerEmail) && filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
                 try {
-                    $custSubject = "Order #{$orderNumber} Cancelled";
-                    $custMessage = !empty($reason) ? ("Your order #{$orderNumber} has been cancelled. Reason: " . $reason) : "Your order #{$orderNumber} has been cancelled.";
+                    $custSubject = $refundSuccess 
+                        ? "Order #{$orderNumber} Cancelled & Refund Initiated" 
+                        : "Order #{$orderNumber} Cancelled";
+                    
+                    if ($refundSuccess) {
+                        $custMessage = "Your order #{$orderNumber} has been cancelled. An automated refund of ₹" . number_format($refundAmount, 2) . " has been initiated to your original payment method (Razorpay) and should reflect in your account within 5-7 business days.";
+                        if (!empty($reason)) {
+                            $custMessage .= " Reason: " . $reason;
+                        }
+                    } else {
+                        $custMessage = !empty($reason) ? ("Your order #{$orderNumber} has been cancelled. Reason: " . $reason) : "Your order #{$orderNumber} has been cancelled.";
+                    }
+
                     $orderDataUpdated = $this->buildOrderDataForRecord($record);
                     Mail::to($customerEmail)->send(new CustomerOrderStatusMail($orderDataUpdated, $custSubject, $custMessage));
                     $notifiedRecipients[] = "Customer ({$customerEmail})";
@@ -1231,13 +1334,16 @@ class AdminWebsiteOrderController extends Controller
             }
         }
 
-        // 7. Notify Supplier if requested
+        // 8. Notify Supplier if requested
         if ($notifySupplier) {
             $supplierEmail = $orderData['default_supplier_email'] ?? null;
             if (!empty($supplierEmail) && filter_var($supplierEmail, FILTER_VALIDATE_EMAIL)) {
                 try {
                     $supSubject = "Order #{$orderNumber} Cancelled by Admin";
                     $supMessage = "Order #{$orderNumber} has been cancelled by Admin." . (!empty($reason) ? (" Reason: " . $reason) : "");
+                    if ($refundSuccess) {
+                        $supMessage .= " (Customer payment of ₹" . number_format($refundAmount, 2) . " refunded via Razorpay).";
+                    }
                     $orderDataUpdated = $this->buildOrderDataForRecord($record);
                     Mail::to($supplierEmail)->send(new SupplierOrderDetailsMail($orderDataUpdated, $supSubject, $supMessage));
                     $notifiedRecipients[] = "Supplier ({$supplierEmail})";
@@ -1248,11 +1354,16 @@ class AdminWebsiteOrderController extends Controller
         }
 
         $successMsg = "Order #{$orderNumber} has been successfully cancelled and inventory stock has been restored.";
+        if ($refundSuccess) {
+            $successMsg .= " " . $refundMessage;
+        } elseif ($processRefund && !empty($refundMessage)) {
+            $successMsg .= " Note: " . $refundMessage;
+        }
         if (!empty($wcMessage)) {
             $successMsg .= " (" . $wcMessage . ")";
         }
         if (!empty($notifiedRecipients)) {
-            $successMsg .= " Email notification sent to: " . implode(', ', $notifiedRecipients) . ".";
+            $successMsg .= " Notification sent to: " . implode(', ', $notifiedRecipients) . ".";
         }
 
         if ($request->wantsJson() || $request->ajax()) {
@@ -1260,10 +1371,130 @@ class AdminWebsiteOrderController extends Controller
                 'success' => true,
                 'message' => $successMsg,
                 'status' => 'Cancelled',
+                'refund' => $refundDetails,
             ]);
         }
 
         return redirect()->route('admin.website-orders.show', $record->id)->with('success', $successMsg);
+    }
+
+    /**
+     * Process a standalone Razorpay refund via WooCommerce REST API.
+     */
+    public function processRefund(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        $record = OrderWebhookPayload::findOrFail($id);
+        $orderData = $this->buildOrderDataForRecord($record);
+        $orderNumber = $orderData['order_number'];
+        $wcOrderId = $record->order_id ?: ($orderData['raw_payload']['id'] ?? null);
+
+        if (empty($wcOrderId)) {
+            return back()->with('error', "Cannot process refund: WooCommerce Order ID not found for this record.");
+        }
+
+        $request->validate([
+            'refund_amount' => 'required|numeric|min:0.01',
+            'refund_reason' => 'nullable|string|max:500',
+        ]);
+
+        $refundAmount = (float) $request->input('refund_amount');
+        $refundReason = trim($request->input('refund_reason', 'Refund issued by Admin via PMS'));
+        $notifyCustomer = $request->boolean('notify_customer', true);
+
+        $sellingSupplierId = $orderData['order_from_supplier_id'] ?? null;
+        $storeTarget = $sellingSupplierId ?: ($orderData['order_from_supplier_url'] ?? ($orderData['selling_supplier_url'] ?? null));
+
+        try {
+            $wcService = app(\App\Services\WooCommerceService::class);
+            $res = $wcService->createOrderRefund(
+                $storeTarget,
+                $wcOrderId,
+                $refundAmount,
+                $refundReason,
+                true // api_refund: true invokes WooCommerce Razorpay gateway process_refund
+            );
+
+            if (!empty($res['success'])) {
+                $refundId = $res['refund_id'] ?? null;
+                $formattedAmount = number_format($refundAmount, 2);
+
+                // Save refund info to payload
+                $payload = is_array($record->payload) ? $record->payload : (json_decode($record->payload, true) ?? []);
+                $pmsRefunds = $payload['pms_refunds'] ?? [];
+                $pmsRefunds[] = [
+                    'refund_id' => $refundId,
+                    'amount' => $refundAmount,
+                    'gateway' => 'Razorpay',
+                    'refunded_at' => now()->toIso8601String(),
+                    'reason' => $refundReason,
+                    'admin_user' => $user->name ?? 'Admin',
+                ];
+                $payload['pms_refunds'] = $pmsRefunds;
+                $record->payload = $payload;
+
+                // If fully refunded, mark status as Refunded if not already Cancelled
+                if (strtolower($record->status) !== 'cancelled') {
+                    $orderTotal = (float) ($orderData['total'] ?? 0);
+                    $totalRefunded = collect($pmsRefunds)->sum('amount');
+                    if ($totalRefunded >= $orderTotal && $orderTotal > 0) {
+                        $record->status = 'Refunded';
+                    }
+                }
+                $record->save();
+
+                // Order history
+                OrderHistory::create([
+                    'order_webhook_payload_id' => $record->id,
+                    'user_type' => 'admin',
+                    'user_id' => $user->id,
+                    'user_name' => ($user->name ?? 'Admin') . ' (Admin)',
+                    'action' => 'Payment Refunded',
+                    'from_status' => $record->status,
+                    'to_status' => $record->status,
+                    'comment' => "Razorpay refund of ₹{$formattedAmount} processed successfully (Refund #{$refundId}). Reason: {$refundReason}",
+                ]);
+
+                // Notify customer if requested
+                if ($notifyCustomer) {
+                    $customerEmail = trim($payload['billing']['email'] ?? ($payload['shipping']['email'] ?? ''));
+                    if (!empty($customerEmail) && filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+                        try {
+                            $custSubject = "Refund Processed for Order #{$orderNumber}";
+                            $custMessage = "A refund of ₹{$formattedAmount} has been processed for your order #{$orderNumber} via Razorpay. It will reflect in your original payment method within 5-7 business days.";
+                            $orderDataUpdated = $this->buildOrderDataForRecord($record);
+                            Mail::to($customerEmail)->send(new CustomerOrderStatusMail($orderDataUpdated, $custSubject, $custMessage));
+                        } catch (\Throwable $e) {
+                            Log::warning("Customer refund email error: " . $e->getMessage());
+                        }
+                    }
+                }
+
+                $msg = "Refund of ₹{$formattedAmount} successfully processed through WooCommerce Razorpay (Refund #{$refundId}).";
+                if ($request->wantsJson() || $request->ajax()) {
+                    return response()->json(['success' => true, 'message' => $msg, 'refund_id' => $refundId]);
+                }
+                return back()->with('success', $msg);
+            }
+
+            $errMsg = $res['message'] ?? 'WooCommerce Razorpay refund could not be processed.';
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => $errMsg], 422);
+            }
+            return back()->with('error', $errMsg);
+
+        } catch (\Throwable $e) {
+            Log::error("Manual Razorpay refund error for order #{$orderNumber}: " . $e->getMessage());
+            $errMsg = "Refund error: " . $e->getMessage();
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => $errMsg], 500);
+            }
+            return back()->with('error', $errMsg);
+        }
     }
 
     /**

@@ -59,6 +59,19 @@
                     <i class="bi bi-lock-fill"></i> Order Cancelled (Locked)
                 </span>
             @endif
+
+            @if(!empty($orderData['is_paid_online']))
+                @if(($orderData['remaining_refundable'] ?? 0) > 0)
+                    <button type="button" class="btn btn-sm btn-outline-info rounded-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#processRefundModal">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Razorpay Refund
+                    </button>
+                @elseif(!empty($orderData['is_fully_refunded']))
+                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-2.5 py-1.5 fw-semibold rounded-2 d-inline-flex align-items-center gap-1">
+                        <i class="bi bi-check-circle-fill"></i> Refunded ₹{{ number_format($orderData['total_refunded'], 2) }}
+                    </span>
+                @endif
+            @endif
+
             <button type="button" class="btn btn-sm btn-outline-primary rounded-2" data-bs-toggle="modal" data-bs-target="#emailSupplierModal">
                 <i class="bi bi-envelope me-1"></i> Email Supplier
             </button>
@@ -161,6 +174,18 @@
                             <td class="text-muted ps-0">Payment:</td>
                             <td>
                                 <span class="badge bg-light text-dark border">{{ $orderData['payment_method'] }}</span>
+                                @if(!empty($orderData['transaction_id']) && $orderData['transaction_id'] !== '—')
+                                    <div class="small text-muted font-monospace mt-1" style="font-size: 0.72rem;">
+                                        <i class="bi bi-shield-check text-success me-1"></i>Txn: {{ $orderData['transaction_id'] }}
+                                    </div>
+                                @endif
+                                @if(!empty($orderData['total_refunded']) && $orderData['total_refunded'] > 0)
+                                    <div class="mt-1">
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size: 0.68rem;">
+                                            <i class="bi bi-arrow-counterclockwise me-1"></i>Refunded ₹{{ number_format($orderData['total_refunded'], 2) }}
+                                        </span>
+                                    </div>
+                                @endif
                             </td>
                         </tr>
                         <tr>
@@ -416,6 +441,17 @@
                             {{ $orderData['currency_symbol'] }}{{ number_format($orderData['total'], 2) }}
                         </span>
                     </div>
+
+                    @if(!empty($orderData['total_refunded']) && $orderData['total_refunded'] > 0)
+                        <div class="d-flex justify-content-between text-danger pt-2 mt-1 border-top">
+                            <span class="fw-semibold">Total Refunded (Razorpay):</span>
+                            <span class="fw-semibold font-monospace">-{{ $orderData['currency_symbol'] }}{{ number_format($orderData['total_refunded'], 2) }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between text-dark pt-1">
+                            <span class="fw-bold">Net Total:</span>
+                            <span class="fw-bold font-monospace">{{ $orderData['currency_symbol'] }}{{ number_format(max(0, $orderData['total'] - $orderData['total_refunded']), 2) }}</span>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -618,6 +654,7 @@
                                 @endif
                             </label>
                         </div>
+                    </div>
                     @endif
                 </div>
 
@@ -645,7 +682,7 @@
                     </span>
                     <div>
                         <h6 class="modal-title fw-bold text-danger mb-0" id="cancelOrderModalLabel">Cancel Order #{{ $orderData['order_number'] }}</h6>
-                        <small class="text-danger-emphasis" style="font-size: 0.72rem;">Approves cancellation, syncs to WooCommerce, and restores stock.</small>
+                        <small class="text-danger-emphasis" style="font-size: 0.72rem;">Approves cancellation, syncs to WooCommerce, restores stock & processes Razorpay refund.</small>
                     </div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -654,15 +691,81 @@
             <form action="{{ route('admin.website-orders.cancel', $record->id) }}" method="POST">
                 @csrf
                 <div class="modal-body p-3">
-                    <div class="alert alert-danger-subtle border border-danger-subtle p-2.5 rounded-2 small text-danger-emphasis mb-3">
-                        <i class="bi bi-info-circle-fill me-1"></i>
-                        <strong>What happens on confirmation:</strong>
-                        <ul class="mb-0 mt-1 ps-3">
-                            <li>Order status will be set to <strong>Cancelled</strong> in PMS.</li>
-                            <li>Order status will be updated to <strong>cancelled</strong> on the WooCommerce website via REST API.</li>
-                            <li>Reserved vendor stock will be released (<span class="font-monospace">send_qty = 0, avilable_qty = 1</span>) and stock quantity will be synchronized back to WooCommerce.</li>
-                        </ul>
-                    </div>
+                    {{-- RAZORPAY PAYMENT & AUTOMATED REFUND CARD --}}
+                    @php
+                        $isPrepaid = !empty($orderData['is_paid_online']);
+                        $remainingAmount = ($orderData['remaining_refundable'] ?? 0) > 0 ? $orderData['remaining_refundable'] : $orderData['total'];
+                        $isFullyRefunded = !empty($orderData['is_fully_refunded']);
+                    @endphp
+
+                    @if($isPrepaid)
+                        <div class="card border rounded-2 mb-3 bg-light-subtle">
+                            <div class="card-header bg-white py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+                                <span class="small fw-bold text-dark d-flex align-items-center gap-1.5">
+                                    <i class="bi bi-credit-card-2-front text-primary"></i> Razorpay Payment & Refund
+                                </span>
+                                @if($isFullyRefunded)
+                                    <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size: 0.68rem;">Already Fully Refunded</span>
+                                @else
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.68rem;">Online Paid</span>
+                                @endif
+                            </div>
+                            <div class="card-body p-2.5">
+                                <div class="row g-2 mb-2 small">
+                                    <div class="col-6">
+                                        <div class="text-muted" style="font-size: 0.72rem;">Gateway:</div>
+                                        <div class="fw-semibold text-dark text-truncate">{{ $orderData['payment_method'] }}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="text-muted" style="font-size: 0.72rem;">Razorpay Payment ID:</div>
+                                        <div class="fw-semibold font-monospace text-dark text-truncate">{{ $orderData['transaction_id'] ?? '—' }}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="text-muted" style="font-size: 0.72rem;">Order Total:</div>
+                                        <div class="fw-bold text-dark font-monospace">{{ $orderData['currency_symbol'] }}{{ number_format($orderData['total'], 2) }}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="text-muted" style="font-size: 0.72rem;">Refundable Balance:</div>
+                                        <div class="fw-bold text-primary font-monospace">{{ $orderData['currency_symbol'] }}{{ number_format($remainingAmount, 2) }}</div>
+                                    </div>
+                                </div>
+
+                                @if(!$isFullyRefunded && $remainingAmount > 0)
+                                    <div class="form-check form-switch mb-2 pt-1 border-top">
+                                        <input class="form-check-input" type="checkbox" name="process_refund" id="cancelProcessRefund" value="1" checked onchange="toggleCancelRefundInput(this)">
+                                        <label class="form-check-label small fw-semibold text-dark" for="cancelProcessRefund">
+                                            Automatically refund customer via WooCommerce Razorpay Gateway
+                                        </label>
+                                    </div>
+
+                                    <div id="cancelRefundAmountWrapper" class="mt-2">
+                                        <label class="form-label small fw-bold text-dark mb-1">Refund Amount (₹)</label>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text fw-bold">{{ $orderData['currency_symbol'] }}</span>
+                                            <input type="number" step="0.01" min="0.01" max="{{ $remainingAmount }}" name="refund_amount" id="cancelRefundAmountInput" class="form-control font-monospace fw-semibold" value="{{ number_format($remainingAmount, 2, '.', '') }}">
+                                            <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('cancelRefundAmountInput').value = '{{ number_format($remainingAmount, 2, '.', '') }}'">Full</button>
+                                        </div>
+                                        <small class="text-muted d-block mt-1" style="font-size: 0.72rem;">
+                                            <i class="bi bi-info-circle me-1"></i>Triggers WooCommerce <span class="font-monospace">/refunds</span> with <span class="font-monospace">api_refund: true</span>, instructing Razorpay to credit customer immediately.
+                                        </small>
+                                    </div>
+                                @else
+                                    <div class="small text-muted pt-1 border-top">
+                                        <i class="bi bi-check-circle-fill text-info me-1"></i>This order has already been refunded (₹{{ number_format($orderData['total_refunded'], 2) }}).
+                                    </div>
+                                    <input type="hidden" name="process_refund" value="0">
+                                @endif
+                            </div>
+                        </div>
+                    @else
+                        {{-- COD Notice --}}
+                        <div class="alert alert-secondary border p-2.5 rounded-2 small text-secondary-emphasis mb-3">
+                            <i class="bi bi-cash me-1"></i>
+                            <strong>Payment Method: Cash on Delivery (COD)</strong>
+                            <div class="mt-0.5" style="font-size: 0.75rem;">No online payment was charged for this order. No Razorpay gateway refund is required.</div>
+                            <input type="hidden" name="process_refund" value="0">
+                        </div>
+                    @endif
 
                     <div class="mb-3">
                         <label class="form-label small fw-bold text-dark">Cancellation Reason / Remarks</label>
@@ -679,7 +782,7 @@
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" name="notify_customer" id="cancelNotifyCustomer" value="1" checked>
                             <label class="form-check-label small fw-semibold text-dark" for="cancelNotifyCustomer">
-                                Send cancellation email to Customer
+                                Send cancellation @if($isPrepaid) & refund @endif email to Customer
                                 @if(!empty($customerEmail))
                                     <span class="text-muted fw-normal">({{ $customerEmail }})</span>
                                 @endif
@@ -707,6 +810,92 @@
         </div>
     </div>
 </div>
+
+{{-- MODAL: STANDALONE RAZORPAY REFUND --}}
+@if(!empty($orderData['is_paid_online']))
+<div class="modal fade" id="processRefundModal" tabindex="-1" aria-labelledby="processRefundModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-3">
+            <div class="modal-header bg-info-subtle py-2 px-3 border-bottom border-info-subtle">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-info text-white p-1.5 rounded-2">
+                        <i class="bi bi-arrow-counterclockwise fs-6"></i>
+                    </span>
+                    <div>
+                        <h6 class="modal-title fw-bold text-dark mb-0" id="processRefundModalLabel">Process Razorpay Refund</h6>
+                        <small class="text-muted" style="font-size: 0.72rem;">Order #{{ $orderData['order_number'] }} • WooCommerce Razorpay Gateway</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <form action="{{ route('admin.website-orders.refund', $record->id) }}" method="POST">
+                @csrf
+                <div class="modal-body p-3">
+                    <div class="card border rounded-2 mb-3 bg-light-subtle">
+                        <div class="card-body p-2.5">
+                            <div class="row g-2 small">
+                                <div class="col-6">
+                                    <div class="text-muted" style="font-size: 0.72rem;">Payment Gateway:</div>
+                                    <div class="fw-semibold text-dark">{{ $orderData['payment_method'] }}</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted" style="font-size: 0.72rem;">Razorpay Payment ID:</div>
+                                    <div class="fw-semibold font-monospace text-dark">{{ $orderData['transaction_id'] ?? '—' }}</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted" style="font-size: 0.72rem;">Total Order Amount:</div>
+                                    <div class="fw-bold text-dark font-monospace">{{ $orderData['currency_symbol'] }}{{ number_format($orderData['total'], 2) }}</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted" style="font-size: 0.72rem;">Remaining Refundable:</div>
+                                    <div class="fw-bold text-success font-monospace">{{ $orderData['currency_symbol'] }}{{ number_format($remainingAmount, 2) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark mb-1">Refund Amount *</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text fw-bold">{{ $orderData['currency_symbol'] }}</span>
+                            <input type="number" step="0.01" min="0.01" max="{{ $remainingAmount }}" name="refund_amount" id="standaloneRefundAmount" class="form-control font-monospace fw-semibold" value="{{ number_format($remainingAmount, 2, '.', '') }}" required>
+                            <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('standaloneRefundAmount').value = '{{ number_format($remainingAmount, 2, '.', '') }}'">Full</button>
+                        </div>
+                        <small class="text-muted d-block mt-1" style="font-size: 0.72rem;">
+                            Directly invokes WooCommerce <span class="font-monospace">/refunds</span> with <span class="font-monospace">api_refund: true</span>, executing the refund via Razorpay.
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark">Refund Reason</label>
+                        <textarea name="refund_reason" rows="2" class="form-control form-control-sm rounded-2" placeholder="e.g. Customer returned items / Cancellation refund"></textarea>
+                    </div>
+
+                    <div class="p-2.5 bg-light rounded-2 border">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" name="notify_customer" id="refundNotifyCustomer" value="1" checked>
+                            <label class="form-check-label small fw-semibold text-dark" for="refundNotifyCustomer">
+                                Send refund notification email to Customer
+                                @if(!empty($customerEmail))
+                                    <span class="text-muted fw-normal">({{ $customerEmail }})</span>
+                                @endif
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light py-2 px-3">
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-2" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-sm btn-info text-white rounded-2 fw-semibold">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Issue Razorpay Refund
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
 
 {{-- MODAL: REJECT CANCEL REQUEST (ADMIN ACTION) --}}
 <div class="modal fade" id="rejectCancelModal" tabindex="-1" aria-labelledby="rejectCancelModalLabel" aria-hidden="true">
@@ -1075,6 +1264,13 @@ function handleSendEmail(e) {
         alertBox.className = 'alert alert-danger alert-dismissible fade show rounded-2 p-2 mb-3 small';
         alertBox.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i> An unexpected network error occurred.`;
     });
+}
+
+function toggleCancelRefundInput(checkbox) {
+    const wrapper = document.getElementById('cancelRefundAmountWrapper');
+    if (wrapper) {
+        wrapper.style.display = checkbox.checked ? 'block' : 'none';
+    }
 }
 </script>
 @endsection
