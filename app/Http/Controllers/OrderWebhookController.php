@@ -67,6 +67,13 @@ class OrderWebhookController extends Controller
                     $status = $existingRecord ? $existingRecord->status : 'Order confirmed';
                     break;
 
+                case 'cancel-request':
+                case 'cancel_request':
+                case 'cancel request':
+                    // Customer cancellation request from WooCommerce frontend
+                    $status = 'Cancel Request';
+                    break;
+
                 case 'cancelled':
                     // Order cancelled: always update status to Cancelled and restore stock
                     $status = 'Cancelled';
@@ -119,25 +126,39 @@ class OrderWebhookController extends Controller
 
             // Record initial history if newly created
             if ($isNew && $record) {
+                $isCancelReq = in_array(strtolower($status), ['cancel request', 'cancel-request', 'cancel_request']);
+                $initialAction = $isCancelReq ? 'Cancellation Requested' : 'Order Confirmed';
+                $initialComment = $isCancelReq 
+                    ? 'Order received with cancellation request from customer on website.'
+                    : 'Order received from website and confirmed automatically.';
+
                 OrderHistory::create([
                     'order_webhook_payload_id' => $record->id,
                     'user_type' => 'system',
                     'user_id' => null,
                     'user_name' => 'Website Webhook',
-                    'action' => 'Order Confirmed',
+                    'action' => $initialAction,
                     'from_status' => null,
                     'to_status' => $status,
-                    'comment' => 'Order received from website and confirmed automatically.',
+                    'comment' => $initialComment,
                 ]);
 
-                // Automatically send new order email to supplier company email
-                $this->sendAutomatedSupplierOrderEmail($record, $payload, $request->headers->all());
+                // Automatically send new order email to supplier company email if not already cancelled/requested cancel
+                if (!$isCancelReq) {
+                    $this->sendAutomatedSupplierOrderEmail($record, $payload, $request->headers->all());
+                }
             } elseif (!$isNew && $existingRecord && strtolower($existingRecord->status ?? '') !== strtolower($status)) {
                 $action = match(strtolower($status)) {
+                    'cancel request', 'cancel-request', 'cancel_request' => 'Cancellation Requested',
                     'cancelled' => 'Order Cancelled',
                     'refunded'  => 'Order Refunded',
                     'failed'    => 'Order Failed',
                     default     => 'Order ' . ucfirst($status),
+                };
+
+                $historyComment = match(strtolower($status)) {
+                    'cancel request', 'cancel-request', 'cancel_request' => "Customer requested order cancellation on website (WooCommerce). Awaiting Admin decision in PMS.",
+                    default => "Order status updated from '{$existingRecord->status}' to '{$status}' via WooCommerce webhook.",
                 };
 
                 OrderHistory::create([
@@ -148,7 +169,7 @@ class OrderWebhookController extends Controller
                     'action' => $action,
                     'from_status' => $existingRecord->status,
                     'to_status' => $status,
-                    'comment' => "Order status updated from '{$existingRecord->status}' to '{$status}' via WooCommerce webhook.",
+                    'comment' => $historyComment,
                 ]);
             }
 
@@ -186,7 +207,7 @@ class OrderWebhookController extends Controller
      * Deduct or manage vendor_stock when an order is received or updated.
      * Matches item_id and barcode, sets send_qty = 1 and avilable_qty = 0.
      */
-    private function processVendorStock($orderId, $orderNumber, $status, array $lineItems = [])
+    public function processVendorStock($orderId, $orderNumber, $status, array $lineItems = [])
     {
         try {
             $statusNormalized = strtolower(trim($status ?? ''));
@@ -530,7 +551,7 @@ class OrderWebhookController extends Controller
     /**
      * Synchronize restored stock for line items back to WooCommerce store if applicable.
      */
-    private function syncRestoredStockToWooCommerce(array $lineItems = [])
+    public function syncRestoredStockToWooCommerce(array $lineItems = [])
     {
         $synced = [];
         if (empty($lineItems)) {
