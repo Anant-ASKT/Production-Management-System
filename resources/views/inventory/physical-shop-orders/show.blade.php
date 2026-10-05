@@ -1,0 +1,4 @@
+@extends('layouts.app')
+@section('content')
+<div class="container-fluid py-3"><a href="{{ route('inventory.physical-shop-orders.orders.index') }}" class="btn btn-sm btn-outline-secondary mb-3">Back to Orders</a><h3>{{ $orderRow->order_number }}</h3><p>{{ $orderRow->basket_name }} · Confirmed {{ $orderRow->confirmed_at }}</p><div class="card"><div class="table-responsive"><table class="table table-striped mb-0"><thead><tr><th>Barcode</th><th>SKU</th><th>Product</th><th>Type</th><th>Gender</th><th>Composition</th><th>Size</th><th>Qty</th></tr></thead><tbody>@foreach($items as $item)<tr><td>{{ $item->barcode }}</td><td>{{ $item->sku }}</td><td>{{ $item->product_name }}</td><td>{{ $item->item_type_name }}</td><td>{{ $item->gender_name }}</td><td>{{ $item->composition_name }}</td><td>{{ $item->size_name }}</td><td>{{ $item->quantity }}</td></tr>@endforeach</tbody></table></div></div></div>
+@endsection

@@ -229,6 +229,13 @@
             </li>
 
             <li>
+                <a href="{{ route('inventory.physical-shop-orders.index') }}">
+                    <i class="bi bi-shop"></i>
+                    <span>Physical Shop Order</span>
+                </a>
+            </li>
+
+            <li>
                 <a
                     href="{{ route('ai-description.index') }}"
                     class="{{ request()->routeIs('ai-description.*') ? 'active' : '' }}"

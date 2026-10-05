@@ -17,6 +17,7 @@ use App\Http\Controllers\TraderProductSpecificationMasterController;
 use App\Http\Controllers\StockStatusController;
 use App\Http\Controllers\AllGarmentsAiImageController;
 use App\Http\Controllers\SendImageToAiEnhancerController;
+use App\Http\Controllers\Inventory\PhysicalShopOrderController;
 
 
 
@@ -1126,6 +1127,46 @@ Route::get('/ItemsDesigner_Masterwithbarcode/{path}', function ($path) {
 
     abort(404);
 })->where('path', '.*');
+
+
+/*
+|--------------------------------------------------------------------------
+| Physical Shop Order
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth')->prefix('inventory/physical-shop-orders')
+    ->name('inventory.physical-shop-orders.')
+    ->controller(PhysicalShopOrderController::class)
+    ->group(function () {
+
+        // Product selection and stock filters
+        Route::get('/', 'index')->name('index');
+        Route::get('/products', 'products')->name('products');
+
+        // Basket management
+        Route::get('/baskets', 'baskets')->name('baskets');
+        Route::post('/baskets', 'storeBasket')->name('baskets.store');
+        Route::get('/baskets/{basket}', 'showBasket')->name('baskets.show');
+        Route::post('/baskets/{basket}/items', 'addItem')
+            ->name('baskets.items.store');
+        Route::put('/baskets/{basket}/items/{item}', 'updateItem')
+            ->name('baskets.items.update');
+        Route::delete('/baskets/{basket}/items/{item}', 'removeItem')
+            ->name('baskets.items.destroy');
+
+        // Save draft and confirm final order
+        Route::post('/baskets/{basket}/save', 'saveDraft')
+            ->name('baskets.save');
+        Route::post('/baskets/{basket}/confirm', 'confirmOrder')
+            ->name('baskets.confirm');
+        Route::post('/baskets/confirm-combined', 'confirmMultipleBaskets')
+            ->name('baskets.confirm-combined');
+
+        // View confirmed orders
+        Route::get('/orders', 'orders')->name('orders.index');
+        Route::get('/orders/{order}', 'showOrder')->name('orders.show');
+    });
 
 
 
