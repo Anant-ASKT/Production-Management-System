@@ -27,20 +27,24 @@ class AdminWebsiteOrderController extends Controller
             return redirect()->route('login');
         }
 
-        // Summary counts for the 3 core statuses
+        // Summary counts for the statuses
         $totalOrders = OrderWebhookPayload::count();
+        $cancelRequestOrders = OrderWebhookPayload::whereIn('status', ['Cancel Request', 'cancel-request', 'cancel_request'])->count();
         $confirmedOrders = OrderWebhookPayload::whereIn('status', ['Order confirmed', 'order_confirmed', 'processing'])->count();
         $shippedOrders = OrderWebhookPayload::whereIn('status', ['Shipped', 'shipped'])->count();
         $deliveredOrders = OrderWebhookPayload::whereIn('status', ['Delivered', 'delivered', 'completed'])->count();
+        $cancelledOrders = OrderWebhookPayload::whereIn('status', ['Cancelled', 'cancelled'])->count();
 
         // Suppliers list for filtering if needed
         $suppliers = DB::table('suppliers')->orderBy('name', 'asc')->get();
 
         return view('admin.website_orders.index', compact(
             'totalOrders',
+            'cancelRequestOrders',
             'confirmedOrders',
             'shippedOrders',
             'deliveredOrders',
+            'cancelledOrders',
             'suppliers'
         ));
     }
@@ -74,12 +78,16 @@ class AdminWebsiteOrderController extends Controller
         // Filter by Status
         if (!empty($status) && $status !== 'all') {
             $statusNormalized = strtolower(trim($status));
-            if (in_array($statusNormalized, ['order confirmed', 'order_confirmed', 'processing'])) {
+            if (in_array($statusNormalized, ['cancel request', 'cancel-request', 'cancel_request'])) {
+                $query->whereIn('status', ['Cancel Request', 'cancel-request', 'cancel_request']);
+            } elseif (in_array($statusNormalized, ['order confirmed', 'order_confirmed', 'processing'])) {
                 $query->whereIn('status', ['Order confirmed', 'order_confirmed', 'processing']);
             } elseif ($statusNormalized === 'shipped') {
                 $query->whereIn('status', ['Shipped', 'shipped']);
             } elseif (in_array($statusNormalized, ['delivered', 'completed'])) {
                 $query->whereIn('status', ['Delivered', 'delivered', 'completed']);
+            } elseif (in_array($statusNormalized, ['cancelled', 'cancel'])) {
+                $query->whereIn('status', ['Cancelled', 'cancelled']);
             } else {
                 $query->where('status', $status);
             }
@@ -894,6 +902,12 @@ class AdminWebsiteOrderController extends Controller
 
         $record = OrderWebhookPayload::findOrFail($id);
 
+        // Disallow status changes on already cancelled orders
+        if (strtolower(trim($record->status)) === 'cancelled') {
+            return redirect()->route('admin.website-orders.show', $record->id)
+                ->withErrors(['status' => 'This order has already been cancelled. Status and shipping cannot be modified on a cancelled order.']);
+        }
+
         $request->validate([
             'status' => 'required|string',
             'courier_name' => 'nullable|string|max:100',
@@ -904,7 +918,7 @@ class AdminWebsiteOrderController extends Controller
             'comment' => 'nullable|string|max:1000',
         ]);
 
-        // Normalize status to the 3 main statuses
+        // Normalize status to the main statuses
         $statusInput = trim($request->status);
         $statusLower = strtolower($statusInput);
         if (in_array($statusLower, ['order confirmed', 'order_confirmed', 'processing'])) {
@@ -913,6 +927,10 @@ class AdminWebsiteOrderController extends Controller
             $newStatus = 'Shipped';
         } elseif (in_array($statusLower, ['delivered', 'completed'])) {
             $newStatus = 'Delivered';
+        } elseif (in_array($statusLower, ['cancel request', 'cancel-request', 'cancel_request'])) {
+            $newStatus = 'Cancel Request';
+        } elseif (in_array($statusLower, ['cancelled', 'cancel'])) {
+            $newStatus = 'Cancelled';
         } else {
             $newStatus = ucfirst($statusInput);
         }
@@ -974,6 +992,26 @@ class AdminWebsiteOrderController extends Controller
 
         // Synchronize vendor_stock_web and vendor_stock on status/shipping update
         $this->syncVendorStockStatus($record, $newStatus, $courierName, $trackingId, $shippedAt);
+
+        // If status changed to Cancelled, sync to WooCommerce store
+        if ($newStatus === 'Cancelled') {
+            try {
+                $orderDataForWc = $this->buildOrderDataForRecord($record);
+                $wcOrderId = $record->order_id ?: ($orderDataForWc['raw_payload']['id'] ?? null);
+                if (!empty($wcOrderId)) {
+                    $wcService = app(\App\Services\WooCommerceService::class);
+                    $wcService->updateOrderStatus(
+                        $orderDataForWc['order_from_supplier_id'] ?: ($orderDataForWc['selling_supplier_url'] ?? null),
+                        $wcOrderId,
+                        'cancelled',
+                        'Order cancelled by Admin via PMS' . (!empty($request->comment) ? ": {$request->comment}" : ''),
+                        true
+                    );
+                }
+            } catch (\Throwable $wcEx) {
+                Log::warning("Could not sync cancelled status to WooCommerce in updateStatusAndShipping: " . $wcEx->getMessage());
+            }
+        }
 
         // Determine action name for audit log
         $action = 'Order Updated';
@@ -1093,6 +1131,230 @@ class AdminWebsiteOrderController extends Controller
     }
 
     /**
+     * Cancel an order from Admin (approves customer cancel request or direct cancellation),
+     * updates order status to Cancelled in PMS, syncs status to WooCommerce via REST API,
+     * restores inventory stock, and logs audit trail.
+     */
+    public function cancelOrder(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        $record = OrderWebhookPayload::findOrFail($id);
+        $oldStatus = $record->status ?: 'Order confirmed';
+
+        $reason = trim($request->input('reason', $request->input('comment', '')));
+        $notifyCustomer = $request->boolean('notify_customer', true);
+        $notifySupplier = $request->boolean('notify_supplier', true);
+
+        // 1. Resolve Selling Store Supplier and Order Number
+        $orderData = $this->buildOrderDataForRecord($record);
+        $sellingSupplierId = $orderData['order_from_supplier_id'] ?? null;
+        $orderNumber = $orderData['order_number'];
+        $wcOrderId = $record->order_id ?: ($orderData['raw_payload']['id'] ?? null);
+
+        // 2. Sync cancellation to WooCommerce store via REST API
+        $wcMessage = '';
+        if (!empty($wcOrderId)) {
+            try {
+                $wcService = app(\App\Services\WooCommerceService::class);
+                $wcNote = !empty($reason) 
+                    ? "Order cancelled by PMS Admin. Reason: {$reason}" 
+                    : "Order cancelled by Admin via Production Management System.";
+                
+                $wcResult = $wcService->updateOrderStatus(
+                    $sellingSupplierId ?: ($orderData['selling_supplier_url'] ?? null),
+                    $wcOrderId,
+                    'cancelled',
+                    $wcNote,
+                    true
+                );
+
+                if (!empty($wcResult['success'])) {
+                    $wcMessage = "WooCommerce status updated to 'cancelled'.";
+                } else {
+                    $wcMessage = "WooCommerce sync note: " . ($wcResult['message'] ?? 'Could not reach store');
+                }
+            } catch (\Throwable $wcEx) {
+                Log::warning("Could not sync cancel to WooCommerce for order #{$orderNumber}: " . $wcEx->getMessage());
+                $wcMessage = "WooCommerce sync notice: " . $wcEx->getMessage();
+            }
+        }
+
+        // 3. Update database record to Cancelled
+        $record->status = 'Cancelled';
+        $payload = is_array($record->payload) ? $record->payload : (json_decode($record->payload, true) ?? []);
+        $payload['status'] = 'cancelled';
+        $record->payload = $payload;
+        $record->save();
+
+        // 4. Restore vendor stock in vendor_stock_web & vendor_stock & sync stock back to WC
+        $this->syncVendorStockStatus($record, 'Cancelled', null, null, null);
+
+        // 5. Create OrderHistory audit log
+        $comment = "Order cancelled by Admin (" . ($user->name ?? 'Admin') . ").";
+        if (!empty($reason)) {
+            $comment .= " Reason: " . $reason . ".";
+        }
+        if (!empty($wcMessage)) {
+            $comment .= " [{$wcMessage}]";
+        }
+
+        OrderHistory::create([
+            'order_webhook_payload_id' => $record->id,
+            'user_type' => 'admin',
+            'user_id' => $user->id,
+            'user_name' => ($user->name ?? 'Admin') . ' (Admin)',
+            'action' => 'Order Cancelled',
+            'from_status' => $oldStatus,
+            'to_status' => 'Cancelled',
+            'comment' => $comment,
+        ]);
+
+        $notifiedRecipients = [];
+
+        // 6. Notify Customer if requested
+        if ($notifyCustomer) {
+            $customerEmail = trim($payload['billing']['email'] ?? ($payload['shipping']['email'] ?? ''));
+            if (!empty($customerEmail) && filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+                try {
+                    $custSubject = "Order #{$orderNumber} Cancelled";
+                    $custMessage = !empty($reason) ? ("Your order #{$orderNumber} has been cancelled. Reason: " . $reason) : "Your order #{$orderNumber} has been cancelled.";
+                    $orderDataUpdated = $this->buildOrderDataForRecord($record);
+                    Mail::to($customerEmail)->send(new CustomerOrderStatusMail($orderDataUpdated, $custSubject, $custMessage));
+                    $notifiedRecipients[] = "Customer ({$customerEmail})";
+                } catch (\Throwable $e) {
+                    Log::warning("Failed to send customer order cancellation email: " . $e->getMessage());
+                }
+            }
+        }
+
+        // 7. Notify Supplier if requested
+        if ($notifySupplier) {
+            $supplierEmail = $orderData['default_supplier_email'] ?? null;
+            if (!empty($supplierEmail) && filter_var($supplierEmail, FILTER_VALIDATE_EMAIL)) {
+                try {
+                    $supSubject = "Order #{$orderNumber} Cancelled by Admin";
+                    $supMessage = "Order #{$orderNumber} has been cancelled by Admin." . (!empty($reason) ? (" Reason: " . $reason) : "");
+                    $orderDataUpdated = $this->buildOrderDataForRecord($record);
+                    Mail::to($supplierEmail)->send(new SupplierOrderDetailsMail($orderDataUpdated, $supSubject, $supMessage));
+                    $notifiedRecipients[] = "Supplier ({$supplierEmail})";
+                } catch (\Throwable $e) {
+                    Log::warning("Failed to send supplier order cancellation email: " . $e->getMessage());
+                }
+            }
+        }
+
+        $successMsg = "Order #{$orderNumber} has been successfully cancelled and inventory stock has been restored.";
+        if (!empty($wcMessage)) {
+            $successMsg .= " (" . $wcMessage . ")";
+        }
+        if (!empty($notifiedRecipients)) {
+            $successMsg .= " Email notification sent to: " . implode(', ', $notifiedRecipients) . ".";
+        }
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => $successMsg,
+                'status' => 'Cancelled',
+            ]);
+        }
+
+        return redirect()->route('admin.website-orders.show', $record->id)->with('success', $successMsg);
+    }
+
+    /**
+     * Reject a customer cancel request and restore order back to active/confirmed status.
+     */
+    public function rejectCancelRequest(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        $record = OrderWebhookPayload::findOrFail($id);
+        $oldStatus = $record->status ?: 'Cancel Request';
+        $reason = trim($request->input('reason', $request->input('comment', '')));
+
+        // Revert status to Order confirmed
+        $targetStatus = 'Order confirmed';
+
+        // Revert WooCommerce order status to processing
+        $orderData = $this->buildOrderDataForRecord($record);
+        $sellingSupplierId = $orderData['order_from_supplier_id'] ?? null;
+        $orderNumber = $orderData['order_number'];
+        $wcOrderId = $record->order_id ?: ($orderData['raw_payload']['id'] ?? null);
+
+        $wcMessage = '';
+        if (!empty($wcOrderId)) {
+            try {
+                $wcService = app(\App\Services\WooCommerceService::class);
+                $wcNote = !empty($reason) 
+                    ? "Customer cancellation request was declined by store admin. Reason: {$reason}. Order is confirmed." 
+                    : "Customer cancellation request was declined by store admin. Order is confirmed and processing.";
+                
+                $wcResult = $wcService->updateOrderStatus(
+                    $sellingSupplierId ?: ($orderData['selling_supplier_url'] ?? null),
+                    $wcOrderId,
+                    'processing',
+                    $wcNote,
+                    true
+                );
+
+                if (!empty($wcResult['success'])) {
+                    $wcMessage = "WooCommerce status reverted to 'processing'.";
+                }
+            } catch (\Throwable $wcEx) {
+                Log::warning("Could not revert WooCommerce status for order #{$orderNumber}: " . $wcEx->getMessage());
+            }
+        }
+
+        $record->status = $targetStatus;
+        $payload = is_array($record->payload) ? $record->payload : (json_decode($record->payload, true) ?? []);
+        $payload['status'] = 'processing';
+        $record->payload = $payload;
+        $record->save();
+
+        $comment = "Customer cancellation request rejected by Admin (" . ($user->name ?? 'Admin') . "). Order reverted to {$targetStatus}.";
+        if (!empty($reason)) {
+            $comment .= " Reason / Remark: {$reason}.";
+        }
+        if (!empty($wcMessage)) {
+            $comment .= " [{$wcMessage}]";
+        }
+
+        OrderHistory::create([
+            'order_webhook_payload_id' => $record->id,
+            'user_type' => 'admin',
+            'user_id' => $user->id,
+            'user_name' => ($user->name ?? 'Admin') . ' (Admin)',
+            'action' => 'Cancel Request Rejected',
+            'from_status' => $oldStatus,
+            'to_status' => $targetStatus,
+            'comment' => $comment,
+        ]);
+
+        $successMsg = "Cancellation request has been rejected. Order is confirmed and will proceed with fulfillment.";
+        if (!empty($wcMessage)) {
+            $successMsg .= " (" . $wcMessage . ")";
+        }
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => $successMsg,
+                'status' => $targetStatus,
+            ]);
+        }
+
+        return redirect()->route('admin.website-orders.show', $record->id)->with('success', $successMsg);
+    }
+
+    /**
      * Synchronize vendor_stock_web and vendor_stock when order status or shipping details change.
      */
     protected function syncVendorStockStatus(OrderWebhookPayload $record, string $status, ?string $courierName, ?string $trackingId, $shippedAt = null)
@@ -1148,6 +1410,16 @@ class AdminWebsiteOrderController extends Controller
                         'shipmentreparks' => null,
                         'updated_at' => now(),
                     ]);
+
+                // Synchronize restored stock for line items back to WooCommerce store
+                $lineItems = $payload['line_items'] ?? [];
+                if (!empty($lineItems)) {
+                    try {
+                        (new OrderWebhookController())->syncRestoredStockToWooCommerce($lineItems);
+                    } catch (\Throwable $wcStockEx) {
+                        Log::warning("Could not sync restored stock back to WooCommerce: " . $wcStockEx->getMessage());
+                    }
+                }
 
                 return;
             }

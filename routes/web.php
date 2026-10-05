@@ -1037,6 +1037,16 @@ Route::middleware('auth')->group(function () {
     )->name('admin.website-orders.update-status');
 
     Route::post(
+        '/admin/website-orders/{id}/cancel',
+        [AdminWebsiteOrderController::class, 'cancelOrder']
+    )->name('admin.website-orders.cancel');
+
+    Route::post(
+        '/admin/website-orders/{id}/reject-cancel',
+        [AdminWebsiteOrderController::class, 'rejectCancelRequest']
+    )->name('admin.website-orders.reject-cancel');
+
+    Route::post(
         '/admin/website-orders/sync',
         [AdminWebsiteOrderController::class, 'syncFromStores']
     )->name('admin.website-orders.sync');
