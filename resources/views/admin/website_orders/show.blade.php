@@ -19,7 +19,11 @@
                     $icon = 'bi-circle';
                     $statusLabel = $orderData['status'];
 
-                    if (in_array($s, ['order confirmed', 'order_confirmed', 'processing'])) {
+                    if (in_array($s, ['cancel request', 'cancel-request', 'cancel_request'])) {
+                        $badgeClass = 'bg-warning-subtle text-warning-emphasis border border-warning-subtle';
+                        $icon = 'bi-exclamation-triangle-fill';
+                        $statusLabel = 'Cancel Request';
+                    } elseif (in_array($s, ['order confirmed', 'order_confirmed', 'processing'])) {
                         $badgeClass = 'bg-primary-subtle text-primary border border-primary-subtle';
                         $icon = 'bi-check2-circle';
                         $statusLabel = 'Order confirmed';
@@ -43,9 +47,31 @@
         </div>
 
         <div class="d-flex align-items-center gap-2">
-            <button type="button" class="btn btn-sm btn-primary rounded-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#updateStatusModal">
-                <i class="bi bi-pencil-square me-1"></i> Update Status & Shipping
-            </button>
+            @if(strtolower(trim($orderData['status'])) !== 'cancelled')
+                <button type="button" class="btn btn-sm btn-primary rounded-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#updateStatusModal">
+                    <i class="bi bi-pencil-square me-1"></i> Update Status & Shipping
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger rounded-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#cancelOrderModal">
+                    <i class="bi bi-x-circle me-1"></i> Cancel Order
+                </button>
+            @else
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5 rounded-2">
+                    <i class="bi bi-lock-fill"></i> Order Cancelled (Locked)
+                </span>
+            @endif
+
+            @if(!empty($orderData['is_paid_online']))
+                @if(($orderData['remaining_refundable'] ?? 0) > 0)
+                    <button type="button" class="btn btn-sm btn-outline-info rounded-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#processRefundModal">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Razorpay Refund
+                    </button>
+                @elseif(!empty($orderData['is_fully_refunded']))
+                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-2.5 py-1.5 fw-semibold rounded-2 d-inline-flex align-items-center gap-1">
+                        <i class="bi bi-check-circle-fill"></i> Refunded ₹{{ number_format($orderData['total_refunded'], 2) }}
+                    </span>
+                @endif
+            @endif
+
             <button type="button" class="btn btn-sm btn-outline-primary rounded-2" data-bs-toggle="modal" data-bs-target="#emailSupplierModal">
                 <i class="bi bi-envelope me-1"></i> Email Supplier
             </button>
@@ -54,6 +80,34 @@
             </button>
         </div>
     </div>
+
+    {{-- CANCELLATION REQUEST ALERT BANNER --}}
+    @if(in_array(strtolower(trim($orderData['status'] ?? '')), ['cancel request', 'cancel-request', 'cancel_request']))
+        <div class="alert alert-warning border border-warning shadow-2xs rounded-3 p-3 mb-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <span class="badge bg-warning text-dark p-2.5 rounded-circle shadow-2xs">
+                    <i class="bi bi-exclamation-octagon-fill fs-5"></i>
+                </span>
+                <div>
+                    <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                        <span>Customer Requested Order Cancellation</span>
+                        <span class="badge bg-danger text-white small px-2 py-0.5 fw-bold" style="font-size: 0.68rem;">Action Required</span>
+                    </h6>
+                    <div class="small text-muted mt-0.5">
+                        Customer submitted a cancellation request from the WooCommerce store. As Admin, you can approve and cancel the order (which updates WooCommerce via API and restores inventory stock) or decline the request.
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-danger fw-semibold rounded-2 px-3 shadow-2xs" data-bs-toggle="modal" data-bs-target="#cancelOrderModal">
+                    <i class="bi bi-check2-circle me-1"></i> Approve & Cancel Order
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary rounded-2 px-3 bg-white" data-bs-toggle="modal" data-bs-target="#rejectCancelModal">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Reject Request
+                </button>
+            </div>
+        </div>
+    @endif
 
     {{-- ALERTS --}}
     @if(session('success'))
@@ -120,6 +174,18 @@
                             <td class="text-muted ps-0">Payment:</td>
                             <td>
                                 <span class="badge bg-light text-dark border">{{ $orderData['payment_method'] }}</span>
+                                @if(!empty($orderData['transaction_id']) && $orderData['transaction_id'] !== '—')
+                                    <div class="small text-muted font-monospace mt-1" style="font-size: 0.72rem;">
+                                        <i class="bi bi-shield-check text-success me-1"></i>Txn: {{ $orderData['transaction_id'] }}
+                                    </div>
+                                @endif
+                                @if(!empty($orderData['total_refunded']) && $orderData['total_refunded'] > 0)
+                                    <div class="mt-1">
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size: 0.68rem;">
+                                            <i class="bi bi-arrow-counterclockwise me-1"></i>Refunded ₹{{ number_format($orderData['total_refunded'], 2) }}
+                                        </span>
+                                    </div>
+                                @endif
                             </td>
                         </tr>
                         <tr>
@@ -195,9 +261,11 @@
                         <i class="bi {{ $isOrderDelivered ? 'bi-check2-circle text-success' : 'bi-truck text-primary' }} me-1.5"></i>
                         {{ $isOrderDelivered ? 'Delivery & Shipment' : 'Shipping & Tracking' }}
                     </span>
-                    <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none small text-primary" data-bs-toggle="modal" data-bs-target="#updateStatusModal">
-                        Edit
-                    </button>
+                    @if(strtolower(trim($orderData['status'])) !== 'cancelled')
+                        <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none small text-primary" data-bs-toggle="modal" data-bs-target="#updateStatusModal">
+                            Edit
+                        </button>
+                    @endif
                 </div>
                 <div class="card-body p-3">
                     @if($isOrderConfirmed && !$hasTracking)
@@ -373,6 +441,17 @@
                             {{ $orderData['currency_symbol'] }}{{ number_format($orderData['total'], 2) }}
                         </span>
                     </div>
+
+                    @if(!empty($orderData['total_refunded']) && $orderData['total_refunded'] > 0)
+                        <div class="d-flex justify-content-between text-danger pt-2 mt-1 border-top">
+                            <span class="fw-semibold">Total Refunded (Razorpay):</span>
+                            <span class="fw-semibold font-monospace">-{{ $orderData['currency_symbol'] }}{{ number_format($orderData['total_refunded'], 2) }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between text-dark pt-1">
+                            <span class="fw-bold">Net Total:</span>
+                            <span class="fw-bold font-monospace">{{ $orderData['currency_symbol'] }}{{ number_format(max(0, $orderData['total'] - $orderData['total_refunded']), 2) }}</span>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -451,7 +530,19 @@
                     @php
                         $currStatus = strtolower(trim($orderData['status'] ?? ''));
                     @endphp
-                    {{-- 1. Status --}}
+
+                    @if($currStatus === 'cancelled')
+                        <div class="alert alert-danger border-danger-subtle p-3 rounded-2 text-danger mb-0">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <i class="bi bi-slash-circle-fill fs-5"></i>
+                                <span class="fw-bold">Order Cancelled & Locked</span>
+                            </div>
+                            <p class="small mb-0 text-danger-emphasis">
+                                This order has already been cancelled. Inventory stock has been restored and the WooCommerce order is marked cancelled. Its status cannot be changed to Shipped, Delivered, or active processing.
+                            </p>
+                        </div>
+                    @else
+                        {{-- 1. Status --}}
                     <div class="mb-3">
                         <label class="form-label small fw-bold text-dark">Order Status *</label>
                         <select name="status" id="modalOrderStatus" class="form-select form-select-sm rounded-2 fw-semibold" required>
@@ -463,6 +554,9 @@
                             </option>
                             <option value="Delivered" {{ in_array($currStatus, ['delivered', 'completed']) ? 'selected' : '' }}>
                                 Delivered
+                            </option>
+                            <option value="Cancelled" {{ $currStatus === 'cancelled' ? 'selected' : '' }}>
+                                Cancelled
                             </option>
                         </select>
                     </div>
@@ -561,12 +655,282 @@
                             </label>
                         </div>
                     </div>
+                    @endif
                 </div>
 
                 <div class="modal-footer bg-light py-2 px-3">
-                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-2" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-2" data-bs-dismiss="modal">Close</button>
+                    @if($currStatus !== 'cancelled')
+                        <button type="submit" class="btn btn-sm btn-primary rounded-2 fw-semibold">
+                            <i class="bi bi-check2-circle me-1"></i> Save Changes
+                        </button>
+                    @endif
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- MODAL: CANCEL ORDER (ADMIN ACTION) --}}
+<div class="modal fade" id="cancelOrderModal" tabindex="-1" aria-labelledby="cancelOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-3">
+            <div class="modal-header bg-danger-subtle py-2 px-3 border-bottom border-danger-subtle">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-danger p-1.5 rounded-2">
+                        <i class="bi bi-x-circle fs-6 text-white"></i>
+                    </span>
+                    <div>
+                        <h6 class="modal-title fw-bold text-danger mb-0" id="cancelOrderModalLabel">Cancel Order #{{ $orderData['order_number'] }}</h6>
+                        <small class="text-danger-emphasis" style="font-size: 0.72rem;">Approves cancellation, syncs to WooCommerce, restores stock & processes Razorpay refund.</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <form action="{{ route('admin.website-orders.cancel', $record->id) }}" method="POST">
+                @csrf
+                <div class="modal-body p-3">
+                    {{-- RAZORPAY PAYMENT & AUTOMATED REFUND CARD --}}
+                    @php
+                        $isPrepaid = !empty($orderData['is_paid_online']);
+                        $remainingAmount = ($orderData['remaining_refundable'] ?? 0) > 0 ? $orderData['remaining_refundable'] : $orderData['total'];
+                        $isFullyRefunded = !empty($orderData['is_fully_refunded']);
+                    @endphp
+
+                    @if($isPrepaid)
+                        <div class="card border rounded-2 mb-3 bg-light-subtle">
+                            <div class="card-header bg-white py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+                                <span class="small fw-bold text-dark d-flex align-items-center gap-1.5">
+                                    <i class="bi bi-credit-card-2-front text-primary"></i> Razorpay Payment & Refund
+                                </span>
+                                @if($isFullyRefunded)
+                                    <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size: 0.68rem;">Already Fully Refunded</span>
+                                @else
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.68rem;">Online Paid</span>
+                                @endif
+                            </div>
+                            <div class="card-body p-2.5">
+                                <div class="row g-2 mb-2 small">
+                                    <div class="col-6">
+                                        <div class="text-muted" style="font-size: 0.72rem;">Gateway:</div>
+                                        <div class="fw-semibold text-dark text-truncate">{{ $orderData['payment_method'] }}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="text-muted" style="font-size: 0.72rem;">Razorpay Payment ID:</div>
+                                        <div class="fw-semibold font-monospace text-dark text-truncate">{{ $orderData['transaction_id'] ?? '—' }}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="text-muted" style="font-size: 0.72rem;">Order Total:</div>
+                                        <div class="fw-bold text-dark font-monospace">{{ $orderData['currency_symbol'] }}{{ number_format($orderData['total'], 2) }}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="text-muted" style="font-size: 0.72rem;">Refundable Balance:</div>
+                                        <div class="fw-bold text-primary font-monospace">{{ $orderData['currency_symbol'] }}{{ number_format($remainingAmount, 2) }}</div>
+                                    </div>
+                                </div>
+
+                                @if(!$isFullyRefunded && $remainingAmount > 0)
+                                    <div class="form-check form-switch mb-2 pt-1 border-top">
+                                        <input class="form-check-input" type="checkbox" name="process_refund" id="cancelProcessRefund" value="1" checked onchange="toggleCancelRefundInput(this)">
+                                        <label class="form-check-label small fw-semibold text-dark" for="cancelProcessRefund">
+                                            Automatically refund customer via WooCommerce Razorpay Gateway
+                                        </label>
+                                    </div>
+
+                                    <div id="cancelRefundAmountWrapper" class="mt-2">
+                                        <label class="form-label small fw-bold text-dark mb-1">Refund Amount (₹)</label>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text fw-bold">{{ $orderData['currency_symbol'] }}</span>
+                                            <input type="number" step="0.01" min="0.01" max="{{ $remainingAmount }}" name="refund_amount" id="cancelRefundAmountInput" class="form-control font-monospace fw-semibold" value="{{ number_format($remainingAmount, 2, '.', '') }}">
+                                            <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('cancelRefundAmountInput').value = '{{ number_format($remainingAmount, 2, '.', '') }}'">Full</button>
+                                        </div>
+                                        <small class="text-muted d-block mt-1" style="font-size: 0.72rem;">
+                                            <i class="bi bi-info-circle me-1"></i>Triggers WooCommerce <span class="font-monospace">/refunds</span> with <span class="font-monospace">api_refund: true</span>, instructing Razorpay to credit customer immediately.
+                                        </small>
+                                    </div>
+                                @else
+                                    <div class="small text-muted pt-1 border-top">
+                                        <i class="bi bi-check-circle-fill text-info me-1"></i>This order has already been refunded (₹{{ number_format($orderData['total_refunded'], 2) }}).
+                                    </div>
+                                    <input type="hidden" name="process_refund" value="0">
+                                @endif
+                            </div>
+                        </div>
+                    @else
+                        {{-- COD Notice --}}
+                        <div class="alert alert-secondary border p-2.5 rounded-2 small text-secondary-emphasis mb-3">
+                            <i class="bi bi-cash me-1"></i>
+                            <strong>Payment Method: Cash on Delivery (COD)</strong>
+                            <div class="mt-0.5" style="font-size: 0.75rem;">No online payment was charged for this order. No Razorpay gateway refund is required.</div>
+                            <input type="hidden" name="process_refund" value="0">
+                        </div>
+                    @endif
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark">Cancellation Reason / Remarks</label>
+                        <textarea name="reason" rows="2" class="form-control form-control-sm rounded-2" placeholder="e.g. Customer requested cancellation / Out of stock / Customer changed mind"></textarea>
+                        <small class="text-muted" style="font-size: 0.72rem;">This remark will be added to the audit trail and sent in notifications if enabled.</small>
+                    </div>
+
+                    {{-- Notification switches --}}
+                    @php
+                        $customerEmail = $orderData['billing']['email'] ?? ($orderData['shipping']['email'] ?? null);
+                        $supplierEmail = $orderData['default_supplier_email'] ?? null;
+                    @endphp
+                    <div class="p-3 bg-light rounded-2 border">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="notify_customer" id="cancelNotifyCustomer" value="1" checked>
+                            <label class="form-check-label small fw-semibold text-dark" for="cancelNotifyCustomer">
+                                Send cancellation @if($isPrepaid) & refund @endif email to Customer
+                                @if(!empty($customerEmail))
+                                    <span class="text-muted fw-normal">({{ $customerEmail }})</span>
+                                @endif
+                            </label>
+                        </div>
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" name="notify_supplier" id="cancelNotifySupplier" value="1" checked>
+                            <label class="form-check-label small fw-semibold text-dark" for="cancelNotifySupplier">
+                                Send cancellation alert to Supplier
+                                @if(!empty($supplierEmail))
+                                    <span class="text-muted fw-normal">({{ $supplierEmail }})</span>
+                                @endif
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light py-2 px-3">
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-2" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-sm btn-danger rounded-2 fw-semibold">
+                        <i class="bi bi-x-circle me-1"></i> Confirm & Cancel Order
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- MODAL: STANDALONE RAZORPAY REFUND --}}
+@if(!empty($orderData['is_paid_online']))
+<div class="modal fade" id="processRefundModal" tabindex="-1" aria-labelledby="processRefundModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-3">
+            <div class="modal-header bg-info-subtle py-2 px-3 border-bottom border-info-subtle">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-info text-white p-1.5 rounded-2">
+                        <i class="bi bi-arrow-counterclockwise fs-6"></i>
+                    </span>
+                    <div>
+                        <h6 class="modal-title fw-bold text-dark mb-0" id="processRefundModalLabel">Process Razorpay Refund</h6>
+                        <small class="text-muted" style="font-size: 0.72rem;">Order #{{ $orderData['order_number'] }} • WooCommerce Razorpay Gateway</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <form action="{{ route('admin.website-orders.refund', $record->id) }}" method="POST">
+                @csrf
+                <div class="modal-body p-3">
+                    <div class="card border rounded-2 mb-3 bg-light-subtle">
+                        <div class="card-body p-2.5">
+                            <div class="row g-2 small">
+                                <div class="col-6">
+                                    <div class="text-muted" style="font-size: 0.72rem;">Payment Gateway:</div>
+                                    <div class="fw-semibold text-dark">{{ $orderData['payment_method'] }}</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted" style="font-size: 0.72rem;">Razorpay Payment ID:</div>
+                                    <div class="fw-semibold font-monospace text-dark">{{ $orderData['transaction_id'] ?? '—' }}</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted" style="font-size: 0.72rem;">Total Order Amount:</div>
+                                    <div class="fw-bold text-dark font-monospace">{{ $orderData['currency_symbol'] }}{{ number_format($orderData['total'], 2) }}</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted" style="font-size: 0.72rem;">Remaining Refundable:</div>
+                                    <div class="fw-bold text-success font-monospace">{{ $orderData['currency_symbol'] }}{{ number_format($remainingAmount, 2) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark mb-1">Refund Amount *</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text fw-bold">{{ $orderData['currency_symbol'] }}</span>
+                            <input type="number" step="0.01" min="0.01" max="{{ $remainingAmount }}" name="refund_amount" id="standaloneRefundAmount" class="form-control font-monospace fw-semibold" value="{{ number_format($remainingAmount, 2, '.', '') }}" required>
+                            <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('standaloneRefundAmount').value = '{{ number_format($remainingAmount, 2, '.', '') }}'">Full</button>
+                        </div>
+                        <small class="text-muted d-block mt-1" style="font-size: 0.72rem;">
+                            Directly invokes WooCommerce <span class="font-monospace">/refunds</span> with <span class="font-monospace">api_refund: true</span>, executing the refund via Razorpay.
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark">Refund Reason</label>
+                        <textarea name="refund_reason" rows="2" class="form-control form-control-sm rounded-2" placeholder="e.g. Customer returned items / Cancellation refund"></textarea>
+                    </div>
+
+                    <div class="p-2.5 bg-light rounded-2 border">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" name="notify_customer" id="refundNotifyCustomer" value="1" checked>
+                            <label class="form-check-label small fw-semibold text-dark" for="refundNotifyCustomer">
+                                Send refund notification email to Customer
+                                @if(!empty($customerEmail))
+                                    <span class="text-muted fw-normal">({{ $customerEmail }})</span>
+                                @endif
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light py-2 px-3">
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-2" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-sm btn-info text-white rounded-2 fw-semibold">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Issue Razorpay Refund
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+
+{{-- MODAL: REJECT CANCEL REQUEST (ADMIN ACTION) --}}
+<div class="modal fade" id="rejectCancelModal" tabindex="-1" aria-labelledby="rejectCancelModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-3">
+            <div class="modal-header bg-light py-2 px-3 border-bottom">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-secondary p-1.5 rounded-2">
+                        <i class="bi bi-arrow-counterclockwise fs-6 text-white"></i>
+                    </span>
+                    <div>
+                        <h6 class="modal-title fw-bold text-dark mb-0" id="rejectCancelModalLabel">Reject Cancellation Request</h6>
+                        <small class="text-muted" style="font-size: 0.72rem;">Declines customer cancellation and keeps order active for fulfillment.</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <form action="{{ route('admin.website-orders.reject-cancel', $record->id) }}" method="POST">
+                @csrf
+                <div class="modal-body p-3">
+                    <p class="small text-secondary mb-3">
+                        Declining this request will revert the order status in PMS to <strong>Order confirmed</strong> and revert WooCommerce status back to <strong>processing</strong> so your team can proceed with packaging and dispatch.
+                    </p>
+
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold text-dark">Reason / Internal Note (Optional)</label>
+                        <textarea name="reason" rows="2" class="form-control form-control-sm rounded-2" placeholder="e.g. Order already packed / Custom item already in production..."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light py-2 px-3">
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-2" data-bs-dismiss="modal">Close</button>
                     <button type="submit" class="btn btn-sm btn-primary rounded-2 fw-semibold">
-                        <i class="bi bi-check2-circle me-1"></i> Save Changes
+                        <i class="bi bi-check2-circle me-1"></i> Decline Cancel Request & Continue Order
                     </button>
                 </div>
             </form>
@@ -900,6 +1264,13 @@ function handleSendEmail(e) {
         alertBox.className = 'alert alert-danger alert-dismissible fade show rounded-2 p-2 mb-3 small';
         alertBox.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i> An unexpected network error occurred.`;
     });
+}
+
+function toggleCancelRefundInput(checkbox) {
+    const wrapper = document.getElementById('cancelRefundAmountWrapper');
+    if (wrapper) {
+        wrapper.style.display = checkbox.checked ? 'block' : 'none';
+    }
 }
 </script>
 @endsection

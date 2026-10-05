@@ -906,4 +906,221 @@ class WooCommerceService
             ];
         }
     }
+
+    /**
+     * Update order status on WooCommerce store using REST API.
+     *
+     * @param int|string|object|null $supplierOrUrl Target supplier ID, store URL, or supplier object
+     * @param int|string $wooCommerceOrderId
+     * @param string $status (e.g. 'cancelled', 'processing', 'completed', etc.)
+     * @param string|null $note Optional note to record in WooCommerce order notes
+     * @param bool $isCustomerNote Whether note is visible to customer
+     * @return array
+     */
+    public function updateOrderStatus($supplierOrUrl, $wooCommerceOrderId, string $status, ?string $note = null, bool $isCustomerNote = false)
+    {
+        $supplier = null;
+        if (is_numeric($supplierOrUrl)) {
+            $supplier = DB::table('suppliers')->where('sno', $supplierOrUrl)->first();
+        } elseif (is_object($supplierOrUrl)) {
+            $supplier = $supplierOrUrl;
+        } elseif (is_string($supplierOrUrl) && !empty($supplierOrUrl)) {
+            $cleanUrl = preg_replace('#^https?://#i', '', rtrim(trim($supplierOrUrl), '/'));
+            $supplier = DB::table('suppliers')
+                ->where('store_url', 'like', "%{$cleanUrl}%")
+                ->whereNotNull('consumer_key')
+                ->whereNotNull('consumer_secret')
+                ->first();
+        }
+
+        if (!$supplier) {
+            // Fallback: try finding any supplier that has valid WooCommerce credentials
+            $supplier = DB::table('suppliers')
+                ->whereNotNull('store_url')
+                ->whereNotNull('consumer_key')
+                ->whereNotNull('consumer_secret')
+                ->first();
+        }
+
+        if (!$supplier) {
+            return [
+                'success' => false,
+                'message' => 'No supplier with valid WooCommerce API credentials found in system.',
+            ];
+        }
+
+        $storeUrl = rtrim($supplier->store_url ?? '', '/');
+        $consumerKey = trim($supplier->consumer_key ?? '');
+        $consumerSecret = trim($supplier->consumer_secret ?? '');
+
+        if (empty($storeUrl) || empty($consumerKey) || empty($consumerSecret)) {
+            return [
+                'success' => false,
+                'message' => "Supplier '{$supplier->name}' does not have complete WooCommerce API credentials (Store URL, Consumer Key, or Consumer Secret).",
+            ];
+        }
+
+        $orderEndpoint = "{$storeUrl}/wp-json/wc/v3/orders/{$wooCommerceOrderId}";
+        $payload = ['status' => strtolower(trim($status))];
+
+        try {
+            $response = Http::withoutVerifying()
+                ->withBasicAuth($consumerKey, $consumerSecret)
+                ->timeout(25)
+                ->acceptJson()
+                ->asJson()
+                ->put($orderEndpoint, $payload);
+
+            if ($response->successful()) {
+                // If a note was provided, post it to the order notes endpoint
+                if (!empty($note)) {
+                    try {
+                        Http::withoutVerifying()
+                            ->withBasicAuth($consumerKey, $consumerSecret)
+                            ->timeout(10)
+                            ->acceptJson()
+                            ->asJson()
+                            ->post("{$storeUrl}/wp-json/wc/v3/orders/{$wooCommerceOrderId}/notes", [
+                                'note' => $note,
+                                'customer_note' => $isCustomerNote,
+                            ]);
+                    } catch (\Throwable $noteEx) {
+                        Log::warning("Failed to add order note to WooCommerce order {$wooCommerceOrderId}: " . $noteEx->getMessage());
+                    }
+                }
+
+                Log::info("WooCommerce order #{$wooCommerceOrderId} status successfully updated to '{$status}' on store {$supplier->name}.");
+
+                return [
+                    'success' => true,
+                    'message' => "Order #{$wooCommerceOrderId} status updated to '{$status}' on WooCommerce store ({$supplier->name}).",
+                    'data' => $response->json(),
+                ];
+            }
+
+            $errorBody = $response->body();
+            Log::error("WooCommerce order #{$wooCommerceOrderId} status update failed (HTTP {$response->status()}): {$errorBody}");
+
+            return [
+                'success' => false,
+                'message' => "WooCommerce API returned HTTP {$response->status()}: " . ($response->json('message') ?? $errorBody),
+                'status_code' => $response->status(),
+                'response' => $errorBody,
+            ];
+
+        } catch (\Exception $e) {
+            Log::error("WooCommerce updateOrderStatus exception for order #{$wooCommerceOrderId}: " . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => "Connection to WooCommerce store failed: " . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Process an automated refund on WooCommerce (and through Razorpay / gateway via api_refund).
+     *
+     * @param int|string|object|null $supplierOrUrl Target supplier ID, store URL, or supplier object
+     * @param int|string $wooCommerceOrderId
+     * @param float|string $amount
+     * @param string|null $reason
+     * @param bool $apiRefund (calls WordPress WooCommerce payment gateway process_refund)
+     * @return array
+     */
+    public function createOrderRefund($supplierOrUrl, $wooCommerceOrderId, $amount, ?string $reason = null, bool $apiRefund = true)
+    {
+        $supplier = null;
+        if (is_numeric($supplierOrUrl)) {
+            $supplier = DB::table('suppliers')->where('sno', $supplierOrUrl)->first();
+        } elseif (is_object($supplierOrUrl)) {
+            $supplier = $supplierOrUrl;
+        } elseif (is_string($supplierOrUrl) && !empty($supplierOrUrl)) {
+            $cleanUrl = preg_replace('#^https?://#i', '', rtrim(trim($supplierOrUrl), '/'));
+            $supplier = DB::table('suppliers')
+                ->where('store_url', 'like', "%{$cleanUrl}%")
+                ->whereNotNull('consumer_key')
+                ->whereNotNull('consumer_secret')
+                ->first();
+        }
+
+        if (!$supplier) {
+            $supplier = DB::table('suppliers')
+                ->whereNotNull('store_url')
+                ->whereNotNull('consumer_key')
+                ->whereNotNull('consumer_secret')
+                ->first();
+        }
+
+        if (!$supplier) {
+            return [
+                'success' => false,
+                'message' => 'No supplier with valid WooCommerce API credentials found in system.',
+            ];
+        }
+
+        $storeUrl = rtrim($supplier->store_url ?? '', '/');
+        $consumerKey = trim($supplier->consumer_key ?? '');
+        $consumerSecret = trim($supplier->consumer_secret ?? '');
+
+        if (empty($storeUrl) || empty($consumerKey) || empty($consumerSecret)) {
+            return [
+                'success' => false,
+                'message' => "Supplier '{$supplier->name}' does not have complete WooCommerce API credentials.",
+            ];
+        }
+
+        $refundEndpoint = "{$storeUrl}/wp-json/wc/v3/orders/{$wooCommerceOrderId}/refunds";
+        $formattedAmount = number_format((float) $amount, 2, '.', '');
+        $payload = [
+            'amount' => (string) $formattedAmount,
+            'reason' => $reason ?: 'Order cancelled by Admin via PMS',
+            'api_refund' => (bool) $apiRefund,
+        ];
+
+        try {
+            $response = Http::withoutVerifying()
+                ->withBasicAuth($consumerKey, $consumerSecret)
+                ->timeout(35)
+                ->acceptJson()
+                ->asJson()
+                ->post($refundEndpoint, $payload);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                $refundId = $data['id'] ?? null;
+                $isRefundedPayment = !empty($data['refunded_payment']);
+
+                Log::info("WooCommerce order #{$wooCommerceOrderId} refund of ₹{$formattedAmount} created successfully (Refund #{$refundId}).", [
+                    'store' => $supplier->name,
+                    'refunded_payment' => $isRefundedPayment,
+                ]);
+
+                return [
+                    'success' => true,
+                    'message' => "Refund of ₹{$formattedAmount} processed via WooCommerce Razorpay (Refund #{$refundId}).",
+                    'refund_id' => $refundId,
+                    'data' => $data,
+                ];
+            }
+
+            $errorBody = $response->body();
+            $errorJson = $response->json();
+            $errorMsg = $errorJson['message'] ?? $errorBody;
+            Log::error("WooCommerce order #{$wooCommerceOrderId} refund failed (HTTP {$response->status()}): {$errorBody}");
+
+            return [
+                'success' => false,
+                'message' => "WooCommerce Refund API: " . $errorMsg,
+                'status_code' => $response->status(),
+                'response' => $errorBody,
+            ];
+        } catch (\Exception $e) {
+            Log::error("WooCommerce createOrderRefund exception for order #{$wooCommerceOrderId}: " . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => "Connection to WooCommerce store failed: " . $e->getMessage(),
+            ];
+        }
+    }
 }
+

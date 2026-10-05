@@ -19,6 +19,11 @@
             </p>
         </div>
         <div class="d-flex align-items-center gap-2">
+            @if(!empty($cancelRequestOrders) && $cancelRequestOrders > 0)
+                <button type="button" class="btn btn-warning btn-sm rounded-pill px-3 shadow-2xs fw-semibold" onclick="filterByCancelRequests()" title="Click to view pending cancel requests">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i> <span id="statCancelRequestsTop">{{ $cancelRequestOrders }}</span> Cancel Requests
+                </button>
+            @endif
             <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill fs-7 fw-semibold border border-success-subtle shadow-2xs">
                 <i class="bi bi-receipt me-1"></i> <span id="statTotalOrdersTop">{{ $totalOrders }}</span> Orders
             </span>
@@ -138,9 +143,11 @@
                 <div class="col-6 col-sm-4 col-xl-2">
                     <select id="statusFilter" class="form-select form-select-sm rounded-2">
                         <option value="all">All Statuses</option>
+                        <option value="Cancel Request">Cancel Request</option>
                         <option value="Order confirmed">Order confirmed</option>
                         <option value="Shipped">Shipped</option>
                         <option value="Delivered">Delivered</option>
+                        <option value="Cancelled">Cancelled</option>
                     </select>
                 </div>
 
@@ -262,6 +269,13 @@ document.addEventListener('DOMContentLoaded', function () {
         let text = status || 'Pending';
 
         switch (s) {
+            case 'cancel request':
+            case 'cancel-request':
+            case 'cancel_request':
+                bgClass = 'bg-warning-subtle text-warning-emphasis border border-warning-subtle';
+                icon = 'bi-exclamation-triangle-fill';
+                text = 'Cancel Request';
+                break;
             case 'order confirmed':
             case 'order_confirmed':
             case 'processing':
@@ -291,7 +305,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 text = 'Pending';
                 break;
             case 'cancelled':
-                bgClass = 'bg-secondary-subtle text-secondary border border-secondary-subtle';
+                bgClass = 'bg-danger-subtle text-danger border border-danger-subtle';
                 icon = 'bi-x-circle';
                 text = 'Cancelled';
                 break;
@@ -311,6 +325,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     <i class="bi ${icon}"></i> <span>${text}</span>
                 </span>`;
     }
+
+    // Helper to jump straight to Cancel Requests
+    window.filterByCancelRequests = function () {
+        if (statusFilter) {
+            statusFilter.value = 'Cancel Request';
+            loadOrders(1);
+        }
+    };
 
     // Load Orders Data
     function loadOrders(page = 1) {
