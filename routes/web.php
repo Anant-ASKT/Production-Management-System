@@ -1071,11 +1071,15 @@ Route::middleware('auth')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| WOOCOMMERCE ORDER WEBHOOK
+| WOOCOMMERCE ORDER & PRODUCT WEBHOOKS
 |--------------------------------------------------------------------------
 */
 Route::post('/order_webhook_payloads', [App\Http\Controllers\OrderWebhookController::class, 'handle'])->name('order.webhook.payloads');
 Route::post('/webhook/orders', [App\Http\Controllers\OrderWebhookController::class, 'handle']);
+Route::post('/webhook/products', [App\Http\Controllers\ProductWebhookController::class, 'handle']);
+Route::post('/webhook/products/deleted', [App\Http\Controllers\ProductWebhookController::class, 'handleDeleted']);
+Route::post('/product-webhook', [App\Http\Controllers\ProductWebhookController::class, 'handle']);
+
 
 /*
 |--------------------------------------------------------------------------

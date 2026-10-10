@@ -45,7 +45,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'order_webhook_payloads/*',
             'orders/webhook',
             'order-webhook',
+            'product-webhook',
+            'products/webhook',
         ]);
+
 
     })
     ->withExceptions(function (Exceptions $exceptions): void {
