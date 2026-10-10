@@ -39,7 +39,7 @@
                             <th>Users</th>
                             <th>Phone</th>
                             <th>Address</th>
-                            <th style="width: 150px;">Actions</th>
+                            <th style="width: 220px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -83,9 +83,20 @@
                                 <td>{{ $supplier->phone ?? '-' }}</td>
                                 <td>{{ Str::limit($supplier->address ?? '', 40) ?: '-' }}</td>
                                 <td>
-                                    <a href="{{ route('admin.suppliers.edit', $supplier->sno) }}" class="btn btn-sm btn-outline-primary">
-                                        <i class="bi bi-pencil-square me-1"></i> Edit & Users
-                                    </a>
+                                    <div class="d-flex gap-1 flex-wrap">
+                                        <a href="{{ route('admin.suppliers.edit', $supplier->sno) }}" class="btn btn-sm btn-outline-primary" title="Edit Supplier & Users">
+                                            <i class="bi bi-pencil-square me-1"></i> Edit
+                                        </a>
+                                        @if(!empty($supplier->store_url))
+                                            <a href="{{ route('admin.suppliers.website.index', $supplier->sno) }}" class="btn btn-sm btn-outline-success" title="Manage WordPress Website Products & Categories">
+                                                <i class="bi bi-shop me-1"></i> Store Manager
+                                            </a>
+                                        @else
+                                            <button type="button" class="btn btn-sm btn-outline-secondary opacity-50" disabled title="WordPress store URL not configured">
+                                                <i class="bi bi-shop me-1"></i> No Store
+                                            </button>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @empty

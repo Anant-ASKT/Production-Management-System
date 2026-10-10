@@ -1122,5 +1122,544 @@ class WooCommerceService
             ];
         }
     }
+
+    /**
+     * Resolve store credentials for a supplier.
+     */
+    public function resolveSupplierCredentials($supplierOrId)
+    {
+        $supplier = null;
+        if ($supplierOrId instanceof \App\Models\Supplier) {
+            $supplier = $supplierOrId;
+        } elseif (is_numeric($supplierOrId)) {
+            $supplier = DB::table('suppliers')->where('sno', $supplierOrId)->first();
+        } elseif (is_object($supplierOrId)) {
+            $supplier = $supplierOrId;
+        }
+
+        if (!$supplier) {
+            return [
+                'success' => false,
+                'message' => 'Supplier not found.',
+            ];
+        }
+
+        $storeUrl = rtrim($supplier->store_url ?? '', '/');
+        $consumerKey = trim($supplier->consumer_key ?? '');
+        $consumerSecret = trim($supplier->consumer_secret ?? '');
+
+        if (empty($storeUrl) || empty($consumerKey) || empty($consumerSecret)) {
+            return [
+                'success' => false,
+                'message' => "Supplier '{$supplier->name}' does not have complete WooCommerce API credentials (Store URL, Consumer Key, and Consumer Secret are required).",
+            ];
+        }
+
+        return [
+            'success' => true,
+            'supplier' => $supplier,
+            'store_url' => $storeUrl,
+            'consumer_key' => $consumerKey,
+            'consumer_secret' => $consumerSecret,
+        ];
+    }
+
+    /**
+     * Test connection to WooCommerce store.
+     */
+    public function testStoreConnection($supplierOrId)
+    {
+        $creds = $this->resolveSupplierCredentials($supplierOrId);
+        if (!$creds['success']) {
+            return $creds;
+        }
+
+        try {
+            $response = Http::withoutVerifying()
+                ->withBasicAuth($creds['consumer_key'], $creds['consumer_secret'])
+                ->timeout(20)
+                ->acceptJson()
+                ->get($creds['store_url'] . '/wp-json/wc/v3/products', ['per_page' => 1]);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'message' => 'Connected to WooCommerce store successfully.',
+                    'total_products' => (int) $response->header('X-WP-Total', 0),
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Failed to connect (HTTP ' . $response->status() . '): ' . ($response->json('message') ?? $response->body()),
+                'status_code' => $response->status(),
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Connection error: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Fetch products directly from WooCommerce store.
+     */
+    public function getStoreProducts($supplierOrId, array $params = [])
+    {
+        $creds = $this->resolveSupplierCredentials($supplierOrId);
+        if (!$creds['success']) {
+            return $creds;
+        }
+
+        $queryParams = [
+            'page' => max(1, (int)($params['page'] ?? 1)),
+            'per_page' => min(100, max(1, (int)($params['per_page'] ?? 20))),
+        ];
+
+        if (!empty($params['search'])) {
+            $queryParams['search'] = trim($params['search']);
+        }
+
+        if (!empty($params['status']) && $params['status'] !== 'all') {
+            $queryParams['status'] = $params['status'];
+        }
+
+        if (!empty($params['category'])) {
+            $queryParams['category'] = $params['category'];
+        }
+
+        if (!empty($params['order'])) {
+            $queryParams['order'] = strtolower($params['order']) === 'asc' ? 'asc' : 'desc';
+        }
+
+        if (!empty($params['orderby'])) {
+            $queryParams['orderby'] = $params['orderby'];
+        }
+
+        try {
+            $response = Http::withoutVerifying()
+                ->withBasicAuth($creds['consumer_key'], $creds['consumer_secret'])
+                ->timeout(35)
+                ->acceptJson()
+                ->get($creds['store_url'] . '/wp-json/wc/v3/products', $queryParams);
+
+            if ($response->successful()) {
+                $total = (int) $response->header('X-WP-Total', 0);
+                $totalPages = (int) $response->header('X-WP-TotalPages', 0);
+                $products = $response->json();
+
+                return [
+                    'success' => true,
+                    'products' => is_array($products) ? $products : [],
+                    'total' => $total,
+                    'total_pages' => $totalPages,
+                    'page' => $queryParams['page'],
+                    'per_page' => $queryParams['per_page'],
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => 'WooCommerce API Error (HTTP ' . $response->status() . '): ' . ($response->json('message') ?? $response->body()),
+                'status_code' => $response->status(),
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Connection failed: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Fetch categories directly from WooCommerce store.
+     */
+    public function getStoreCategories($supplierOrId, array $params = [])
+    {
+        $creds = $this->resolveSupplierCredentials($supplierOrId);
+        if (!$creds['success']) {
+            return $creds;
+        }
+
+        $queryParams = [
+            'per_page' => min(100, max(1, (int)($params['per_page'] ?? 100))),
+            'page' => max(1, (int)($params['page'] ?? 1)),
+            'hide_empty' => false,
+        ];
+
+        if (!empty($params['search'])) {
+            $queryParams['search'] = trim($params['search']);
+        }
+
+        if (isset($params['parent'])) {
+            $queryParams['parent'] = (int) $params['parent'];
+        }
+
+        try {
+            $response = Http::withoutVerifying()
+                ->withBasicAuth($creds['consumer_key'], $creds['consumer_secret'])
+                ->timeout(35)
+                ->acceptJson()
+                ->get($creds['store_url'] . '/wp-json/wc/v3/products/categories', $queryParams);
+
+            if ($response->successful()) {
+                $total = (int) $response->header('X-WP-Total', 0);
+                $totalPages = (int) $response->header('X-WP-TotalPages', 0);
+                $categories = $response->json();
+
+                return [
+                    'success' => true,
+                    'categories' => is_array($categories) ? $categories : [],
+                    'total' => $total,
+                    'total_pages' => $totalPages,
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => 'WooCommerce API Error (HTTP ' . $response->status() . '): ' . ($response->json('message') ?? $response->body()),
+                'status_code' => $response->status(),
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Connection failed: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Update WooCommerce product status (e.g. withdraw as 'draft', or reinstate as 'publish').
+     * When hiding as draft, stock on WooCommerce is set to 0.
+     * When publishing live, stock is restored from available inventory.
+     */
+    public function updateProductStatus($supplierOrId, $wcProductId, string $newStatus)
+    {
+        $creds = $this->resolveSupplierCredentials($supplierOrId);
+        if (!$creds['success']) {
+            return $creds;
+        }
+
+        $endpoint = $creds['store_url'] . '/wp-json/wc/v3/products/' . (int) $wcProductId;
+
+        $payload = ['status' => $newStatus];
+
+        $published = DB::table('published_products')
+            ->where('woocommerce_product_id', $wcProductId)
+            ->first();
+
+        if ($newStatus === 'draft') {
+            // Set WooCommerce stock to 0 (Out of stock) on website
+            $payload['manage_stock'] = true;
+            $payload['stock_quantity'] = 0;
+            $payload['stock_status'] = 'outofstock';
+        } elseif ($newStatus === 'publish') {
+            // When re-publishing, restore available stock from vendor_stock_web if mapped
+            if ($published && !empty($published->specification_id)) {
+                $availableStock = DB::table('vendor_stock_web')
+                    ->where(function($q) use ($published) {
+                        $q->where('item_id', $published->specification_id);
+                    })
+                    ->where(function($q) {
+                        $q->where('send_qty', 0)->orWhereNull('send_qty');
+                    })
+                    ->count();
+
+                if ($availableStock > 0) {
+                    $payload['manage_stock'] = true;
+                    $payload['stock_quantity'] = $availableStock;
+                    $payload['stock_status'] = 'instock';
+                }
+            }
+        }
+
+        try {
+            $response = Http::withoutVerifying()
+                ->withBasicAuth($creds['consumer_key'], $creds['consumer_secret'])
+                ->timeout(30)
+                ->acceptJson()
+                ->asJson()
+                ->put($endpoint, $payload);
+
+            if ($response->successful()) {
+                $updatedProduct = $response->json();
+
+                // If linked in published_products, keep local status aligned
+                if ($published) {
+                    DB::table('published_products')
+                        ->where('woocommerce_product_id', $wcProductId)
+                        ->update([
+                            'status' => $newStatus === 'publish' ? 'published' : 'withdrawn',
+                            'updated_at' => now(),
+                        ]);
+                }
+
+                $message = $newStatus === 'draft' 
+                    ? 'Product hidden and website stock set to 0 (Out of stock).' 
+                    : 'Product published live on website.';
+
+                return [
+                    'success' => true,
+                    'message' => $message,
+                    'product' => $updatedProduct,
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Failed to update product (HTTP ' . $response->status() . '): ' . ($response->json('message') ?? $response->body()),
+                'status_code' => $response->status(),
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Connection failed: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Delete product from WooCommerce store.
+     * Sets WooCommerce stock to 0 (Out of stock) without deleting ERP inventory.
+     */
+    public function deleteProduct($supplierOrId, $wcProductId, bool $force = false)
+    {
+        $creds = $this->resolveSupplierCredentials($supplierOrId);
+        if (!$creds['success']) {
+            return $creds;
+        }
+
+        $endpoint = $creds['store_url'] . '/wp-json/wc/v3/products/' . (int) $wcProductId;
+
+        // 1. First, set stock to 0 on WooCommerce so no purchases can occur
+        try {
+            Http::withoutVerifying()
+                ->withBasicAuth($creds['consumer_key'], $creds['consumer_secret'])
+                ->timeout(20)
+                ->acceptJson()
+                ->asJson()
+                ->put($endpoint, [
+                    'manage_stock' => true,
+                    'stock_quantity' => 0,
+                    'stock_status' => 'outofstock'
+                ]);
+        } catch (\Exception $e) {
+            Log::warning("Could not zero stock before deleting WC product #{$wcProductId}: " . $e->getMessage());
+        }
+
+        // 2. Delete / trash product on WooCommerce
+        try {
+            $response = Http::withoutVerifying()
+                ->withBasicAuth($creds['consumer_key'], $creds['consumer_secret'])
+                ->timeout(30)
+                ->acceptJson()
+                ->delete($endpoint, ['force' => $force ? 'true' : 'false']);
+
+            if ($response->successful()) {
+                $publishedRecord = DB::table('published_products')
+                    ->where('woocommerce_product_id', $wcProductId)
+                    ->first();
+
+                // If force deleted, remove from published_products
+                if ($force) {
+                    DB::table('published_products')
+                        ->where('woocommerce_product_id', $wcProductId)
+                        ->delete();
+
+                    if ($publishedRecord && !empty($publishedRecord->specification_id)) {
+                        $remaining = DB::table('published_products')
+                            ->where('specification_id', $publishedRecord->specification_id)
+                            ->count();
+                        if ($remaining === 0) {
+                            DB::table('auto_designer_specification_master')
+                                ->where('sno', $publishedRecord->specification_id)
+                                ->update(['status' => 'Approved', 'oc_product_id' => null]);
+                        }
+                    }
+                } else {
+                    DB::table('published_products')
+                        ->where('woocommerce_product_id', $wcProductId)
+                        ->update([
+                            'status' => 'trashed',
+                            'updated_at' => now(),
+                        ]);
+
+                    if ($publishedRecord && !empty($publishedRecord->specification_id)) {
+                        $remaining = DB::table('published_products')
+                            ->where('specification_id', $publishedRecord->specification_id)
+                            ->where('status', 'published')
+                            ->count();
+                        if ($remaining === 0) {
+                            DB::table('auto_designer_specification_master')
+                                ->where('sno', $publishedRecord->specification_id)
+                                ->update(['status' => 'Approved', 'oc_product_id' => null]);
+                        }
+                    }
+                }
+
+                return [
+                    'success' => true,
+                    'message' => $force ? 'Product stock set to 0 and permanently deleted from website.' : 'Product stock set to 0 and moved to Trash on website.',
+                    'data' => $response->json(),
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Failed to delete product (HTTP ' . $response->status() . '): ' . ($response->json('message') ?? $response->body()),
+                'status_code' => $response->status(),
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Connection failed: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Create category on WooCommerce store.
+     */
+    public function createStoreCategory($supplierOrId, array $data)
+    {
+        $creds = $this->resolveSupplierCredentials($supplierOrId);
+        if (!$creds['success']) {
+            return $creds;
+        }
+
+        $endpoint = $creds['store_url'] . '/wp-json/wc/v3/products/categories';
+        $payload = [
+            'name' => trim($data['name']),
+        ];
+        if (!empty($data['parent'])) {
+            $payload['parent'] = (int) $data['parent'];
+        }
+        if (!empty($data['description'])) {
+            $payload['description'] = trim($data['description']);
+        }
+
+        try {
+            $response = Http::withoutVerifying()
+                ->withBasicAuth($creds['consumer_key'], $creds['consumer_secret'])
+                ->timeout(30)
+                ->acceptJson()
+                ->asJson()
+                ->post($endpoint, $payload);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'message' => 'Category created on WooCommerce store.',
+                    'category' => $response->json(),
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Failed to create category (HTTP ' . $response->status() . '): ' . ($response->json('message') ?? $response->body()),
+                'status_code' => $response->status(),
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Connection failed: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Fetch a single category details from WooCommerce store.
+     */
+    public function getStoreCategory($supplierOrId, $wcCategoryId)
+    {
+        $creds = $this->resolveSupplierCredentials($supplierOrId);
+        if (!$creds['success']) {
+            return $creds;
+        }
+
+        $endpoint = $creds['store_url'] . '/wp-json/wc/v3/products/categories/' . (int) $wcCategoryId;
+
+        try {
+            $response = Http::withoutVerifying()
+                ->withBasicAuth($creds['consumer_key'], $creds['consumer_secret'])
+                ->timeout(20)
+                ->acceptJson()
+                ->get($endpoint);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'category' => $response->json(),
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Failed to fetch category details (HTTP ' . $response->status() . ')',
+                'status_code' => $response->status(),
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Connection failed: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Delete category on WooCommerce store (blocked if category contains products).
+     */
+    public function deleteStoreCategory($supplierOrId, $wcCategoryId, bool $force = true)
+    {
+        $creds = $this->resolveSupplierCredentials($supplierOrId);
+        if (!$creds['success']) {
+            return $creds;
+        }
+
+        // Safety check: Verify if category has products assigned
+        $catDetails = $this->getStoreCategory($supplierOrId, $wcCategoryId);
+        if ($catDetails['success'] && isset($catDetails['category']['count'])) {
+            $productCount = (int) $catDetails['category']['count'];
+            $catName = $catDetails['category']['name'] ?? 'This category';
+            if ($productCount > 0) {
+                return [
+                    'success' => false,
+                    'message' => "Cannot delete '{$catName}' because it currently contains {$productCount} " . ($productCount === 1 ? 'product' : 'products') . " on the website. Please move or remove those products before deleting this category.",
+                    'has_products' => true,
+                    'product_count' => $productCount
+                ];
+            }
+        }
+
+        $endpoint = $creds['store_url'] . '/wp-json/wc/v3/products/categories/' . (int) $wcCategoryId;
+
+        try {
+            $response = Http::withoutVerifying()
+                ->withBasicAuth($creds['consumer_key'], $creds['consumer_secret'])
+                ->timeout(30)
+                ->acceptJson()
+                ->delete($endpoint, ['force' => $force ? 'true' : 'false']);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'message' => 'Category deleted from WooCommerce store.',
+                    'data' => $response->json(),
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Failed to delete category (HTTP ' . $response->status() . '): ' . ($response->json('message') ?? $response->body()),
+                'status_code' => $response->status(),
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Connection failed: ' . $e->getMessage(),
+            ];
+        }
+    }
 }
 

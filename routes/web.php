@@ -638,6 +638,7 @@ Route::get(
 
 
 use App\Http\Controllers\AdminSupplierController;
+use App\Http\Controllers\AdminSupplierWebsiteController;
 use App\Http\Controllers\AdminCategoryController;
 use App\Http\Controllers\AdminSamplingCompanyController;
 
@@ -646,6 +647,17 @@ Route::middleware('auth')->group(function () {
     Route::post('admin/suppliers/{supplier}/users', [AdminSupplierController::class, 'addUser'])->name('admin.suppliers.users.store');
     Route::put('admin/suppliers/{supplier}/users/{user}', [AdminSupplierController::class, 'updateUser'])->name('admin.suppliers.users.update');
     Route::delete('admin/suppliers/{supplier}/users/{user}', [AdminSupplierController::class, 'deleteUser'])->name('admin.suppliers.users.destroy');
+
+    // Supplier Website Store Management Routes (Live WooCommerce Products & Categories)
+    Route::get('admin/suppliers/{supplier}/website', [AdminSupplierWebsiteController::class, 'index'])->name('admin.suppliers.website.index');
+    Route::get('admin/suppliers/{supplier}/website/products', [AdminSupplierWebsiteController::class, 'products'])->name('admin.suppliers.website.products');
+    Route::get('admin/suppliers/{supplier}/website/categories', [AdminSupplierWebsiteController::class, 'categories'])->name('admin.suppliers.website.categories');
+    Route::post('admin/suppliers/{supplier}/website/products/{wcProductId}/status', [AdminSupplierWebsiteController::class, 'updateProductStatus'])->name('admin.suppliers.website.products.status');
+    Route::delete('admin/suppliers/{supplier}/website/products/{wcProductId}', [AdminSupplierWebsiteController::class, 'deleteProduct'])->name('admin.suppliers.website.products.delete');
+    Route::post('admin/suppliers/{supplier}/website/categories', [AdminSupplierWebsiteController::class, 'storeCategory'])->name('admin.suppliers.website.categories.store');
+    Route::delete('admin/suppliers/{supplier}/website/categories/{wcCategoryId}', [AdminSupplierWebsiteController::class, 'deleteCategory'])->name('admin.suppliers.website.categories.delete');
+    Route::post('admin/suppliers/{supplier}/website/categories/sync', [AdminSupplierWebsiteController::class, 'syncCategories'])->name('admin.suppliers.website.categories.sync');
+
     Route::resource('admin/categories', AdminCategoryController::class)->names('admin.categories');
 
     // Sampling Companies Admin Routes
