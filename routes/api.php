@@ -18,3 +18,10 @@ use App\Http\Controllers\OrderWebhookController;
 Route::post('/orders/webhook', [OrderWebhookController::class, 'handle'])->name('api.orders.webhook');
 Route::post('/order-webhook', [OrderWebhookController::class, 'handle']);
 Route::post('/order_webhook_payloads', [OrderWebhookController::class, 'handle']);
+
+// WooCommerce Product Webhook Endpoints (Product Deleted, Restored, Updated)
+Route::post('/products/webhook', [\App\Http\Controllers\ProductWebhookController::class, 'handle'])->name('api.products.webhook');
+Route::post('/product-webhook', [\App\Http\Controllers\ProductWebhookController::class, 'handle']);
+Route::post('/webhooks/woocommerce/product', [\App\Http\Controllers\ProductWebhookController::class, 'handle']);
+Route::post('/webhooks/woocommerce/product-deleted', [\App\Http\Controllers\ProductWebhookController::class, 'handleDeleted'])->name('api.products.webhook.deleted');
+
