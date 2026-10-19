@@ -400,14 +400,19 @@ public function supplierProducts(Request $request)
             'sp.updated_at'
         )
 
-        ->where(
-            'sp.status',
-            'active'
-        )
+        ->where(function ($q) {
+            $q->where('sp.status', 'active')
+              ->orWhere('sp.status', 'sent_to_photo_section')
+              ->orWhere('sp.status', 'sent_to_specification')
+              ->orWhereNull('sp.status');
+        })
 
         ->where(function ($q) {
             $q->whereNull('sp.status_done')
-              ->orWhere('sp.status_done', '');
+              ->orWhere('sp.status_done', '')
+              ->orWhere('sp.status_done', 'draft')
+              ->orWhere('sp.status_done', 'sent_to_photo_section')
+              ->orWhere('sp.status_done', 'sent_to_specification');
         });
 
 
@@ -499,258 +504,102 @@ public function supplierProducts(Request $request)
         */
 
         foreach ($products as $product) {
-
             $product->image_url = '';
+            $product->sub_image_urls = [];
 
+            /*
+            |--------------------------------------------------------------------------
+            | RESOLVE MAIN IMAGE
+            |--------------------------------------------------------------------------
+            */
+            $imagePath = $product->main_image ?? '';
+            if (is_string($imagePath) && trim($imagePath) !== '') {
+                $imagePath = trim($imagePath);
 
-            $imagePath =
-                $product->main_image ?? '';
-
-
-            if (
-                is_string($imagePath) &&
-                trim($imagePath) !== ''
-            ) {
-
-                $imagePath =
-                    trim($imagePath);
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | JSON IMAGE ARRAY
-                |--------------------------------------------------------------------------
-                */
-
-                if (
-                    str_starts_with($imagePath, '[') &&
-                    str_ends_with($imagePath, ']')
-                ) {
-
-                    $decoded =
-                        json_decode(
-                            $imagePath,
-                            true
-                        );
-
-
-                    if (
-                        json_last_error() === JSON_ERROR_NONE &&
-                        is_array($decoded)
-                    ) {
-
-                        $imagePath =
-                            $decoded[0] ?? '';
-
+                if (str_starts_with($imagePath, '[') && str_ends_with($imagePath, ']')) {
+                    $decoded = json_decode($imagePath, true);
+                    if (is_array($decoded) && !empty($decoded)) {
+                        $imagePath = $decoded[0] ?? '';
                     }
-
                 }
 
+                $imagePath = str_replace('\\', '/', (string) $imagePath);
+                $imagePath = preg_replace('#^(\.\./)+#', '', $imagePath);
+                $imagePath = ltrim($imagePath, '/');
 
-                /*
-                |--------------------------------------------------------------------------
-                | NORMALIZE SLASHES
-                |--------------------------------------------------------------------------
-                */
-
-                $imagePath =
-                    str_replace(
-                        '\\',
-                        '/',
-                        (string) $imagePath
-                    );
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | REMOVE ../../
-                |--------------------------------------------------------------------------
-                */
-
-                $imagePath =
-                    preg_replace(
-                        '#^(\.\./)+#',
-                        '',
-                        $imagePath
-                    );
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | REMOVE LEADING /
-                |--------------------------------------------------------------------------
-                */
-
-                $imagePath =
-                    ltrim(
-                        $imagePath,
-                        '/'
-                    );
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | FIND ITEMS DESIGNER FOLDER
-                |--------------------------------------------------------------------------
-                */
-
-                $marker =
-                    'ItemsDesigner_Masterwithbarcode/';
-
-
-                $position =
-                    strpos(
-                        $imagePath,
-                        $marker
-                    );
-
-
-                if (
-                    $position !== false
-                ) {
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | GET RELATIVE PUBLIC PATH
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $relativePath =
-                        substr(
-                            $imagePath,
-                            $position
-                        );
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | PHYSICAL PATH
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $physicalPath =
-                        public_path(
-                            $relativePath
-                        );
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | CASE 1:
-                    | EXACT IMAGE FILE
-                    |--------------------------------------------------------------------------
-                    */
-
-                    if (
-                        is_file(
-                            $physicalPath
-                        )
-                    ) {
-
-                        $product->image_url =
-                            asset(
-                                $relativePath
-                            );
-
-                    }
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | CASE 2:
-                    | OLD FORMAT = FOLDER
-                    |--------------------------------------------------------------------------
-                    */
-
-                    elseif (
-                        is_dir(
-                            $physicalPath
-                        )
-                    ) {
-
-                        $files =
-                            scandir(
-                                $physicalPath
-                            );
-
-
-                        if (
-                            $files !== false
-                        ) {
-
-                            $allowedExtensions = [
-                                'jpg',
-                                'jpeg',
-                                'png',
-                                'webp',
-                                'gif'
-                            ];
-
-
-                            foreach (
-                                $files as $file
-                            ) {
-
-                                if (
-                                    $file === '.' ||
-                                    $file === '..'
-                                ) {
-                                    continue;
+                if (str_starts_with($imagePath, 'http://') || str_starts_with($imagePath, 'https://')) {
+                    $product->image_url = $imagePath;
+                } elseif (file_exists(public_path($imagePath)) && is_file(public_path($imagePath))) {
+                    $product->image_url = asset($imagePath);
+                } else {
+                    $marker = 'ItemsDesigner_Masterwithbarcode/';
+                    $position = strpos($imagePath, $marker);
+                    if ($position !== false) {
+                        $relativePath = substr($imagePath, $position);
+                        $physicalPath = public_path($relativePath);
+                        if (is_file($physicalPath)) {
+                            $product->image_url = asset($relativePath);
+                        } elseif (is_dir($physicalPath)) {
+                            $files = @scandir($physicalPath);
+                            if ($files !== false) {
+                                $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+                                foreach ($files as $file) {
+                                    if ($file === '.' || $file === '..') continue;
+                                    $filePath = $physicalPath . DIRECTORY_SEPARATOR . $file;
+                                    if (is_file($filePath)) {
+                                        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+                                        if (in_array($ext, $allowedExtensions, true)) {
+                                            $product->image_url = asset($relativePath . '/' . $file);
+                                            break;
+                                        }
+                                    }
                                 }
-
-
-                                $filePath =
-                                    $physicalPath .
-                                    DIRECTORY_SEPARATOR .
-                                    $file;
-
-
-                                if (
-                                    !is_file(
-                                        $filePath
-                                    )
-                                ) {
-                                    continue;
-                                }
-
-
-                                $extension =
-                                    strtolower(
-                                        pathinfo(
-                                            $file,
-                                            PATHINFO_EXTENSION
-                                        )
-                                    );
-
-
-                                if (
-                                    in_array(
-                                        $extension,
-                                        $allowedExtensions,
-                                        true
-                                    )
-                                ) {
-
-                                    $product->image_url =
-                                        asset(
-                                            $relativePath .
-                                            '/' .
-                                            $file
-                                        );
-
-                                    break;
-                                }
-
                             }
-
                         }
-
+                    } else {
+                        // Fallback asset URL if non-empty
+                        $product->image_url = asset($imagePath);
                     }
-
                 }
-
             }
 
+            /*
+            |--------------------------------------------------------------------------
+            | RESOLVE SUB IMAGES
+            |--------------------------------------------------------------------------
+            */
+            $subImagesRaw = $product->sub_images ?? '';
+            $subImagesList = [];
+            if (is_string($subImagesRaw) && trim($subImagesRaw) !== '') {
+                $subImagesRaw = trim($subImagesRaw);
+                if (str_starts_with($subImagesRaw, '[') && str_ends_with($subImagesRaw, ']')) {
+                    $decoded = json_decode($subImagesRaw, true);
+                    if (is_array($decoded)) {
+                        $subImagesList = $decoded;
+                    }
+                } else {
+                    $subImagesList = [$subImagesRaw];
+                }
+            } elseif (is_array($subImagesRaw)) {
+                $subImagesList = $subImagesRaw;
+            }
+
+            $resolvedSubUrls = [];
+            foreach ($subImagesList as $subImg) {
+                if (!is_string($subImg) || trim($subImg) === '') continue;
+                $cleanSub = str_replace('\\', '/', trim($subImg));
+                $cleanSub = preg_replace('#^(\.\./)+#', '', $cleanSub);
+                $cleanSub = ltrim($cleanSub, '/');
+
+                if (str_starts_with($cleanSub, 'http://') || str_starts_with($cleanSub, 'https://')) {
+                    $resolvedSubUrls[] = $cleanSub;
+                } elseif (file_exists(public_path($cleanSub)) && is_file(public_path($cleanSub))) {
+                    $resolvedSubUrls[] = asset($cleanSub);
+                } else {
+                    $resolvedSubUrls[] = asset($cleanSub);
+                }
+            }
+            $product->sub_image_urls = $resolvedSubUrls;
         }
 
 
@@ -5106,48 +4955,35 @@ private function generateProductSku(
 
         /*
         |--------------------------------------------------------------------------
-        | Check Duplicate Barcode
+        | Check Duplicate Barcode & Existing Spec for Supplier Product
         |--------------------------------------------------------------------------
         */
 
-        $barcodeExistsInMaster =
-            DB::table(
-                'auto_designer_specification_master'
-            )
-            ->where(
-                'barcode',
-                $barcode
-            )
-            ->exists();
-
-
-        $barcodeExistsInStock =
-            DB::table(
-                'vendor_stock'
-            )
-            ->where(
-                'barcode',
-                $barcode
-            )
-            ->exists();
-
-
-        if (
-            $barcodeExistsInMaster ||
-            $barcodeExistsInStock
-        ) {
-
-            return response()->json([
-
-                'success' =>
-                    false,
-
-                'message' =>
-                    'This barcode already exists. Data was not saved.'
-
-            ], 422);
+        $existingSpec = null;
+        if (!empty($supplierProductId)) {
+            $existingSpec = DB::table('auto_designer_specification_master')
+                ->where('supplier_product_id', $supplierProductId)
+                ->orderByDesc('sno')
+                ->first();
         }
 
+        $barcodeQuery = DB::table('auto_designer_specification_master')
+            ->where('barcode', $barcode);
+        if ($existingSpec) {
+            $barcodeQuery->where('sno', '!=', $existingSpec->sno);
+        }
+        $barcodeExistsInMaster = $barcodeQuery->exists();
+
+        $barcodeExistsInStock = DB::table('vendor_stock')
+            ->where('barcode', $barcode)
+            ->exists();
+
+        if ($barcodeExistsInMaster || $barcodeExistsInStock) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This barcode already exists. Data was not saved.'
+            ], 422);
+        }
 
         /*
         |--------------------------------------------------------------------------
@@ -5155,159 +4991,96 @@ private function generateProductSku(
         |--------------------------------------------------------------------------
         */
 
-        $imgPath =
-            null;
-
-
-        $price =
-            $validated['price'] ?? 0;
-
-
-        $minprice =
-            $validated['minprice'] ?? 0;
-
-
-        $saleprice =
-            $validated['saleprice'] ?? 0;
-
+        $imgPath = null;
+        $price = $validated['price'] ?? 0;
+        $minprice = $validated['minprice'] ?? 0;
+        $saleprice = $validated['saleprice'] ?? 0;
 
         /*
         |--------------------------------------------------------------------------
-        | Save Database Record
+        | Save or Update Database Record
         |--------------------------------------------------------------------------
         */
 
-        $insertId =
-            DB::table(
-                'auto_designer_specification_master'
-            )
-            ->insertGetId([
+        if ($existingSpec) {
+            $insertId = $existingSpec->sno;
+            $updatePayload = [
+                'designer_name' => $validated['designer_name'],
+                'item_type' => $validated['item_type'],
+                'gender' => $validated['gender'],
+                'item_name' => $validated['item_name'],
+                'composition' => $validated['composition'],
+                'colour' => $validated['colour'],
+                'sizes' => $validated['sizes'],
+                'embellishment' => $validated['embellishment'] ?? 0,
+                'manufacturing_process' => $validated['manufacturing_process'] ?? 0,
+                'craftsman' => $validated['craftsman'] ?? 0,
+                'craftsman_code' => $craftsmanCode,
+                'manufecture' => $validated['manufecture'] ?? 0,
+                'client' => $validated['client'] ?? 0,
+                'clientreference' => $validated['clientreference'] ?? null,
+                'companyid' => $companyId,
+                'subcompanyid' => $subCompanyId,
+                'projectid' => $projectId,
+                'supplier_person_id' => $request->input('supplier_user_id') ?: $existingSpec->supplier_person_id,
+                'supplier_product_id' => $supplierProductId,
+                'supplier_id' => $supplierId ?: $existingSpec->supplier_id,
+                'loginid' => $user->username,
+                'edatetime' => now(),
+                'status' => '', // Clears pending_specification
+                'price' => $validated['price'] ?? $existingSpec->price,
+                'min_price' => $validated['minprice'] ?? $existingSpec->min_price,
+                'sale_price' => $validated['saleprice'] ?? $existingSpec->sale_price,
+                'yarn' => $validated['yarn'] ?? null,
+            ];
+            if (!empty($generatedSku)) $updatePayload['sku'] = $generatedSku;
+            if (!empty($supplierSku)) $updatePayload['sku_supplier'] = $supplierSku;
 
-                'designer_name' =>
-                    $validated['designer_name'],
-
-                'item_type' =>
-                    $validated['item_type'],
-
-                'gender' =>
-                    $validated['gender'],
-
-                'item_name' =>
-                    $validated['item_name'],
-
-                'composition' =>
-                    $validated['composition'],
-
-                'colour' =>
-                    $validated['colour'],
-
-                'sizes' =>
-                    $validated['sizes'],
-
-                'embellishment' =>
-                    $validated['embellishment'] ?? 0,
-
-                'manufacturing_process' =>
-                    $validated['manufacturing_process'] ?? 0,
-
-                'craftsman' =>
-                    $validated['craftsman'] ?? 0,
-
-                'craftsman_code' =>
-                    $craftsmanCode,
-
-                'manufecture' =>
-                    $validated['manufecture'] ?? 0,
-
-                'client' =>
-                    $validated['client'] ?? 0,
-
-                'clientreference' =>
-                    $validated['clientreference'] ?? null,
-
-                'companyid' =>
-                    $companyId,
-
-                'subcompanyid' =>
-                    $subCompanyId,
-
-                'projectid' =>
-                    $projectId,
-
-                'supplier_person_id' =>
-                    $request->input(
-                        'supplier_user_id'
-                    ) ?: null,
-
-                'supplier_product_id' =>
-                    $request->input(
-                        'supplier_product_id'
-                    ) ?: null,
-
-                'supplier_id' =>
-                    $supplierId,
-
-                'loginid' =>
-                    $user->username,
-
-                'edatetime' =>
-                    now(),
-
-                'id' =>
-                    $nextId,
-
-                'barcode' =>
-                    $barcode,
-
-                'qrcode' =>
-                    $barcode,
-
-                'sku' =>
-                    $generatedSku,
-
-                'price' =>
-                    $validated['price'] ?? null,
-
-                'min_price' =>
-                    $validated['minprice'] ?? null,
-
-                'sale_price' =>
-                    $validated['saleprice'] ?? null,
-
-                /*
-                |--------------------------------------------------------------------------
-                | Supplier SKU
-                |--------------------------------------------------------------------------
-                */
-
-                'sku_supplier' =>
-                    $supplierSku,
-
-                'img_path' =>
-                    $imgPath,
-
-                'status' =>
-                    '',
-
-                'box_assign' =>
-                    '',
-
-                'print_status' =>
-                    null,
-
-                'description_id' =>
-                    null,
-
-                'oc_product_id' =>
-                    null,
-
-                'oc_main_img' =>
-                    null,
-
-                'yarn' =>
-                    $validated['yarn'] ?? null,
-
+            DB::table('auto_designer_specification_master')
+                ->where('sno', $existingSpec->sno)
+                ->update($updatePayload);
+        } else {
+            $insertId = DB::table('auto_designer_specification_master')->insertGetId([
+                'designer_name' => $validated['designer_name'],
+                'item_type' => $validated['item_type'],
+                'gender' => $validated['gender'],
+                'item_name' => $validated['item_name'],
+                'composition' => $validated['composition'],
+                'colour' => $validated['colour'],
+                'sizes' => $validated['sizes'],
+                'embellishment' => $validated['embellishment'] ?? 0,
+                'manufacturing_process' => $validated['manufacturing_process'] ?? 0,
+                'craftsman' => $validated['craftsman'] ?? 0,
+                'craftsman_code' => $craftsmanCode,
+                'manufecture' => $validated['manufecture'] ?? 0,
+                'client' => $validated['client'] ?? 0,
+                'clientreference' => $validated['clientreference'] ?? null,
+                'companyid' => $companyId,
+                'subcompanyid' => $subCompanyId,
+                'projectid' => $projectId,
+                'supplier_person_id' => $request->input('supplier_user_id') ?: null,
+                'supplier_product_id' => $supplierProductId ?: null,
+                'supplier_id' => $supplierId,
+                'loginid' => $user->username,
+                'edatetime' => now(),
+                'id' => $nextId,
+                'barcode' => $barcode,
+                'qrcode' => $barcode,
+                'sku' => $generatedSku,
+                'price' => $validated['price'] ?? null,
+                'min_price' => $validated['minprice'] ?? null,
+                'sale_price' => $validated['saleprice'] ?? null,
+                'sku_supplier' => $supplierSku,
+                'img_path' => $imgPath,
+                'status' => '',
+                'box_assign' => '',
+                'print_status' => null,
+                'description_id' => null,
+                'oc_product_id' => null,
+                'oc_main_img' => null,
+                'yarn' => $validated['yarn'] ?? null,
             ]);
+        }
 
 
         /*

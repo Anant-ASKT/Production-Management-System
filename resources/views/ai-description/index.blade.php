@@ -1947,7 +1947,6 @@ if (hasAiDescription) {
 
 let selectButton = '';
 
-
 if (aiImage) {
 
     if (hasAiDescription) {

@@ -1670,6 +1670,8 @@ public function aiDescriptionData(Request $request)
         */
 
         'dsm.barcode',
+        'dsm.status as dsm_status',
+        'dsm.supplier_product_id',
 
 
         /*

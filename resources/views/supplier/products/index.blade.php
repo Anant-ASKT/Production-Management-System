@@ -35,7 +35,13 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
     <div>
         <h4 class="m-0 fw-bold text-dark">Review Selection</h4>
-        <p class="text-muted small mb-0 mt-1">Review your selected products, send to the Photo Section, or delete</p>
+        <p class="text-muted small mb-0 mt-1">
+            @if(!empty($isIntegrated))
+                Review your selected products, send to the Photo Section, or delete
+            @else
+                Review your selected products, send to Specification, or delete
+            @endif
+        </p>
     </div>
     <a href="{{ route('supplier.products.create') }}" class="btn btn-primary">
         <i class="bi bi-plus-lg me-1"></i> Add New Product
@@ -70,7 +76,7 @@
 <div class="card shadow-sm border-0">
     <div class="card-body">
         {{-- Bulk Actions Toolbar --}}
-        <form id="bulkActionForm" action="{{ route('supplier.products.send-to-photo-section') }}" method="POST">
+        <form id="bulkActionForm" action="{{ !empty($isIntegrated) ? route('supplier.products.send-to-photo-section') : route('supplier.products.send-to-specification') }}" method="POST">
             @csrf
             <div class="bulk-action-bar">
                 <div class="d-flex align-items-center gap-3">
@@ -89,7 +95,11 @@
                         <i class="bi bi-trash me-1"></i> Delete Selected (<span id="btnDeleteCount">0</span>)
                     </button>
                     <button type="submit" id="btnBulkSend" class="btn btn-sm btn-primary" disabled>
-                        <i class="bi bi-camera me-1"></i> Send to Photo Section (<span id="btnBulkCount">0</span>)
+                        @if(!empty($isIntegrated))
+                            <i class="bi bi-camera me-1" id="btnBulkSendIcon"></i> <span id="btnBulkSendText">Send to Photo Section</span> (<span id="btnBulkCount">0</span>)
+                        @else
+                            <i class="bi bi-file-earmark-text me-1" id="btnBulkSendIcon"></i> <span id="btnBulkSendText">Send to Specification</span> (<span id="btnBulkCount">0</span>)
+                        @endif
                     </button>
                 </div>
             </div>
@@ -112,7 +122,7 @@
                         @forelse($products as $product)
                             <tr>
                                 <td class="text-center">
-                                    <input type="checkbox" name="product_ids[]" value="{{ $product->sno }}" class="form-check-input product-checkbox" style="cursor: pointer;">
+                                    <input type="checkbox" name="product_ids[]" value="{{ $product->sno }}" data-is-integrated="{{ $product->is_integrated ? '1' : '0' }}" class="form-check-input product-checkbox" style="cursor: pointer;">
                                 </td>
                                 <td>
                                     @if($product->main_image_url)
@@ -161,7 +171,22 @@
                                     </span>
                                 </td>
                                 <td class="text-end">
-                                    <div class="d-inline-flex gap-1">
+                                    <div class="d-inline-flex gap-1 align-items-center">
+                                        @if($product->is_integrated)
+                                            <form action="{{ route('supplier.products.send-single-to-photo-section', $product->sno) }}" method="POST" class="d-inline">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-outline-success" title="Send to Photo Section">
+                                                    <i class="bi bi-camera"></i> Send
+                                                </button>
+                                            </form>
+                                        @else
+                                            <form action="{{ route('supplier.products.send-single-to-specification', $product->sno) }}" method="POST" class="d-inline">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1" title="Send to Specification">
+                                                    <i class="bi bi-file-earmark-text"></i> Send
+                                                </button>
+                                            </form>
+                                        @endif
                                         <a href="{{ route('supplier.products.show', $product->sno) }}" class="btn btn-sm btn-outline-primary" title="View Details">
                                             <i class="bi bi-eye"></i> View
                                         </a>
@@ -215,10 +240,34 @@ document.addEventListener('DOMContentLoaded', function () {
     const bulkActionForm = document.getElementById('bulkActionForm');
 
     function updateBulkState() {
-        const checkedCount = document.querySelectorAll('.product-checkbox:checked').length;
+        const checkedBoxes = Array.from(document.querySelectorAll('.product-checkbox:checked'));
+        const checkedCount = checkedBoxes.length;
         if (btnBulkCount) btnBulkCount.textContent = checkedCount;
         if (btnDeleteCount) btnDeleteCount.textContent = checkedCount;
         if (selectedCountBadge) selectedCountBadge.textContent = checkedCount + ' selected';
+
+        const anyNonIntegrated = checkedBoxes.some(cb => cb.dataset.isIntegrated === '0');
+        const anyIntegrated = checkedBoxes.some(cb => cb.dataset.isIntegrated === '1');
+        const defaultIntegrated = {{ !empty($isIntegrated) ? 'true' : 'false' }};
+
+        const btnSendText = document.getElementById('btnBulkSendText');
+        const btnSendIcon = document.getElementById('btnBulkSendIcon');
+
+        if (btnSendText && btnSendIcon) {
+            if (anyNonIntegrated && !anyIntegrated) {
+                btnSendText.textContent = 'Send to Specification';
+                btnSendIcon.className = 'bi bi-file-earmark-text me-1';
+            } else if (anyNonIntegrated && anyIntegrated) {
+                btnSendText.textContent = 'Send Selected';
+                btnSendIcon.className = 'bi bi-send me-1';
+            } else if (anyIntegrated) {
+                btnSendText.textContent = 'Send to Photo Section';
+                btnSendIcon.className = 'bi bi-camera me-1';
+            } else {
+                btnSendText.textContent = defaultIntegrated ? 'Send to Photo Section' : 'Send to Specification';
+                btnSendIcon.className = defaultIntegrated ? 'bi bi-camera me-1' : 'bi bi-file-earmark-text me-1';
+            }
+        }
 
         if (btnBulkSend) {
             btnBulkSend.disabled = (checkedCount === 0);
@@ -250,29 +299,56 @@ document.addEventListener('DOMContentLoaded', function () {
     if (btnBulkSend) {
         btnBulkSend.addEventListener('click', function (e) {
             e.preventDefault();
-            const checkedCount = document.querySelectorAll('.product-checkbox:checked').length;
+            const checkedBoxes = Array.from(document.querySelectorAll('.product-checkbox:checked'));
+            const checkedCount = checkedBoxes.length;
             if (checkedCount === 0) {
                 Swal.fire({
                     icon: 'warning',
                     title: 'No Selection',
-                    text: 'Please select at least one product to send to the Photo Section.',
+                    text: 'Please select at least one product to send.',
                     confirmButtonColor: '#2b5288',
                 });
                 return;
             }
 
+            const anyNonIntegrated = checkedBoxes.some(cb => cb.dataset.isIntegrated === '0');
+            const anyIntegrated = checkedBoxes.some(cb => cb.dataset.isIntegrated === '1');
+            const defaultIntegrated = {{ !empty($isIntegrated) ? 'true' : 'false' }};
+
+            let title = 'Send to Specification?';
+            let confirmText = '<i class="bi bi-file-earmark-text me-1"></i> Yes, Send to Specification';
+            let html = `Are you sure you want to send <b>${checkedCount}</b> selected product(s) to Specification?<br><small class="text-muted">They will be submitted for Admin Design Specification.</small>`;
+            let targetAction = "{{ route('supplier.products.send-to-specification') }}";
+
+            if (anyIntegrated && !anyNonIntegrated) {
+                title = 'Send to Photo Section?';
+                confirmText = '<i class="bi bi-camera me-1"></i> Yes, Send to Photo Section';
+                html = `Are you sure you want to send <b>${checkedCount}</b> selected product(s) to the Photo Section?<br><small class="text-muted">Once sent, they will be removed from Review Selection.</small>`;
+                targetAction = "{{ route('supplier.products.send-to-photo-section') }}";
+            } else if (anyIntegrated && anyNonIntegrated) {
+                title = 'Send Selected Products?';
+                confirmText = '<i class="bi bi-send me-1"></i> Yes, Send Now';
+                html = `Are you sure you want to send <b>${checkedCount}</b> selected product(s)?<br><small class="text-muted">Ready products will go to Photo Section, and manual products will go to Specification.</small>`;
+                targetAction = "{{ route('supplier.products.send-to-photo-section') }}";
+            } else if (defaultIntegrated) {
+                title = 'Send to Photo Section?';
+                confirmText = '<i class="bi bi-camera me-1"></i> Yes, Send to Photo Section';
+                html = `Are you sure you want to send <b>${checkedCount}</b> selected product(s) to the Photo Section?`;
+                targetAction = "{{ route('supplier.products.send-to-photo-section') }}";
+            }
+
             Swal.fire({
-                title: 'Send to Photo Section?',
-                html: `Are you sure you want to send <b>${checkedCount}</b> selected product(s) to the Photo Section?<br><small class="text-muted">Once sent, they will be removed from Review Selection.</small>`,
+                title: title,
+                html: html,
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#2b5288',
                 cancelButtonColor: '#6c757d',
-                confirmButtonText: '<i class="bi bi-camera me-1"></i> Yes, Send Now',
+                confirmButtonText: confirmText,
                 cancelButtonText: 'Cancel'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    bulkActionForm.action = "{{ route('supplier.products.send-to-photo-section') }}";
+                    bulkActionForm.action = targetAction;
                     bulkActionForm.submit();
                 }
             });

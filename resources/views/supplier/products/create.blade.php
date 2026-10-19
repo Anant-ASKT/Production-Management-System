@@ -102,6 +102,43 @@
         pointer-events: none !important;
         cursor: not-allowed !important;
     }
+    .input-with-add {
+        display: flex;
+        align-items: stretch;
+        width: 100%;
+    }
+    .input-with-add .select2-container {
+        flex: 1 1 auto;
+        width: 1% !important;
+    }
+    .input-with-add .select2-container .select2-selection--single {
+        border-top-right-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+        height: 38px !important;
+        display: flex;
+        align-items: center;
+    }
+    .input-with-add .btn-add-master {
+        flex: 0 0 42px;
+        width: 42px;
+        min-width: 42px;
+        height: 38px;
+        border: 1px solid #ced4da;
+        border-left: 0;
+        border-radius: 0 6px 6px 0;
+        background: #f8fafc;
+        color: #0d6efd;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all .15s ease;
+        font-size: 16px;
+    }
+    .input-with-add .btn-add-master:hover {
+        background: #e7f1ff;
+        color: #0a58ca;
+    }
 </style>
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
@@ -391,25 +428,47 @@
                     </h5>
                 </div>
                 
+                @if(!empty($isIntegrated))
                 <div class="col-md-6 mb-3">
                     <label class="form-label fw-bold">
-                        Product Name *
-                        <span class="badge bg-secondary-subtle text-secondary border ms-1 d-none" id="product_name_locked_badge"><i class="bi bi-lock-fill me-1"></i>From Item Name</span>
+                        Item Name *
+                        <span class="badge bg-secondary-subtle text-secondary border ms-1 d-none" id="product_name_locked_badge"><i class="bi bi-lock-fill me-1"></i>From Specification</span>
                     </label>
-                    <input type="text" name="name" id="product_name_input" class="form-control" value="{{ old('name') }}" placeholder="e.g. Premium Cotton Shirt" required>
+                    <div class="input-with-add">
+                        <select name="item_name" id="supplier_item_name_select" class="form-select select2-master" required>
+                            <option value="">Select an option</option>
+                            @foreach($masters['itemNames'] ?? [] as $m)
+                                <option value="{{ $m->id }}" data-name="{{ $m->itemname }}" data-code="{{ $m->code }}" {{ (old('item_name') == $m->id) ? 'selected' : '' }}>
+                                    {{ $m->itemname }} @if(!empty($m->code)) ({{ $m->code }}) @endif
+                                </option>
+                            @endforeach
+                        </select>
+                        <button type="button" class="btn-add-master" id="btnSupplierAddItemName" title="Add Item Name">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                    <input type="hidden" name="name" id="product_name_input" value="{{ old('name') }}">
+                    <small class="text-muted">Select an item name or click + to add a new one.</small>
                 </div>
 
                 <div class="col-md-6 mb-3">
                     <label class="form-label fw-bold">
                         Product SKU
+                        <span class="badge bg-success-subtle text-success border ms-1" id="product_sku_badge"><i class="bi bi-magic me-1"></i>Auto Generated</span>
                         <span class="badge bg-secondary-subtle text-secondary border ms-1 d-none" id="product_sku_locked_badge"><i class="bi bi-lock-fill me-1"></i>Locked</span>
                     </label>
                     <div class="input-group">
                         <span class="input-group-text bg-light"><i class="bi bi-upc"></i></span>
-                        <input type="text" name="product_sku" id="product_sku_input" class="form-control" value="{{ old('product_sku') }}" placeholder="e.g. SKU-12345">
+                        <input type="text" name="product_sku" id="product_sku_input" class="form-control font-monospace" value="{{ old('product_sku') }}" placeholder="Auto-generated on Item Name select">
                     </div>
-                    <small class="text-muted">Auto-filled when selecting from Vendor Stock, or enter manually.</small>
+                    <small class="text-muted" id="sku_help_text">Auto-generated based on Item Name &amp; Supplier code, or enter manually.</small>
                 </div>
+                @else
+                <div class="col-md-12 mb-3">
+                    <label class="form-label fw-bold">Product Name <span class="text-danger">*</span></label>
+                    <input type="text" name="name" id="product_name_input" class="form-control form-control-lg" value="{{ old('name') }}" placeholder="e.g. Cotton T-Shirt, Polo, Formal Shirt" required>
+                </div>
+                @endif
                 
                 <div class="col-md-3 mb-3">
                     <label class="form-label fw-bold">Price</label>
@@ -428,10 +487,15 @@
                 
                 <div class="col-md-3 mb-3">
                     <label class="form-label fw-bold">
-                        Stock <span class="badge bg-success-subtle text-success border border-success-subtle ms-1" id="total_available_stock_badge">Total Available: <span id="total_available_stock_count">0</span></span>
+                        Stock
+                        @if(!empty($isIntegrated))
+                            <span class="badge bg-success-subtle text-success border border-success-subtle ms-1" id="total_available_stock_badge">Total Available: <span id="total_available_stock_count">0</span></span>
+                        @endif
                     </label>
                     <input type="number" name="stock" id="stock_input" class="form-control" value="{{ old('stock', 1) }}" min="1">
-                    <small class="text-danger d-none" id="stock_max_warning"><i class="bi bi-exclamation-triangle-fill me-1"></i>Cannot add more than actual stock (<span id="stock_max_val">0</span>)</small>
+                    @if(!empty($isIntegrated))
+                        <small class="text-danger d-none" id="stock_max_warning"><i class="bi bi-exclamation-triangle-fill me-1"></i>Cannot add more than actual stock (<span id="stock_max_val">0</span>)</small>
+                    @endif
                 </div>
                 
                 <div class="col-md-12 mb-3">
@@ -789,6 +853,55 @@
     </div>
 </div>
 
+@if(!empty($isIntegrated))
+<!-- Modal to Add New Item Name -->
+<div class="modal fade" id="supplierItemNameModal" tabindex="-1" aria-labelledby="supplierItemNameModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow border-0 rounded-3">
+            <div class="modal-header bg-primary text-white py-3">
+                <h5 class="modal-title fw-bold" id="supplierItemNameModalLabel">
+                    <i class="bi bi-plus-circle me-1"></i> Add New Item Name
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label for="newItemNameInput" class="form-label fw-bold">Item Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control form-control-lg" id="newItemNameInput" placeholder="e.g. Cotton T-Shirt, Polo, Formal Shirt">
+                    <div class="text-danger small mt-1 d-none" id="newItemNameError"></div>
+                </div>
+
+                <div class="mb-2">
+                    <label for="newItemCodeInput" class="form-label fw-bold d-flex justify-content-between align-items-center">
+                        <span>Item Code <span class="text-muted fw-normal small">(3 Letters)</span></span>
+                        <span class="badge bg-light text-primary border" id="codeAutoBadge" style="cursor: pointer;" title="Auto generate code from Item Name">
+                            <i class="bi bi-magic me-1"></i>Auto Generate
+                        </span>
+                    </label>
+                    <div class="input-group">
+                        <input type="text" class="form-control form-control-lg text-uppercase font-monospace" id="newItemCodeInput" maxlength="4" placeholder="e.g. COT (Leave blank to auto-generate)">
+                        <button class="btn btn-outline-primary px-3" type="button" id="btnAutoGenerateCode" title="Auto generate code from name">
+                            <i class="bi bi-arrow-repeat me-1"></i>Auto
+                        </button>
+                    </div>
+                    <div class="form-text text-muted mt-2">
+                        Enter a 3-letter code or leave blank to automatically generate a unique code.
+                    </div>
+                    <div class="text-danger small mt-1 d-none" id="newItemCodeError"></div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-2 px-3">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary px-4 fw-bold" id="btnSaveSupplierItemName">
+                    <span class="spinner-border spinner-border-sm me-1 d-none" id="saveItemNameSpinner" role="status" aria-hidden="true"></span>
+                    <i class="bi bi-check2 me-1" id="saveItemNameIcon"></i> Save Item Name
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
 @push('scripts')
 <style>
     .select2-container--default .select2-selection--single {
@@ -975,8 +1088,208 @@
             }
         }
 
+        initSelect2();
+
         @if(!empty($isIntegrated))
-            initSelect2();
+        // Handle Item Name change in Add Product
+        const supplierItemNameSelect = $('#supplier_item_name_select');
+        const productNameHidden = $('#product_name_input');
+        const productSkuInput = $('#product_sku_input');
+
+        supplierItemNameSelect.on('change', function() {
+            const selectedOpt = $(this).find('option:selected');
+            const val = $(this).val();
+            if (val) {
+                const name = selectedOpt.data('name') || selectedOpt.text().trim();
+                productNameHidden.val(name);
+
+                // Auto-generate SKU
+                $.ajax({
+                    url: "{{ route('supplier.products.generate-sku') }}",
+                    type: "GET",
+                    data: { item_name_id: val },
+                    dataType: "json",
+                    success: function(res) {
+                        if (res && res.sku) {
+                            productSkuInput.val(res.sku);
+                        }
+                    }
+                });
+            }
+        });
+
+        // Helper to derive a 3-letter candidate code from an item name
+        function deriveItemCodeCandidate(name) {
+            if (!name) return '';
+            const clean = name.toUpperCase().replace(/[^A-Z0-9 ]/g, '').trim();
+            if (!clean) return '';
+            const words = clean.split(/\s+/).filter(w => w.length > 0);
+            let code = '';
+            for (let i = 0; i < words.length && code.length < 3; i++) {
+                code += words[i].charAt(0);
+            }
+            const lettersOnly = clean.replace(/[^A-Z0-9]/g, '');
+            for (let i = 0; i < lettersOnly.length && code.length < 3; i++) {
+                const ch = lettersOnly.charAt(i);
+                if (code.indexOf(ch) === -1) {
+                    code += ch;
+                }
+            }
+            while (code.length < 3) {
+                code += 'X';
+            }
+            return code.substring(0, 3);
+        }
+
+        let userTouchedCode = false;
+
+        // Add Item Name Modal open
+        $('#btnSupplierAddItemName').on('click', function(e) {
+            e.preventDefault();
+            userTouchedCode = false;
+            $('#newItemNameInput').val('').removeClass('is-invalid');
+            $('#newItemCodeInput').val('').removeClass('is-invalid').attr('placeholder', 'e.g. COT (Leave blank to auto-generate)');
+            $('#newItemNameError').addClass('d-none').text('');
+            $('#newItemCodeError').addClass('d-none').text('');
+            const modalEl = document.getElementById('supplierItemNameModal');
+            if (modalEl) {
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+                setTimeout(() => $('#newItemNameInput').focus(), 400);
+            }
+        });
+
+        // Dynamic code suggestion as user types Item Name
+        $('#newItemNameInput').on('input keyup paste', function() {
+            const nameVal = $(this).val().trim();
+            $('#newItemNameError').addClass('d-none').text('');
+            $(this).removeClass('is-invalid');
+
+            if (!userTouchedCode) {
+                const candidate = deriveItemCodeCandidate(nameVal);
+                if (candidate) {
+                    $('#newItemCodeInput').attr('placeholder', `e.g. ${candidate} (Leave blank to auto-generate)`);
+                } else {
+                    $('#newItemCodeInput').attr('placeholder', 'e.g. COT (Leave blank to auto-generate)');
+                }
+            }
+        });
+
+        // User manually types in Item Code
+        $('#newItemCodeInput').on('input keyup', function() {
+            let val = $(this).val().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
+            $(this).val(val);
+            userTouchedCode = (val.trim().length > 0);
+            $('#newItemCodeError').addClass('d-none').text('');
+            $(this).removeClass('is-invalid');
+        });
+
+        // Auto Generate button / badge click
+        $('#btnAutoGenerateCode, #codeAutoBadge').on('click', function(e) {
+            e.preventDefault();
+            const nameVal = $('#newItemNameInput').val().trim();
+            const candidate = deriveItemCodeCandidate(nameVal) || 'ITM';
+            $('#newItemCodeInput').val(candidate).removeClass('is-invalid');
+            $('#newItemCodeError').addClass('d-none').text('');
+            userTouchedCode = true;
+        });
+
+        // Save New Item Name via AJAX
+        $('#btnSaveSupplierItemName').on('click', function() {
+            const name = $('#newItemNameInput').val().trim();
+            const code = $('#newItemCodeInput').val().trim().toUpperCase();
+
+            $('#newItemNameError').addClass('d-none').text('');
+            $('#newItemCodeError').addClass('d-none').text('');
+            $('#newItemNameInput').removeClass('is-invalid');
+            $('#newItemCodeInput').removeClass('is-invalid');
+
+            if (!name) {
+                $('#newItemNameInput').addClass('is-invalid');
+                $('#newItemNameError').removeClass('d-none').text('Please enter an item name.');
+                return;
+            }
+
+            const btn = $(this);
+            const spinner = $('#saveItemNameSpinner');
+            const icon = $('#saveItemNameIcon');
+
+            btn.prop('disabled', true);
+            spinner.removeClass('d-none');
+            icon.addClass('d-none');
+
+            $.ajax({
+                url: "{{ route('supplier.masters.item-name.store') }}",
+                type: "POST",
+                data: {
+                    _token: "{{ csrf_token() }}",
+                    name: name,
+                    code: code
+                },
+                dataType: "json",
+                success: function(res) {
+                    btn.prop('disabled', false);
+                    spinner.addClass('d-none');
+                    icon.removeClass('d-none');
+
+                    if (res && res.success) {
+                        const codeText = res.code ? ` (${res.code})` : '';
+                        const displayText = `${res.name}${codeText}`;
+                        
+                        let existingOpt = supplierItemNameSelect.find(`option[value="${res.id}"]`);
+                        if (existingOpt.length === 0) {
+                            const newOption = new Option(displayText, res.id, true, true);
+                            $(newOption).attr('data-name', res.name).attr('data-code', res.code || '');
+                            supplierItemNameSelect.append(newOption);
+                        } else {
+                            existingOpt.prop('selected', true);
+                        }
+
+                        supplierItemNameSelect.val(res.id).trigger('change');
+
+                        const modalEl = document.getElementById('supplierItemNameModal');
+                        if (modalEl) {
+                            const modal = bootstrap.Modal.getInstance(modalEl);
+                            if (modal) modal.hide();
+                        }
+                    } else {
+                        $('#newItemNameInput').addClass('is-invalid');
+                        $('#newItemNameError').removeClass('d-none').text(res.message || 'Error saving item name.');
+                    }
+                },
+                error: function(xhr) {
+                    btn.prop('disabled', false);
+                    spinner.addClass('d-none');
+                    icon.removeClass('d-none');
+
+                    let errMsg = 'Failed to save item name.';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errMsg = xhr.responseJSON.message;
+                    }
+
+                    if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
+                        if (xhr.responseJSON.errors.code) {
+                            $('#newItemCodeInput').addClass('is-invalid');
+                            $('#newItemCodeError').removeClass('d-none').text(xhr.responseJSON.errors.code[0]);
+                            return;
+                        }
+                        if (xhr.responseJSON.errors.name) {
+                            $('#newItemNameInput').addClass('is-invalid');
+                            $('#newItemNameError').removeClass('d-none').text(xhr.responseJSON.errors.name[0]);
+                            return;
+                        }
+                    }
+
+                    if (errMsg.toLowerCase().includes('code')) {
+                        $('#newItemCodeInput').addClass('is-invalid');
+                        $('#newItemCodeError').removeClass('d-none').text(errMsg);
+                    } else {
+                        $('#newItemNameInput').addClass('is-invalid');
+                        $('#newItemNameError').removeClass('d-none').text(errMsg);
+                    }
+                }
+            });
+        });
 
             // Handle Master Attributes collapsible dropdown toggle text, icon & Select2 resize
             $('#masterAttributesCollapse').on('show.bs.collapse', function () {

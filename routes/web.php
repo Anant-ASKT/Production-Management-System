@@ -17,6 +17,7 @@ use App\Http\Controllers\TraderProductSpecificationMasterController;
 use App\Http\Controllers\StockStatusController;
 use App\Http\Controllers\AllGarmentsAiImageController;
 use App\Http\Controllers\SendImageToAiEnhancerController;
+use App\Http\Controllers\AdminSupplierRawDataController;
 
 
 
@@ -157,6 +158,12 @@ Route::prefix('ai-enhancer')->name('ai-enhancer.')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
+
+    Route::get('/admin/supplier-raw-data', [AdminSupplierRawDataController::class, 'index'])
+        ->name('admin.supplier-raw-data.index');
+
+    Route::get('/admin/supplier-raw-data/{id}', [AdminSupplierRawDataController::class, 'show'])
+        ->name('admin.supplier-raw-data.show');
 
    Route::get(
     '/admin/design-specifications',
@@ -729,9 +736,12 @@ Route::prefix('supplier')->name('supplier.')->group(function () {
         
         Route::get('products/search-specifications', [\App\Http\Controllers\Supplier\ProductController::class, 'searchSpecifications'])->name('products.search-specifications');
         Route::post('products/send-to-photo-section', [\App\Http\Controllers\Supplier\ProductController::class, 'sendToPhotoSection'])->name('products.send-to-photo-section');
+        Route::post('products/send-to-specification', [\App\Http\Controllers\Supplier\ProductController::class, 'sendToSpecification'])->name('products.send-to-specification');
         Route::post('products/bulk-delete', [\App\Http\Controllers\Supplier\ProductController::class, 'bulkDelete'])->name('products.bulk-delete');
         Route::post('products/{product}/send-to-photo-section', [\App\Http\Controllers\Supplier\ProductController::class, 'sendSingleToPhotoSection'])->name('products.send-single-to-photo-section');
-        Route::delete('products/{product}/image', [\App\Http\Controllers\Supplier\ProductController::class, 'deleteImage'])->name('products.delete-image');
+        Route::post('products/{product}/send-to-specification', [\App\Http\Controllers\Supplier\ProductController::class, 'sendSingleToSpecification'])->name('products.send-single-to-specification');
+        Route::post('masters/item-name', [\App\Http\Controllers\Supplier\ProductController::class, 'storeItemName'])->name('masters.item-name.store');
+        Route::get('products/generate-sku', [\App\Http\Controllers\Supplier\ProductController::class, 'generateSkuPreview'])->name('products.generate-sku');
         Route::resource('products', \App\Http\Controllers\Supplier\ProductController::class);
 
         // Supplier Website Orders Routes

@@ -238,16 +238,27 @@
             </div>
 
 
-            <button
-                type="button"
-                class="btn btn-sm btn-light"
-                id="btnClearSpecification">
+            <div class="d-flex align-items-center gap-2">
+                <button
+                    type="button"
+                    class="btn btn-sm btn-info text-white shadow-sm d-none"
+                    id="btnViewSupplierRawDetails"
+                    title="View what supplier sent for this product">
+                    <i class="bi bi-eye-fill me-1"></i>
+                    View Supplier Sent Data
+                </button>
 
-                <i class="bi bi-arrow-counterclockwise me-1"></i>
+                <button
+                    type="button"
+                    class="btn btn-sm btn-light"
+                    id="btnClearSpecification">
 
-                Clear
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>
 
-            </button>
+                    Clear
+
+                </button>
+            </div>
 
         </div>
 
@@ -263,6 +274,25 @@
 
 
         <div class="section-body">
+
+            {{-- Supplier Sent Data Context Banner --}}
+            <div id="supplierContextAlertBanner" class="alert alert-info d-none d-flex flex-wrap align-items-center justify-content-between p-2 px-3 mb-3 rounded-3 shadow-sm border-info" style="background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%); border-left: 4px solid #0284c7;">
+                <div class="d-flex align-items-center flex-wrap gap-2">
+                    <span class="badge bg-primary px-2 py-1"><i class="bi bi-box-seam me-1"></i> Supplier Product</span>
+                    <strong class="text-dark" id="bannerSupplierProdName">-</strong>
+                    <span class="text-muted">| Supplier:</span>
+                    <span class="badge bg-white text-dark border" id="bannerSupplierName">-</span>
+                    <span class="text-muted">| Stock:</span>
+                    <span class="badge bg-secondary" id="bannerSupplierStock">-</span>
+                    <span class="text-muted">| Sent Date:</span>
+                    <span class="small text-muted" id="bannerSupplierDate">-</span>
+                </div>
+                <div class="mt-2 mt-md-0">
+                    <button type="button" class="btn btn-sm btn-primary py-1 px-3 shadow-sm" id="btnBannerViewSupplierDetails">
+                        <i class="bi bi-eye-fill me-1"></i> View Supplier Sent Data
+                    </button>
+                </div>
+            </div>
 
 
             {{-- =================================================
@@ -3429,6 +3459,211 @@
 
     </div>
 
+</div>
+
+<!-- =========================================================
+     MODAL: VIEW SUPPLIER SENT RAW DETAILS
+========================================================== -->
+<div class="modal fade" id="modalSupplierSentDetails" tabindex="-1" aria-labelledby="modalSupplierSentDetailsLabel" aria-hidden="true" style="z-index: 1065;">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-gradient text-white" style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%);">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle bg-white bg-opacity-25 p-2 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                        <i class="bi bi-inbox-fill text-white fs-6"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0 text-white" id="modalSupplierSentDetailsLabel">
+                            Supplier Sent Raw Details
+                        </h5>
+                        <small class="text-white-50" id="rawModalSupplierSubtitle">Details sent directly by supplier</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 bg-light">
+                <div class="row g-4">
+                    <!-- Left: Images Gallery -->
+                    <div class="col-lg-5">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-white py-3 border-0">
+                                <h6 class="fw-bold mb-0 text-dark">
+                                    <i class="bi bi-images me-2 text-primary"></i>Product Images Sent by Supplier
+                                </h6>
+                            </div>
+                            <div class="card-body p-3">
+                                <!-- Main Image preview -->
+                                <div class="text-center p-2 mb-3 bg-light rounded-3 border position-relative" style="min-height: 260px; display: flex; align-items: center; justify-content: center;">
+                                    <img id="rawModalMainImage" src="" alt="Supplier Main Image" class="img-fluid rounded" style="max-height: 280px; object-fit: contain; cursor: pointer;" onclick="zoomSupplierSentImage(this.src)" onerror="this.src='/assets/images/no-image.png'">
+                                    <div class="position-absolute bottom-0 end-0 m-2">
+                                        <button type="button" class="btn btn-sm btn-dark bg-opacity-75 text-white" onclick="zoomSupplierSentImage(document.getElementById('rawModalMainImage').src)">
+                                            <i class="bi bi-zoom-in"></i> Zoom
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- Sub Images thumbnails -->
+                                <div>
+                                    <label class="form-label text-muted small fw-semibold text-uppercase mb-2">Sub Images Gallery</label>
+                                    <div id="rawModalSubImagesGallery" class="d-flex flex-wrap gap-2">
+                                        <!-- Dynamic sub images -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Full Product & Supplier Details -->
+                    <div class="col-lg-7">
+                        <!-- Supplier Details Card -->
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-header bg-white py-2 border-0">
+                                <h6 class="fw-bold mb-0 text-primary">
+                                    <i class="bi bi-building me-2"></i>Supplier Details
+                                </h6>
+                            </div>
+                            <div class="card-body p-3">
+                                <div class="row g-3">
+                                    <div class="col-sm-6">
+                                        <div class="p-2 rounded bg-light border">
+                                            <span class="text-muted small d-block">Supplier Company</span>
+                                            <strong id="rawModalSupplierName" class="text-dark fs-6">-</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <div class="p-2 rounded bg-light border">
+                                            <span class="text-muted small d-block">Supplier Nickname / Brand</span>
+                                            <strong id="rawModalSupplierNickname" class="text-dark">-</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-4">
+                                        <div class="p-2 rounded bg-light border">
+                                            <span class="text-muted small d-block">Contact Person</span>
+                                            <strong id="rawModalSupplierUserName" class="text-dark small">-</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-4">
+                                        <div class="p-2 rounded bg-light border">
+                                            <span class="text-muted small d-block">Phone</span>
+                                            <strong id="rawModalSupplierPhone" class="text-dark small">-</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-4">
+                                        <div class="p-2 rounded bg-light border">
+                                            <span class="text-muted small d-block">Email</span>
+                                            <strong id="rawModalSupplierEmail" class="text-dark small">-</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Product Specifications Sent by Supplier -->
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-header bg-white py-2 border-0">
+                                <h6 class="fw-bold mb-0 text-primary">
+                                    <i class="bi bi-info-circle me-2"></i>Raw Product Information
+                                </h6>
+                            </div>
+                            <div class="card-body p-3">
+                                <div class="row g-3">
+                                    <div class="col-sm-12">
+                                        <div class="p-2 rounded bg-light border">
+                                            <span class="text-muted small d-block">Product Name Sent by Supplier</span>
+                                            <strong id="rawModalProductName" class="text-dark fs-6">-</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-4">
+                                        <div class="p-2 rounded bg-light border">
+                                            <span class="text-muted small d-block">Supplier SKU / Ref</span>
+                                            <strong id="rawModalSku" class="text-dark">-</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-4">
+                                        <div class="p-2 rounded bg-light border">
+                                            <span class="text-muted small d-block">Sent Stock Quantity</span>
+                                            <span id="rawModalStock" class="badge bg-success fs-6">-</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-4">
+                                        <div class="p-2 rounded bg-light border">
+                                            <span class="text-muted small d-block">Submission Date</span>
+                                            <strong id="rawModalDate" class="text-dark small">-</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-4">
+                                        <div class="p-2 rounded bg-light border">
+                                            <span class="text-muted small d-block">Price</span>
+                                            <strong id="rawModalPrice" class="text-dark">-</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-4">
+                                        <div class="p-2 rounded bg-light border">
+                                            <span class="text-muted small d-block">Sale Price</span>
+                                            <strong id="rawModalSalePrice" class="text-dark">-</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-4">
+                                        <div class="p-2 rounded bg-light border">
+                                            <span class="text-muted small d-block">Min Price</span>
+                                            <strong id="rawModalMinPrice" class="text-dark">-</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-12">
+                                        <div class="card border-0 bg-light p-2 rounded">
+                                            <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                                                <span class="text-muted small fw-bold text-uppercase">Garment Specifications Sent by Supplier (All Attributes)</span>
+                                                <span class="badge bg-white text-muted border font-monospace" style="font-size: 11px;">Filled or Blank</span>
+                                            </div>
+                                            <div class="row g-2" id="rawModalSpecsGrid">
+                                                {{-- Dynamically populated via JS --}}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Description sent by Supplier -->
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-white py-2 border-0">
+                                <h6 class="fw-bold mb-0 text-primary">
+                                    <i class="bi bi-file-text me-2"></i>Supplier Description / Notes
+                                </h6>
+                            </div>
+                            <div class="card-body p-3">
+                                <div id="rawModalDescription" class="p-3 rounded bg-light border text-dark" style="max-height: 140px; overflow-y: auto; white-space: pre-wrap; font-size: 0.9rem;">
+                                    No description provided by supplier.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-white border-top d-flex justify-content-between">
+                <span class="text-muted small">
+                    <i class="bi bi-shield-check text-success me-1"></i>
+                    Closing this modal will <strong>not</strong> reset your specification form.
+                </span>
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i> Close & Continue Editing
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- IMAGE ZOOM PREVIEW MODAL -->
+<div class="modal fade" id="rawModalImageZoom" tabindex="-1" aria-hidden="true" style="z-index: 1070;">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-transparent border-0">
+            <div class="modal-header border-0 pb-0 justify-content-end">
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-0">
+                <img id="rawModalZoomImageSrc" src="" class="img-fluid rounded shadow-lg" style="max-height: 85vh;">
+            </div>
+        </div>
+    </div>
 </div>
 
 <div id="loader" style="display: none;">
@@ -12857,7 +13092,7 @@ document.addEventListener(
                         'click',
                         function () {
                             resetForm();
-                            location.reload();
+                            window.location.href = "{{ route('design-specifications.index') }}";
                         }
                     );
 
@@ -20139,6 +20374,29 @@ async function selectSupplierProduct(
         selectedSupplierProduct
     );
 
+    window.currentSupplierRawProduct = product;
+
+    // Show View Supplier Sent Data button in header & banner
+    const btnRawDetails = document.getElementById('btnViewSupplierRawDetails');
+    if (btnRawDetails) {
+        btnRawDetails.classList.remove('d-none');
+    }
+
+    const alertBanner = document.getElementById('supplierContextAlertBanner');
+    if (alertBanner) {
+        alertBanner.classList.remove('d-none');
+        const bName = document.getElementById('bannerSupplierProdName');
+        const bSupplier = document.getElementById('bannerSupplierName');
+        const bStock = document.getElementById('bannerSupplierStock');
+        const bDate = document.getElementById('bannerSupplierDate');
+
+        if (bName) bName.textContent = product.name || '-';
+        if (bSupplier) bSupplier.textContent = suppliernamedata || product.supplier_name || product.supplier_nickname || '-';
+        const rawStock = product.stock ?? supplierStockQty ?? 0;
+        if (bStock) bStock.textContent = rawStock + ' pcs';
+        if (bDate) bDate.textContent = product.created_at || createdatdate || '-';
+    }
+
 
     /*
     |--------------------------------------------------------------------------
@@ -20297,14 +20555,33 @@ console.log(
     |--------------------------------------------------------------------------
     */
 
-    setSelectValue(
-        '#item_name',
-        product.item_name_id ||
-        product.item_name ||
-        product.itemname_id ||
-        product.itemnameid ||
-        ''
-    );
+    const targetItemVal = product.item_name || product.item_name_id || product.itemname_id || product.itemnameid || '';
+    const targetItemText = product.name || '';
+    const $itemSelect = $('#item_name');
+    if ($itemSelect.length) {
+        let matched = false;
+        if (targetItemVal && $itemSelect.find(`option[value="${targetItemVal}"]`).length) {
+            setSelectValue('#item_name', targetItemVal);
+            matched = true;
+        }
+        if (!matched && targetItemText) {
+            const search = targetItemText.trim().toLowerCase();
+            $itemSelect.find('option').each(function() {
+                const optText = $(this).text().trim().toLowerCase();
+                const optName = $(this).data('name') ? String($(this).data('name')).trim().toLowerCase() : '';
+                if (optText === search || optName === search || optText.startsWith(search + ' ') || optText.startsWith(search + '(')) {
+                    setSelectValue('#item_name', $(this).val());
+                    matched = true;
+                    return false;
+                }
+            });
+        }
+        if (!matched) {
+            setSelectValue('#item_name', targetItemVal || '');
+        }
+    } else {
+        setSelectValue('#item_name', targetItemVal);
+    }
 
 
     setSelectValue(
@@ -21535,91 +21812,69 @@ console.log(
             );
 
 
-            const response =
-                await fetch(
-                    mainImagePath
-                );
+            try {
+                const response =
+                    await fetch(
+                        mainImagePath
+                    );
 
+                if (
+                    response.ok
+                ) {
+                    const blob =
+                        await response.blob();
 
-            if (
-                !response.ok
-            ) {
+                    let fileName =
+                        mainImagePath
+                            .split('/')
+                            .pop()
+                            .split('?')[0] || 'supplier-main-image.jpg';
 
-                throw new Error(
-                    'Unable to load main image. HTTP ' +
-                    response.status +
-                    ' - ' +
-                    mainImagePath
-                );
-            }
+                    const file =
+                        new File(
+                            [blob],
+                            fileName,
+                            {
+                                type:
+                                    blob.type ||
+                                    'image/jpeg',
+                                lastModified:
+                                    Date.now()
+                            }
+                        );
 
+                    const mainImageInput =
+                        document.getElementById(
+                            'filenew'
+                        );
 
-            const blob =
-                await response.blob();
+                    if (
+                        mainImageInput
+                    ) {
+                        const dataTransfer =
+                            new DataTransfer();
 
+                        dataTransfer.items.add(
+                            file
+                        );
 
-            let fileName =
-                mainImagePath
-                    .split('/')
-                    .pop()
-                    .split('?')[0];
+                        mainImageInput.files =
+                            dataTransfer.files;
 
-
-            if (
-                !fileName
-            ) {
-
-                fileName =
-                    'supplier-main-image.jpg';
-            }
-
-
-            const file =
-                new File(
-                    [blob],
-                    fileName,
-                    {
-                        type:
-                            blob.type ||
-                            'image/jpeg',
-
-                        lastModified:
-                            Date.now()
+                        mainImageInput.dispatchEvent(
+                            new Event(
+                                'change',
+                                {
+                                    bubbles: true
+                                }
+                            )
+                        );
                     }
-                );
-
-
-            const mainImageInput =
-                document.getElementById(
-                    'filenew'
-                );
-
-
-            if (
-                mainImageInput
-            ) {
-
-                const dataTransfer =
-                    new DataTransfer();
-
-
-                dataTransfer.items.add(
-                    file
-                );
-
-
-                mainImageInput.files =
-                    dataTransfer.files;
-
-
-                mainImageInput.dispatchEvent(
-                    new Event(
-                        'change',
-                        {
-                            bubbles: true
-                        }
-                    )
-                );
+                } else {
+                    console.warn('Main image fetch failed HTTP status:', response.status, mainImagePath);
+                }
+            } catch (err) {
+                console.warn('Main image fetch error:', err);
             }
         }
 
@@ -22342,5 +22597,250 @@ function rememberVisibleBarcodeSelections(
         });
 
 }
+
+// Supplier Sent Raw Details Modal Functions
+function populateAndShowSupplierSentDetailsModal(product) {
+    if (!product) return;
+
+    // Subtitle
+    const sub = document.getElementById('rawModalSupplierSubtitle');
+    if (sub) {
+        const sName = product.supplier_name || product.suppliername || 'Supplier';
+        sub.textContent = `${sName} (ID: #${product.sno || '-'})`;
+    }
+
+    // Product Name
+    const pName = document.getElementById('rawModalProductName');
+    if (pName) pName.textContent = product.name || '-';
+
+    // Supplier Info
+    const sNameElem = document.getElementById('rawModalSupplierName');
+    if (sNameElem) sNameElem.textContent = product.supplier_name || product.suppliername || '-';
+
+    const sNickElem = document.getElementById('rawModalSupplierNickname');
+    if (sNickElem) sNickElem.textContent = product.supplier_nickname || product.suppliernickname || '-';
+
+    const sUserElem = document.getElementById('rawModalSupplierUserName');
+    if (sUserElem) sUserElem.textContent = product.supplier_user_name || product.supplier_user || '-';
+
+    const sPhoneElem = document.getElementById('rawModalSupplierPhone');
+    if (sPhoneElem) sPhoneElem.textContent = product.supplier_user_phone || '-';
+
+    const sEmailElem = document.getElementById('rawModalSupplierEmail');
+    if (sEmailElem) sEmailElem.textContent = product.supplier_user_email || '-';
+
+    // Sku, Stock, Date, Prices
+    const skuElem = document.getElementById('rawModalSku');
+    if (skuElem) skuElem.textContent = product.product_sku || product.sku || '-';
+
+    const stockElem = document.getElementById('rawModalStock');
+    if (stockElem) {
+        const st = (product.stock !== null && product.stock !== undefined) ? product.stock : (product.stock_qty || 0);
+        stockElem.textContent = st + ' pcs';
+    }
+
+    const dateElem = document.getElementById('rawModalDate');
+    if (dateElem) dateElem.textContent = product.created_at || '-';
+
+    const priceElem = document.getElementById('rawModalPrice');
+    if (priceElem) priceElem.textContent = product.price ? '₹' + Number(product.price).toLocaleString() : '-';
+
+    const salePriceElem = document.getElementById('rawModalSalePrice');
+    if (salePriceElem) salePriceElem.textContent = product.sale_price ? '₹' + Number(product.sale_price).toLocaleString() : '-';
+
+    const minPriceElem = document.getElementById('rawModalMinPrice');
+    if (minPriceElem) minPriceElem.textContent = product.min_price ? '₹' + Number(product.min_price).toLocaleString() : '-';
+
+    // Description
+    const descElem = document.getElementById('rawModalDescription');
+    if (descElem) {
+        descElem.textContent = (product.description && product.description.trim() !== '') ? product.description : 'No description provided by supplier.';
+    }
+
+    // Main Image
+    const mainImgElem = document.getElementById('rawModalMainImage');
+    if (mainImgElem) {
+        mainImgElem.src = product.image_url || '/assets/images/no-image.png';
+    }
+
+    // All 14 Garment Specifications Grid (Filled or Blank)
+    const specsGridElem = document.getElementById('rawModalSpecsGrid');
+    if (specsGridElem) {
+        function formatSpecBadge(val) {
+            if (val === null || val === undefined || String(val).trim() === '' || String(val).trim() === '-' || String(val).trim().toLowerCase() === 'null') {
+                return '<span class="badge bg-light text-muted border fst-italic font-monospace" style="font-size: 11px;">Blank</span>';
+            }
+            return `<strong class="text-dark">${escapeHtml(String(val))}</strong>`;
+        }
+
+        const allSpecs = [
+            { label: 'Item Name / No', val: product.item_name },
+            { label: 'Item Type', val: product.item_type },
+            { label: 'Gender', val: product.gender },
+            { label: 'Composition', val: product.composition || product.compositions },
+            { label: 'Colour', val: product.colour },
+            { label: 'Size', val: product.size },
+            { label: 'Yarn', val: product.yarn },
+            { label: 'Embellishment', val: product.embellishment },
+            { label: 'Process', val: product.manufacturing_process || product.mfg_processes },
+            { label: 'Craftsman', val: product.craftsman || product.craftsmen },
+            { label: 'Manufacture', val: product.manufacture },
+            { label: 'Designer', val: product.designer || product.designers },
+            { label: 'Collection', val: product.collection },
+            { label: 'Variations', val: product.variations }
+        ];
+
+        let gridHtml = '';
+        allSpecs.forEach(item => {
+            gridHtml += `
+                <div class="col-md-4 col-sm-6">
+                    <div class="p-2 border rounded bg-white d-flex justify-content-between align-items-center h-100" style="font-size: 13px;">
+                        <span class="text-muted fw-semibold">${escapeHtml(item.label)}:</span>
+                        <div class="text-end ps-2">${formatSpecBadge(item.val)}</div>
+                    </div>
+                </div>
+            `;
+        });
+        specsGridElem.innerHTML = gridHtml;
+    }
+
+    // Sub images gallery
+    const subGallery = document.getElementById('rawModalSubImagesGallery');
+    if (subGallery) {
+        subGallery.innerHTML = '';
+        let subList = [];
+        if (Array.isArray(product.sub_image_urls) && product.sub_image_urls.length > 0) {
+            subList = product.sub_image_urls;
+        } else if (product.sub_images) {
+            try {
+                const parsed = typeof product.sub_images === 'string' ? JSON.parse(product.sub_images) : product.sub_images;
+                if (Array.isArray(parsed)) subList = parsed;
+            } catch(e) {}
+        }
+
+        if (subList.length > 0) {
+            subList.forEach(function(imgUrl) {
+                const thumb = document.createElement('div');
+                thumb.className = 'border rounded p-1 bg-white position-relative';
+                thumb.style.cursor = 'pointer';
+                thumb.innerHTML = `<img src="${escapeHtml(imgUrl)}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;" alt="Sub Image">`;
+                thumb.onclick = function() {
+                    zoomSupplierSentImage(imgUrl);
+                };
+                subGallery.appendChild(thumb);
+            });
+        } else {
+            subGallery.innerHTML = '<span class="text-muted small">No sub images sent by supplier</span>';
+        }
+    }
+
+    const modalElem = document.getElementById('modalSupplierSentDetails');
+    if (modalElem) {
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElem);
+        modal.show();
+    }
+}
+
+function zoomSupplierSentImage(src) {
+    if (!src) return;
+    const zoomImg = document.getElementById('rawModalZoomImageSrc');
+    if (zoomImg) {
+        zoomImg.src = src;
+    }
+    const zoomModalElem = document.getElementById('rawModalImageZoom');
+    if (zoomModalElem) {
+        const zoomModal = bootstrap.Modal.getOrCreateInstance(zoomModalElem);
+        zoomModal.show();
+    }
+}
+
+// Click listener for View Supplier Sent Data
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('#btnViewSupplierRawDetails, #btnBannerViewSupplierDetails');
+    if (btn) {
+        e.preventDefault();
+        if (window.currentSupplierRawProduct) {
+            populateAndShowSupplierSentDetailsModal(window.currentSupplierRawProduct);
+        } else {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'No Supplier Data',
+                    text: 'Please select a supplier product first to view its sent details.'
+                });
+            } else {
+                alert('Please select a supplier product first to view its sent details.');
+            }
+        }
+    }
+});
+
+// Auto-select supplier product if redirected with supplier_product_id
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetSpId = urlParams.get('supplier_product_id');
+    if (targetSpId) {
+        // First try dedicated admin supplier raw data API
+        fetch("{{ url('admin/supplier-raw-data') }}/" + targetSpId, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(response) {
+            if (response && response.success && response.data) {
+                const found = response.data;
+                selectSupplierProduct(
+                    found,
+                    found.sno,
+                    found.supplier_id || '',
+                    found.supplier_user_id || '',
+                    found.created_at || '',
+                    found.supplier_name || '',
+                    found.supplier_nickname || ''
+                );
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                fallbackFetchSupplierProduct(targetSpId);
+            }
+        })
+        .catch(function() {
+            fallbackFetchSupplierProduct(targetSpId);
+        });
+    }
+
+    function fallbackFetchSupplierProduct(targetId) {
+        fetch("{{ route('design-specifications.supplier-products') }}", {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(response) {
+            if (response && response.success && Array.isArray(response.data)) {
+                const found = response.data.find(function(p) {
+                    return String(p.sno) === String(targetId);
+                });
+                if (found) {
+                    selectSupplierProduct(
+                        found,
+                        found.sno,
+                        found.supplier_id || '',
+                        found.supplier_user_id || '',
+                        found.created_at || '',
+                        found.supplier_name || '',
+                        found.supplier_nickname || ''
+                    );
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            }
+        })
+        .catch(function(err) {
+            console.error('Fallback fetch supplier product error:', err);
+        });
+    }
+});
 </script>
 @endsection

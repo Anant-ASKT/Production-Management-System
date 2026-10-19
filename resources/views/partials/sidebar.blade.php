@@ -147,6 +147,19 @@
                 </a>
             </li>
 
+            <li class="nav-item">
+                <a href="{{ route('admin.supplier-raw-data.index') }}"
+                class="nav-link {{ request()->routeIs('admin.supplier-raw-data.*') ? 'active' : '' }}">
+
+                    <i class="bi bi-inbox-fill nav-icon"></i>
+
+                    <span>
+                        Supplier Raw Data
+                    </span>
+
+                </a>
+            </li>
+
         </ul>
 
     </div>

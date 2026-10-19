@@ -11,6 +11,9 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         $user = auth()->guard('supplier')->user();
+        $supplier = \App\Models\Supplier::find($user->supplier_id);
+        $isIntegrated = $supplier ? (bool) $supplier->is_integrated : false;
+
         $query = SupplierProduct::where('supplier_id', $user->supplier_id)
             ->where('supplier_user_id', $user->sno);
 
@@ -45,7 +48,9 @@ class ProductController extends Controller
         if ($tab === 'sent') {
             $query->where(function($q) {
                 $q->where('status', 'sent_to_photo_section')
+                  ->orWhere('status', 'sent_to_specification')
                   ->orWhere('status_done', 'sent_to_photo_section')
+                  ->orWhere('status_done', 'sent_to_specification')
                   ->orWhere(function($sub) {
                       $sub->whereNotNull('status_done')
                           ->where('status_done', '!=', '')
@@ -53,10 +58,13 @@ class ProductController extends Controller
                   });
             });
         } else {
-            // Default pending list: only products not yet sent to Photo Section
+            // Default pending list: only products not yet sent to Photo Section or Specification
             $query->where(function($q) {
                 $q->whereNull('status')
-                  ->orWhere('status', '!=', 'sent_to_photo_section');
+                  ->orWhere(function($sq) {
+                      $sq->where('status', '!=', 'sent_to_photo_section')
+                         ->where('status', '!=', 'sent_to_specification');
+                  });
             })->where(function($q) {
                 $q->whereNull('status_done')
                   ->orWhere('status_done', '')
@@ -68,7 +76,10 @@ class ProductController extends Controller
             ->where('supplier_user_id', $user->sno)
             ->where(function($q) {
                 $q->whereNull('status')
-                  ->orWhere('status', '!=', 'sent_to_photo_section');
+                  ->orWhere(function($sq) {
+                      $sq->where('status', '!=', 'sent_to_photo_section')
+                         ->where('status', '!=', 'sent_to_specification');
+                  });
             })->where(function($q) {
                 $q->whereNull('status_done')
                   ->orWhere('status_done', '')
@@ -79,7 +90,9 @@ class ProductController extends Controller
             ->where('supplier_user_id', $user->sno)
             ->where(function($q) {
                 $q->where('status', 'sent_to_photo_section')
+                  ->orWhere('status', 'sent_to_specification')
                   ->orWhere('status_done', 'sent_to_photo_section')
+                  ->orWhere('status_done', 'sent_to_specification')
                   ->orWhere(function($sub) {
                       $sub->whereNotNull('status_done')
                           ->where('status_done', '!=', '')
@@ -89,7 +102,7 @@ class ProductController extends Controller
 
         $products = $query->latest('sno')->paginate(15)->withQueryString();
 
-        return view('supplier.products.index', compact('products', 'tab', 'pendingCount', 'sentCount'));
+        return view('supplier.products.index', compact('products', 'tab', 'pendingCount', 'sentCount', 'isIntegrated'));
     }
 
     public function create()
@@ -97,41 +110,70 @@ class ProductController extends Controller
         $user = auth()->guard('supplier')->user();
         $supplier = \App\Models\Supplier::find($user->supplier_id);
         $isIntegrated = $supplier ? (bool) $supplier->is_integrated : false;
-        $masters = $isIntegrated ? $this->getSupplierMasterData($user, $supplier) : [];
+        $masters = $this->getSupplierMasterData($user, $supplier);
         $vendorStockSkus = $isIntegrated ? $this->getSupplierVendorStockSkus($user, $supplier) : collect();
 
-        return view('supplier.products.create', compact('isIntegrated', 'masters', 'vendorStockSkus'));
+        $supplierNickname = '';
+        if ($supplier) {
+            $supplierNickname = !empty($supplier->nickname) 
+                ? trim($supplier->nickname) 
+                : (!empty($supplier->name) ? substr(strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $supplier->name)), 0, 4) : 'SUP');
+        }
+        if (empty($supplierNickname)) $supplierNickname = 'SUP';
+
+        $nextSpecId = ((int) \Illuminate\Support\Facades\DB::table('auto_designer_specification_master')->max('id')) + 1;
+
+        return view('supplier.products.create', compact('isIntegrated', 'masters', 'vendorStockSkus', 'supplierNickname', 'nextSpecId'));
     }
 
     public function store(Request $request)
     {
-        if (!$request->filled('name') && $request->filled('item_name')) {
-            $itemNameRow = \Illuminate\Support\Facades\DB::table('auto_itemname_master')
-                ->where('id', $request->item_name)
-                ->orWhere('sno', $request->item_name)
-                ->first();
-            if ($itemNameRow) {
-                $request->merge(['name' => $itemNameRow->itemname]);
-            } else {
-                $request->merge(['name' => $request->item_name]);
-            }
-        }
-
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'main_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:25600',
-            'sub_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:25600',
-        ]);
-
         $user = auth()->guard('supplier')->user();
         $supplierId = $user->supplier_id;
         $supplier = \App\Models\Supplier::find($supplierId);
         $isSupplierIntegrated = $supplier ? (bool) $supplier->is_integrated : false;
 
+        $supplierNickname = '';
+        if ($supplier) {
+            $supplierNickname = !empty($supplier->nickname) 
+                ? trim($supplier->nickname) 
+                : (!empty($supplier->name) ? substr(strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $supplier->name)), 0, 4) : 'SUP');
+        }
+        if (empty($supplierNickname)) $supplierNickname = 'SUP';
+
         $isProductIntegrated = false;
         if ($isSupplierIntegrated) {
             $mode = $request->input('catalog_mode', $request->input('catalog_mode_switch', 'integrated'));
             $isProductIntegrated = ($mode === 'integrated');
+        }
+
+        if ($isProductIntegrated) {
+            $itemCode = 'ITM';
+            if ($request->filled('item_name')) {
+                $itemNameRow = \Illuminate\Support\Facades\DB::table('auto_itemname_master')
+                    ->where('id', $request->item_name)
+                    ->orWhere('sno', $request->item_name)
+                    ->first();
+                if ($itemNameRow) {
+                    $request->merge(['name' => $itemNameRow->itemname]);
+                    if (!empty($itemNameRow->code)) {
+                        $itemCode = strtoupper($itemNameRow->code);
+                    }
+                } else {
+                    $request->merge(['name' => $request->item_name]);
+                }
+            }
+
+            // Auto-generate SKU if not manually specified
+            if (!$request->filled('product_sku')) {
+                $nextSpecId = ((int) \Illuminate\Support\Facades\DB::table('auto_designer_specification_master')->max('id')) + 1;
+                $autoGeneratedSku = strtoupper("{$itemCode}-{$supplierNickname}-{$nextSpecId}");
+                $request->merge(['product_sku' => $autoGeneratedSku]);
+            }
+        } else {
+            $request->validate([
+                'name' => 'required|string|max:255',
+            ]);
         }
 
         $data = $request->except([
@@ -140,7 +182,7 @@ class ProductController extends Controller
             'filter_item_type', 'filter_item_name', 'filter_composition', 'filter_gender',
             'filter_stock_qty', 'selected_spec_id'
         ]);
-        $data['is_integrated'] = $isProductIntegrated;
+        $data['is_integrated'] = $isProductIntegrated ? 1 : 0;
         $data['stock'] = (isset($data['stock']) && $data['stock'] !== '' && is_numeric($data['stock'])) ? (int) $data['stock'] : 1;
 
         if ($isProductIntegrated) {
@@ -178,7 +220,13 @@ class ProductController extends Controller
                         ->withErrors(['stock' => "Stock quantity cannot exceed the actual available stock ({$maxAvailStock})."]);
                 }
             }
+        } else {
+            $data['name'] = $request->input('name');
+            $data['item_name'] = null;
+            $data['product_sku'] = null;
+            $data['intregated_sku'] = null;
         }
+
         $data['supplier_id'] = $supplierId;
         $data['supplier_user_id'] = $user->sno;
         $data['countryid'] = $user->countryid;
@@ -187,9 +235,12 @@ class ProductController extends Controller
         $data['projectid'] = $user->projectid;
         $data['subprojectid'] = $user->subprojectid;
 
-        if ($request->filled('product_sku')) {
+        if ($isProductIntegrated && $request->filled('product_sku')) {
             $data['product_sku'] = $request->product_sku;
             $data['intregated_sku'] = $request->product_sku;
+        } else {
+            $data['product_sku'] = null;
+            $data['intregated_sku'] = null;
         }
 
         if ($request->hasFile('main_image')) {
@@ -249,12 +300,13 @@ class ProductController extends Controller
                 ->with('success', 'Product saved successfully.');
         }
 
-        // OLD FLOW FOR "ADD NEW PRODUCT" (Manual Mode):
-        // status_done remains null so it flows naturally to Admin Product Specifications
-        SupplierProduct::create($data);
+        // FLOW FOR "ADD NEW PRODUCT" (Manual Mode / Non-Integrated):
+        $data['status'] = 'draft';
+        $data['status_done'] = 'draft';
+        $supplierProduct = SupplierProduct::create($data);
 
         return redirect()->route('supplier.products.index')
-            ->with('success', 'Product created successfully.');
+            ->with('success', 'Product created successfully and added to Review Selection.');
     }
 
     public function show($id)
@@ -972,7 +1024,7 @@ class ProductController extends Controller
         $productIds = array_filter(array_map('intval', (array) $productIds));
 
         if (empty($productIds)) {
-            return redirect()->back()->with('error', 'Please select at least one product to send to the Photo Section.');
+            return redirect()->back()->with('error', 'Please select at least one product.');
         }
 
         $products = SupplierProduct::where('supplier_id', $supplierId)
@@ -980,14 +1032,77 @@ class ProductController extends Controller
             ->whereIn('sno', $productIds)
             ->get();
 
+        if ($products->isEmpty()) {
+            return redirect()->back()->with('error', 'No products found.');
+        }
+
+        $photoCount = 0;
+        $specCount = 0;
+        foreach ($products as $product) {
+            if ($product->is_integrated) {
+                $this->dispatchProductToPhotoSection($product, $user, $supplierId);
+                $photoCount++;
+            } else {
+                $this->dispatchProductToSpecification($product, $user, $supplierId);
+                $specCount++;
+            }
+        }
+
+        $parts = [];
+        if ($photoCount > 0) $parts[] = "{$photoCount} product(s) sent to Photo Section";
+        if ($specCount > 0) $parts[] = "{$specCount} product(s) sent to Specification";
+
+        return redirect()->route('supplier.products.index')
+            ->with('success', implode(' and ', $parts) . ' successfully.');
+    }
+
+    public function sendToSpecification(Request $request)
+    {
+        $user = auth()->guard('supplier')->user();
+        $supplierId = $user->supplier_id;
+
+        $productIds = $request->input('product_ids', []);
+        if (is_string($productIds)) {
+            $productIds = explode(',', $productIds);
+        }
+        $productIds = array_filter(array_map('intval', (array) $productIds));
+
+        if (empty($productIds)) {
+            return redirect()->back()->with('error', 'Please select at least one product to send to Specification.');
+        }
+
+        $products = SupplierProduct::where('supplier_id', $supplierId)
+            ->where('supplier_user_id', $user->sno)
+            ->whereIn('sno', $productIds)
+            ->get();
+
+        if ($products->isEmpty()) {
+            return redirect()->back()->with('error', 'No products found.');
+        }
+
         $count = 0;
         foreach ($products as $product) {
-            $this->dispatchProductToPhotoSection($product, $user, $supplierId);
+            $this->dispatchProductToSpecification($product, $user, $supplierId);
             $count++;
         }
 
         return redirect()->route('supplier.products.index')
-            ->with('success', "{$count} product(s) sent to Photo Section successfully.");
+            ->with('success', "{$count} product(s) sent to Specification successfully.");
+    }
+
+    public function sendSingleToSpecification($id)
+    {
+        $user = auth()->guard('supplier')->user();
+        $supplierId = $user->supplier_id;
+
+        $product = SupplierProduct::where('supplier_id', $supplierId)
+            ->where('supplier_user_id', $user->sno)
+            ->findOrFail($id);
+
+        $this->dispatchProductToSpecification($product, $user, $supplierId);
+
+        return redirect()->route('supplier.products.index')
+            ->with('success', "Product '{$product->name}' sent to Specification successfully.");
     }
 
     public function sendSingleToPhotoSection($id)
@@ -999,19 +1114,39 @@ class ProductController extends Controller
             ->where('supplier_user_id', $user->sno)
             ->findOrFail($id);
 
+        if (!$product->is_integrated) {
+            $this->dispatchProductToSpecification($product, $user, $supplierId);
+            return redirect()->route('supplier.products.index')
+                ->with('success', "Product '{$product->name}' sent to Specification successfully.");
+        }
+
         $this->dispatchProductToPhotoSection($product, $user, $supplierId);
 
         return redirect()->route('supplier.products.index')
             ->with('success', "Product '{$product->name}' sent to Photo Section successfully.");
     }
 
+    protected function dispatchProductToSpecification(SupplierProduct $product, $user, $supplierId)
+    {
+        $product->update([
+            'status' => 'sent_to_specification',
+            'status_done' => 'sent_to_specification',
+        ]);
+    }
+
     protected function dispatchProductToPhotoSection(SupplierProduct $product, $user, $supplierId)
     {
         $sku = trim((string) $product->product_sku);
 
-        // 1. Find matching specification in auto_designer_specification_master
+        // 1. Find matching specification in auto_designer_specification_master (by supplier_product_id or sku)
         $spec = null;
-        if (!empty($sku)) {
+        if (!empty($product->sno)) {
+            $spec = \Illuminate\Support\Facades\DB::table('auto_designer_specification_master')
+                ->where('supplier_product_id', $product->sno)
+                ->orderByDesc('sno')
+                ->first();
+        }
+        if (!$spec && !empty($sku)) {
             $spec = \Illuminate\Support\Facades\DB::table('auto_designer_specification_master')
                 ->where(function ($q) use ($sku) {
                     $q->where('sku', $sku)
@@ -1041,8 +1176,10 @@ class ProductController extends Controller
                 'supplier_product_id' => $product->sno,
             ];
 
-            // Ensure status allows it to show in Photo Section pending
-            if (!empty($spec->status) && $spec->status !== 'done') {
+            // Preserve pending_specification status if not completed by admin
+            if ($spec->status === 'pending_specification') {
+                $updateData['status'] = 'pending_specification';
+            } elseif (!empty($spec->status) && $spec->status !== 'done') {
                 $updateData['status'] = '';
             }
 
@@ -1068,7 +1205,7 @@ class ProductController extends Controller
 
             $targetSpecId = $spec->id ?: $spec->sno;
         } else {
-            // If no existing spec found, create a new row in auto_designer_specification_master
+            // If no existing spec found, create a new row in auto_designer_specification_master with status = pending_specification
             $nextId = (\Illuminate\Support\Facades\DB::table('auto_designer_specification_master')->max('id') ?? 0) + 1;
             $nextSno = (\Illuminate\Support\Facades\DB::table('auto_designer_specification_master')->max('sno') ?? 0) + 1;
             $barcode = $sku ?: 'SP' . str_pad($product->sno, 6, '0', STR_PAD_LEFT);
@@ -1104,7 +1241,7 @@ class ProductController extends Controller
                 'supplier_person_id' => $user->sno,
                 'supplier_product_id' => $product->sno,
                 'is_sent_to_photo_section' => 0,
-                'status' => '',
+                'status' => 'pending_specification',
             ]);
         }
 
@@ -1123,6 +1260,178 @@ class ProductController extends Controller
         $product->update([
             'status' => 'sent_to_photo_section',
             'status_done' => 'sent_to_photo_section',
+        ]);
+    }
+
+    /**
+     * AJAX to add a new Item Name master from supplier panel
+     */
+    public function storeItemName(Request $request)
+    {
+        $user = auth()->guard('supplier')->user();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated.'], 401);
+        }
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'code' => 'nullable|string|max:10',
+        ]);
+
+        $name = trim($request->name);
+        $companyId = (int) ($user->companyid ?? 1);
+        $subCompanyId = (int) ($user->subcompanyid ?? 1);
+        $projectId = (int) ($user->projectid ?? 1);
+
+        // Check if item name already exists (case-insensitive)
+        $duplicate = \Illuminate\Support\Facades\DB::table('auto_itemname_master')
+            ->whereRaw('LOWER(itemname) = ?', [strtolower($name)])
+            ->first();
+
+        if ($duplicate) {
+            return response()->json([
+                'success' => true,
+                'already_exists' => true,
+                'message' => 'Item name already exists.',
+                'id' => $duplicate->id,
+                'name' => $duplicate->itemname,
+                'code' => $duplicate->code,
+            ]);
+        }
+
+        $code = null;
+        if ($request->filled('code')) {
+            $rawCode = strtoupper(preg_replace('/[^A-Z0-9]/', '', trim($request->code)));
+            if (!empty($rawCode)) {
+                if (strlen($rawCode) < 3) {
+                    $rawCode = str_pad($rawCode, 3, 'X');
+                } else {
+                    $rawCode = substr($rawCode, 0, 4);
+                }
+
+                $codeExists = \Illuminate\Support\Facades\DB::table('auto_itemname_master')
+                    ->where('code', $rawCode)
+                    ->exists();
+
+                if ($codeExists) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "The code '{$rawCode}' is already in use by another item. Please choose a different code or leave blank to auto-generate."
+                    ], 422);
+                }
+
+                $code = $rawCode;
+            }
+        }
+
+        // If blank or not provided, auto-generate unique 3-letter code
+        if (empty($code)) {
+            $code = $this->generateItemCode($name, $companyId, $subCompanyId, $projectId);
+        }
+
+        $maxId = (int) \Illuminate\Support\Facades\DB::table('auto_itemname_master')->max('id');
+        $nextId = $maxId + 1;
+
+        $newSno = \Illuminate\Support\Facades\DB::table('auto_itemname_master')->insertGetId([
+            'id' => $nextId,
+            'itemname' => $name,
+            'code' => $code,
+            'companyid' => $companyId,
+            'subcompanyid' => $subCompanyId,
+            'projectid' => $projectId,
+            'loginid' => $user->email ?? $user->name ?? 'supplier',
+            'edatetime' => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Item name added successfully.',
+            'id' => $nextId,
+            'sno' => $newSno,
+            'name' => $name,
+            'code' => $code,
+        ]);
+    }
+
+    /**
+     * Helper to generate unique 3-char code for Item Name
+     */
+    private function generateItemCode(string $name, int $companyId, int $subCompanyId, int $projectId): string
+    {
+        $cleanName = strtoupper(preg_replace('/[^A-Z0-9 ]/', '', trim($name)));
+        $words = preg_split('/\s+/', $cleanName);
+        $code = '';
+        foreach ($words as $word) {
+            if ($word === '') continue;
+            $code .= substr($word, 0, 1);
+            if (strlen($code) >= 3) break;
+        }
+
+        $lettersOnly = preg_replace('/[^A-Z0-9]/', '', $cleanName);
+        for ($i = 0; $i < strlen($lettersOnly) && strlen($code) < 3; $i++) {
+            $char = $lettersOnly[$i];
+            if (strpos($code, $char) === false) {
+                $code .= $char;
+            }
+        }
+
+        $code = substr(str_pad($code, 3, 'X'), 0, 3);
+        $baseCode = $code;
+        $counter = 1;
+
+        while (true) {
+            $exists = \Illuminate\Support\Facades\DB::table('auto_itemname_master')
+                ->where('code', $code)
+                ->exists();
+
+            if (!$exists) break;
+
+            $suffix = (string) $counter;
+            $code = substr($baseCode, 0, 3 - strlen($suffix)) . $suffix;
+            $counter++;
+        }
+
+        return strtoupper($code);
+    }
+
+    /**
+     * AJAX endpoint to preview auto-generated SKU for supplier
+     */
+    public function generateSkuPreview(Request $request)
+    {
+        $user = auth()->guard('supplier')->user();
+        $supplier = \App\Models\Supplier::find($user->supplier_id);
+
+        $itemId = $request->query('item_name_id');
+        $itemCode = 'ITM';
+
+        if ($itemId) {
+            $itemRow = \Illuminate\Support\Facades\DB::table('auto_itemname_master')
+                ->where('id', $itemId)
+                ->orWhere('sno', $itemId)
+                ->first();
+            if ($itemRow && !empty($itemRow->code)) {
+                $itemCode = strtoupper($itemRow->code);
+            }
+        }
+
+        $supplierNickname = '';
+        if ($supplier) {
+            $supplierNickname = !empty($supplier->nickname) 
+                ? trim($supplier->nickname) 
+                : (!empty($supplier->name) ? substr(strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $supplier->name)), 0, 4) : 'SUP');
+        }
+        if (empty($supplierNickname)) $supplierNickname = 'SUP';
+
+        $nextId = ((int) \Illuminate\Support\Facades\DB::table('auto_designer_specification_master')->max('id')) + 1;
+        $generatedSku = strtoupper("{$itemCode}-{$supplierNickname}-{$nextId}");
+
+        return response()->json([
+            'success' => true,
+            'sku' => $generatedSku,
+            'next_id' => $nextId,
+            'item_code' => $itemCode,
+            'supplier_nickname' => $supplierNickname,
         ]);
     }
 }
