@@ -23,7 +23,7 @@
         </div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
             <a href="{{ route('admin.publish-products.index') }}" class="btn btn-primary btn-sm rounded-pill px-3 shadow-xs hover-elevate">
-                <i class="bi bi-send-plus me-1.5"></i> Publish New Product
+                <i class="bi bi-send-plus me-1.5"></i> Ready for Publish products
             </a>
             <a href="{{ route('admin.update-products.index') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 shadow-xs hover-elevate">
                 <i class="bi bi-arrow-repeat me-1.5"></i> Stock & Price Sync

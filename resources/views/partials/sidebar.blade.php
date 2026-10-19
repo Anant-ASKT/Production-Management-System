@@ -249,7 +249,7 @@
                     <i class="bi bi-send-check"></i>
 
                     <span>
-                        Publish Products
+                        Ready for Publish products
                     </span>
                 </a>
             </li>
@@ -410,6 +410,15 @@
                         <i class="bi bi-truck"></i>
                         <span>
                             Suppliers
+                        </span>
+                    </a>
+                </li>
+
+                <li>
+                    <a href="{{ route('admin.retailers.index') }}" class="{{ request()->routeIs('admin.retailers.*') ? 'active' : '' }}">
+                        <i class="bi bi-shop"></i>
+                        <span>
+                            Retailers
                         </span>
                     </a>
                 </li>

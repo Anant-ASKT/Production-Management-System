@@ -1243,7 +1243,19 @@ class AllGarmentsController extends Controller
             return redirect()->route('login');
         }
 
-        return view('ai-description.index');
+        $itemTypes = DB::table('auto_itemtype_master')
+            ->orderBy('itemtype')
+            ->get(['id', 'itemtype']);
+
+        $itemNames = DB::table('auto_itemname_master')
+            ->orderBy('itemname')
+            ->get(['id', 'itemname']);
+
+        $genders = DB::table('auto_gender_master')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return view('ai-description.index', compact('itemTypes', 'itemNames', 'genders'));
     }
 
     /*
@@ -1283,23 +1295,13 @@ public function aiDescriptionData(Request $request)
         20
     );
 
-
     if (!in_array(
         $perPage,
-        [10, 20, 30, 50],
+        [10, 20, 30, 50, 100],
         true
     )) {
-
         $perPage = 20;
-
     }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | SEARCH
-    |--------------------------------------------------------------------------
-    */
 
     $search = trim(
         $request->input(
@@ -1307,6 +1309,17 @@ public function aiDescriptionData(Request $request)
             ''
         )
     );
+
+    $status = trim(
+        $request->input(
+            'status',
+            'all'
+        )
+    );
+
+    $itemType = $request->input('item_type');
+    $itemName = $request->input('item_name');
+    $gender = $request->input('gender');
 
 
     /*
@@ -1479,6 +1492,67 @@ public function aiDescriptionData(Request $request)
 
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | MASTER FILTERS (Item Type, Item Name, Gender)
+    |--------------------------------------------------------------------------
+    */
+
+    if (!empty($itemType) && $itemType !== 'all') {
+        $query->where('dsm.item_type', $itemType);
+    }
+
+    if (!empty($itemName) && $itemName !== 'all') {
+        $query->where('dsm.item_name', $itemName);
+    }
+
+    if (!empty($gender) && $gender !== 'all') {
+        $query->where('dsm.gender', $gender);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | COMPUTE STATUS COUNTS ACROSS FILTERED BASE
+    |--------------------------------------------------------------------------
+    */
+
+    $statusCounts = (clone $query)
+        ->selectRaw("
+            COUNT(*) as total_all,
+            SUM(CASE WHEN EXISTS (SELECT 1 FROM AI_product_description WHERE product_id = dsm.sno) THEN 1 ELSE 0 END) as total_saved,
+            SUM(CASE WHEN aei.sno IS NOT NULL AND NOT EXISTS (SELECT 1 FROM AI_product_description WHERE product_id = dsm.sno) THEN 1 ELSE 0 END) as total_ready,
+            SUM(CASE WHEN aei.sno IS NULL THEN 1 ELSE 0 END) as total_no_image
+        ")
+        ->first();
+
+    /*
+    |--------------------------------------------------------------------------
+    | STATUS FILTER
+    |--------------------------------------------------------------------------
+    */
+
+    if ($status === 'saved') {
+        $query->whereExists(function ($q) {
+            $q->select(DB::raw(1))
+              ->from('AI_product_description as aipd')
+              ->whereColumn('aipd.product_id', 'dsm.sno');
+        });
+    } elseif ($status === 'pending') {
+        $query->whereNotExists(function ($q) {
+            $q->select(DB::raw(1))
+              ->from('AI_product_description as aipd')
+              ->whereColumn('aipd.product_id', 'dsm.sno');
+        });
+    } elseif ($status === 'ready') {
+        $query->whereNotNull('aei.sno')
+              ->whereNotExists(function ($q) {
+                  $q->select(DB::raw(1))
+                    ->from('AI_product_description as aipd')
+                    ->whereColumn('aipd.product_id', 'dsm.sno');
+              });
+    } elseif ($status === 'no_image') {
+        $query->whereNull('aei.sno');
+    }
 
     /*
     |--------------------------------------------------------------------------
@@ -1681,7 +1755,14 @@ public function aiDescriptionData(Request $request)
             $products->firstItem(),
 
         'to' =>
-            $products->lastItem()
+            $products->lastItem(),
+
+        'status_counts' => [
+            'all' => (int) ($statusCounts->total_all ?? 0),
+            'saved' => (int) ($statusCounts->total_saved ?? 0),
+            'ready' => (int) ($statusCounts->total_ready ?? 0),
+            'no_image' => (int) ($statusCounts->total_no_image ?? 0),
+        ]
 
     ]);
 }

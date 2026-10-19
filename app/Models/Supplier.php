@@ -31,6 +31,14 @@ class Supplier extends Authenticatable
     }
 
     /**
+     * Get the default owner user belonging to this supplier/retailer.
+     */
+    public function defaultOwner()
+    {
+        return $this->hasOne(SupplierUser::class, 'supplier_id', 'sno')->where('role', 'Owner');
+    }
+
+    /**
      * Determine if this entity is a supplier.
      */
     public function isSupplier(): bool

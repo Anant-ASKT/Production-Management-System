@@ -79,17 +79,7 @@
                             <small class="text-muted">Unique 3-letter code (e.g. ABC)</small>
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Is Supplier or Retailer? *</label>
-                            <select name="type" id="type" class="form-select @error('type') is-invalid @enderror" required>
-                                <option value="supplier" {{ old('type', $supplier->type ?? 'supplier') == 'supplier' ? 'selected' : '' }}>Supplier</option>
-                                <option value="retailer" {{ old('type', $supplier->type ?? 'supplier') == 'retailer' ? 'selected' : '' }}>Retailer</option>
-                            </select>
-                            <small class="text-muted">Select whether this organization is a Supplier or Retailer (Default: Supplier)</small>
-                            @error('type')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
+                        <input type="hidden" name="type" value="supplier">
                         
                         <div class="mb-3">
                             <label class="form-label fw-bold">Company Email *</label>
@@ -115,6 +105,7 @@
                             <textarea name="address" class="form-control" rows="2">{{ old('address', $supplier->address) }}</textarea>
                         </div>
 
+                        {{-- API Credentials (Optional)
                         <div class="border-top pt-3 mt-3">
                             <h6 class="text-secondary fw-bold mb-3">API Credentials (Optional)</h6>
                             
@@ -131,6 +122,7 @@
                                 <input type="text" name="consumer_secret" class="form-control" value="{{ old('consumer_secret', $supplier->consumer_secret) }}">
                             </div>
                         </div>
+                        --}}
 
                         <div class="mt-4">
                             <button type="submit" class="btn btn-primary w-100">

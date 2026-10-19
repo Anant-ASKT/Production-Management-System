@@ -638,6 +638,7 @@ Route::get(
 
 
 use App\Http\Controllers\AdminSupplierController;
+use App\Http\Controllers\AdminRetailerController;
 use App\Http\Controllers\AdminSupplierWebsiteController;
 use App\Http\Controllers\AdminCategoryController;
 use App\Http\Controllers\AdminSamplingCompanyController;
@@ -647,6 +648,12 @@ Route::middleware('auth')->group(function () {
     Route::post('admin/suppliers/{supplier}/users', [AdminSupplierController::class, 'addUser'])->name('admin.suppliers.users.store');
     Route::put('admin/suppliers/{supplier}/users/{user}', [AdminSupplierController::class, 'updateUser'])->name('admin.suppliers.users.update');
     Route::delete('admin/suppliers/{supplier}/users/{user}', [AdminSupplierController::class, 'deleteUser'])->name('admin.suppliers.users.destroy');
+
+    // Retailer Management Routes
+    Route::resource('admin/retailers', AdminRetailerController::class)->names('admin.retailers')->except(['show', 'destroy']);
+    Route::post('admin/retailers/{retailer}/users', [AdminRetailerController::class, 'addUser'])->name('admin.retailers.users.store');
+    Route::put('admin/retailers/{retailer}/users/{user}', [AdminRetailerController::class, 'updateUser'])->name('admin.retailers.users.update');
+    Route::delete('admin/retailers/{retailer}/users/{user}', [AdminRetailerController::class, 'deleteUser'])->name('admin.retailers.users.destroy');
 
     // Supplier Website Store Management Routes (Live WooCommerce Products & Categories)
     Route::get('admin/suppliers/{supplier}/website', [AdminSupplierWebsiteController::class, 'index'])->name('admin.suppliers.website.index');
@@ -721,8 +728,11 @@ Route::prefix('supplier')->name('supplier.')->group(function () {
         Route::post('logout', [SupplierLoginController::class, 'logout'])->name('logout');
         
         Route::get('products/search-specifications', [\App\Http\Controllers\Supplier\ProductController::class, 'searchSpecifications'])->name('products.search-specifications');
+        Route::post('products/send-to-photo-section', [\App\Http\Controllers\Supplier\ProductController::class, 'sendToPhotoSection'])->name('products.send-to-photo-section');
+        Route::post('products/bulk-delete', [\App\Http\Controllers\Supplier\ProductController::class, 'bulkDelete'])->name('products.bulk-delete');
+        Route::post('products/{product}/send-to-photo-section', [\App\Http\Controllers\Supplier\ProductController::class, 'sendSingleToPhotoSection'])->name('products.send-single-to-photo-section');
         Route::delete('products/{product}/image', [\App\Http\Controllers\Supplier\ProductController::class, 'deleteImage'])->name('products.delete-image');
-        Route::resource('products', \App\Http\Controllers\Supplier\ProductController::class)->except(['show']);
+        Route::resource('products', \App\Http\Controllers\Supplier\ProductController::class);
 
         // Supplier Website Orders Routes
         Route::get('orders', [\App\Http\Controllers\Supplier\OrderController::class, 'index'])->name('orders.index');

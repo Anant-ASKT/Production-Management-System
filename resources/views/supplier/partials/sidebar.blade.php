@@ -56,9 +56,15 @@
         <div class="sidebar-section-title">Catalog</div>
         <ul class="sidebar-menu">
             <li>
-                <a href="{{ route('supplier.products.index') }}" class="{{ request()->routeIs('supplier.products.*') ? 'active' : '' }}">
-                    <i class="bi bi-boxes"></i>
-                    <span>My Products</span>
+                <a href="{{ route('supplier.products.create') }}" class="{{ request()->routeIs('supplier.products.create') ? 'active' : '' }}">
+                    <i class="bi bi-plus-circle"></i>
+                    <span>Add Product</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ route('supplier.products.index') }}" class="{{ request()->routeIs('supplier.products.*') && !request()->routeIs('supplier.products.create') ? 'active' : '' }}">
+                    <i class="bi bi-check2-square"></i>
+                    <span>Review Selection</span>
                 </a>
             </li>
         </ul>

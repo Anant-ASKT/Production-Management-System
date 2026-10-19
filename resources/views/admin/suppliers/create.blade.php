@@ -48,17 +48,7 @@
                         <small class="text-muted">Unique 3-letter code (e.g. ABC)</small>
                     </div>
 
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label fw-bold">Is Supplier or Retailer? *</label>
-                        <select name="type" id="type" class="form-select @error('type') is-invalid @enderror" required>
-                            <option value="supplier" {{ old('type', 'supplier') == 'supplier' ? 'selected' : '' }}>Supplier</option>
-                            <option value="retailer" {{ old('type') == 'retailer' ? 'selected' : '' }}>Retailer</option>
-                        </select>
-                        <small class="text-muted">Select whether this account is a Supplier or Retailer (Default: Supplier)</small>
-                        @error('type')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
+                    <input type="hidden" name="type" value="supplier">
 
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-bold">Is Integrated? *</label>
@@ -116,7 +106,7 @@
                     </div>
                 </div>
 
-                <!-- API Credentials -->
+                {{-- API Credentials (Optional)
                 <h5 class="text-primary border-bottom pb-2 mt-4 mb-3">
                     <i class="bi bi-code-slash me-1"></i> API Credentials (Optional)
                 </h5>
@@ -135,6 +125,7 @@
                         <input type="text" name="consumer_secret" class="form-control" value="{{ old('consumer_secret') }}">
                     </div>
                 </div>
+                --}}
 
                 <div class="mt-4 pt-3 border-top d-flex gap-2">
                     <button type="submit" class="btn btn-primary px-4">

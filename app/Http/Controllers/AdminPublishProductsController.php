@@ -359,8 +359,11 @@ class AdminPublishProductsController extends Controller
             ->orderBy('sno', 'asc')
             ->get();
 
-        // Fetch all suppliers for target store selection
-        $suppliers = DB::table('suppliers')->orderBy('name', 'asc')->get();
+        // Fetch only retailers for target store selection (not suppliers)
+        $suppliers = DB::table('suppliers')
+            ->where('type', 'retailer')
+            ->orderBy('name', 'asc')
+            ->get();
 
         // Fetch existing published records for this specification
         $publishedRecords = DB::table('published_products as pp')
@@ -376,8 +379,10 @@ class AdminPublishProductsController extends Controller
             ->orderBy('pp.updated_at', 'desc')
             ->get();
 
-        // Fetch hierarchical categories for initial target supplier (default to product origin supplier or first supplier)
-        $defaultTargetSupplierId = $uploadSupplierId ?? ($product->supplier_id ?? ($suppliers->first()->sno ?? null));
+        // Fetch hierarchical categories for initial target retailer
+        $defaultTargetSupplierId = ($suppliers->firstWhere('sno', $uploadSupplierId)->sno ?? null)
+            ?? ($suppliers->firstWhere('sno', $product->supplier_id)->sno ?? null)
+            ?? ($suppliers->first()->sno ?? null);
         $categories = $defaultTargetSupplierId 
             ? Category::getHierarchicalCategories($defaultTargetSupplierId) 
             : collect();

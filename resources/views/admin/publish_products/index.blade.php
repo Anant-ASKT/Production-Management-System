@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Publish Products')
+@section('title', 'Ready for Publish products')
 
 @section('content')
 <div class="container-fluid py-3">
@@ -12,7 +12,7 @@
                 <span class="badge bg-primary-subtle text-primary p-2 rounded-3 me-2">
                     <i class="bi bi-send-check fs-5"></i>
                 </span>
-                Publish Products
+                Ready for Publish products
             </h4>
             <p class="text-muted small mb-0">
                 Displaying products with completed AI descriptions and verified approved enhanced images.

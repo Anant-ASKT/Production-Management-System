@@ -29,19 +29,7 @@
         margin-bottom: 6px;
     }
 
-    .product-table-search {
-        padding: 12px 16px;
-        border-bottom: 1px solid #dee2e6;
-        background: #fff;
-    }
 
-    .product-table-search input {
-        min-height: 38px;
-    }
-
-    .product-table-search .btn {
-        min-height: 38px;
-    }
 
     .product-image-cell {
         width: 85px;
@@ -85,6 +73,35 @@
     .spec-row-selected {
         background-color: #f0f7ff !important;
     }
+
+    .clickable-photo {
+        cursor: zoom-in !important;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    }
+
+    .clickable-photo:hover {
+        transform: scale(1.03);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2) !important;
+        filter: brightness(1.05);
+    }
+
+    .locked-master-fields .select2-container {
+        pointer-events: none !important;
+    }
+    .locked-master-fields .select2-selection {
+        background-color: #f8f9fa !important;
+        border-color: #dee2e6 !important;
+        cursor: not-allowed !important;
+        color: #495057 !important;
+    }
+    .locked-master-fields .select2-selection__clear {
+        display: none !important;
+    }
+    .locked-master-fields input {
+        background-color: #f8f9fa !important;
+        pointer-events: none !important;
+        cursor: not-allowed !important;
+    }
 </style>
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
@@ -96,8 +113,24 @@
     </a>
 </div>
 
+@if(session('success'))
+    <div class="alert alert-success alert-dismissible fade show d-flex align-items-center shadow-sm mb-4" role="alert">
+        <i class="bi bi-check-circle-fill fs-4 me-2 text-success"></i>
+        <div class="fw-semibold">{{ session('success') }}</div>
+        <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+@endif
+
+@if(session('error'))
+    <div class="alert alert-danger alert-dismissible fade show d-flex align-items-center shadow-sm mb-4" role="alert">
+        <i class="bi bi-exclamation-triangle-fill fs-4 me-2 text-danger"></i>
+        <div class="fw-semibold">{{ session('error') }}</div>
+        <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+@endif
+
 @if ($errors->any())
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
         <ul class="mb-0">
             @foreach ($errors->all() as $error)
                 <li>{{ $error }}</li>
@@ -107,6 +140,7 @@
     </div>
 @endif
 
+{{--
 @if(!empty($isIntegrated))
     <!-- Direct Big Selection Buttons (Different Colors) -->
     <div class="d-flex flex-wrap gap-3 mb-4">
@@ -126,6 +160,7 @@
         </div>
     </div>
 @endif
+--}}
 
 <div class="card shadow-sm border-0">
     <div class="card-body p-4">
@@ -136,8 +171,15 @@
             @if(!empty($isIntegrated))
             {{-- CHOOSE SKU / SPECIFICATION AUTO-FILL & FILTERS --}}
             <div id="chooseSkuTopCard" class="mb-4">
-                <!-- Hidden input to store chosen SKU for form submission -->
+                <!-- Hidden inputs to store chosen SKU, action type and filters for submission/retention -->
                 <input type="hidden" name="selected_vendor_sku" id="select_vendor_sku" value="{{ old('product_sku') }}">
+                <input type="hidden" name="action_type" id="form_action_type" value="save_next">
+                <input type="hidden" name="selected_spec_id" id="selected_spec_id" value="{{ old('selected_spec_id', request('selected_spec_id')) }}">
+                <input type="hidden" name="filter_item_type" id="hidden_filter_item_type" value="{{ request('item_type', request('filter_item_type')) }}">
+                <input type="hidden" name="filter_item_name" id="hidden_filter_item_name" value="{{ request('item_name', request('filter_item_name')) }}">
+                <input type="hidden" name="filter_composition" id="hidden_filter_composition" value="{{ request('composition', request('filter_composition')) }}">
+                <input type="hidden" name="filter_gender" id="hidden_filter_gender" value="{{ request('gender', request('filter_gender')) }}">
+                <input type="hidden" name="filter_stock_qty" id="hidden_filter_stock_qty" value="{{ request('stock_qty', request('filter_stock_qty')) }}">
 
                 {{-- FILTER CARD --}}
                 <div class="card shadow-sm filter-card mb-3">
@@ -155,11 +197,11 @@
                                 <label for="filterItemType" class="form-label filter-label">
                                     Item Type
                                 </label>
-                                <select id="filterItemType" class="form-select select2-master">
-                                    <option value="">All Item Types</option>
+                                <select id="filterItemType" class="form-select select2-filter">
+                                    <option value="">All</option>
                                     @if(isset($masters['itemTypes']))
                                         @foreach($masters['itemTypes'] as $itemType)
-                                            <option value="{{ $itemType->id }}">
+                                            <option value="{{ $itemType->id }}" {{ (string)request('item_type', request('filter_item_type')) === (string)$itemType->id ? 'selected' : '' }}>
                                                 {{ $itemType->itemtype }}
                                             </option>
                                         @endforeach
@@ -172,11 +214,11 @@
                                 <label for="filterItemName" class="form-label filter-label">
                                     Item Name
                                 </label>
-                                <select id="filterItemName" class="form-select select2-master">
-                                    <option value="">All Item Names</option>
+                                <select id="filterItemName" class="form-select select2-filter">
+                                    <option value="">All</option>
                                     @if(isset($masters['itemNames']))
                                         @foreach($masters['itemNames'] as $itemName)
-                                            <option value="{{ $itemName->id }}">
+                                            <option value="{{ $itemName->id }}" {{ (string)request('item_name', request('filter_item_name')) === (string)$itemName->id ? 'selected' : '' }}>
                                                 {{ $itemName->itemname }}
                                             </option>
                                         @endforeach
@@ -189,11 +231,11 @@
                                 <label for="filterComposition" class="form-label filter-label">
                                     Composition
                                 </label>
-                                <select id="filterComposition" class="form-select select2-master">
-                                    <option value="">All Compositions</option>
+                                <select id="filterComposition" class="form-select select2-filter">
+                                    <option value="">All</option>
                                     @if(isset($masters['compositions']))
                                         @foreach($masters['compositions'] as $composition)
-                                            <option value="{{ $composition->id }}">
+                                            <option value="{{ $composition->id }}" {{ (string)request('composition', request('filter_composition')) === (string)$composition->id ? 'selected' : '' }}>
                                                 {{ $composition->composition_details }}
                                             </option>
                                         @endforeach
@@ -206,11 +248,11 @@
                                 <label for="filterGender" class="form-label filter-label">
                                     Gender Type
                                 </label>
-                                <select id="filterGender" class="form-select select2-master">
-                                    <option value="">All Gender Types</option>
+                                <select id="filterGender" class="form-select select2-filter">
+                                    <option value="">All</option>
                                     @if(isset($masters['genders']))
                                         @foreach($masters['genders'] as $gender)
-                                            <option value="{{ $gender->id }}">
+                                            <option value="{{ $gender->id }}" {{ (string)request('gender', request('filter_gender')) === (string)$gender->id ? 'selected' : '' }}>
                                                 {{ $gender->name }}
                                             </option>
                                         @endforeach
@@ -235,45 +277,31 @@
 
                 {{-- RESULT CARD --}}
                 <div class="card shadow-sm result-card mb-4" id="specTableCard">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <strong>
-                            <i class="bi bi-list-ul me-1"></i>
-                            Ready Products List
-                        </strong>
+                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <strong>
+                                <i class="bi bi-list-ul me-1"></i>
+                                Ready Products List
+                            </strong>
 
-                        <span id="totalProducts" class="badge bg-primary">0</span>
+                            <span id="totalProducts" class="badge bg-primary">0</span>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-2">
+                            <label for="filterStockQty" class="form-label mb-0 small fw-bold text-muted text-nowrap">
+                                <i class="bi bi-funnel me-1"></i>Stock:
+                            </label>
+                            <select id="filterStockQty" class="form-select form-select-sm" style="min-width: 160px;">
+                                <option value="">All Stock</option>
+                                <option value="1" {{ (string)request('stock_qty', request('filter_stock_qty')) === '1' ? 'selected' : '' }}>1</option>
+                                <option value="less_than_5" {{ (string)request('stock_qty', request('filter_stock_qty')) === 'less_than_5' ? 'selected' : '' }}>Less than 5</option>
+                                <option value="5_10" {{ (string)request('stock_qty', request('filter_stock_qty')) === '5_10' ? 'selected' : '' }}>5 - 10</option>
+                                <option value="10_above" {{ (string)request('stock_qty', request('filter_stock_qty')) === '10_above' ? 'selected' : '' }}>10 Above</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="card-body p-0">
-                        {{-- TABLE SEARCH --}}
-                        <div class="product-table-search">
-                            <div class="row g-2 align-items-center">
-                                <div class="col-md-8">
-                                    <div class="input-group">
-                                        <span class="input-group-text bg-white">
-                                            <i class="bi bi-search"></i>
-                                        </span>
-                                        <input type="text"
-                                               id="productTableSearch"
-                                               class="form-control"
-                                               placeholder="Search by name, SKU, color, size, type..."
-                                               autocomplete="off">
-                                    </div>
-                                </div>
-
-                                <div class="col-md-auto">
-                                    <button type="button"
-                                            id="btnResetTableSearch"
-                                            class="btn btn-outline-secondary">
-                                        <i class="bi bi-arrow-clockwise me-1"></i> Reset
-                                    </button>
-                                </div>
-
-                                <div class="col-md-auto">
-                                    <small id="productTableSearchInfo" class="text-muted"></small>
-                                </div>
-                            </div>
-                        </div>
 
                         <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
                             <table class="table table-bordered table-hover mb-0 align-middle" id="productSpecificationTable">
@@ -323,7 +351,10 @@
                     <input type="file" name="main_image" class="form-control" accept="image/*" id="mainImageInput">
                     <div id="mainImageNotice" class="small mt-1"></div>
                     <div class="mt-2 d-none" id="mainImagePreviewContainer">
-                        <img src="" id="mainImagePreview" class="rounded border shadow-sm" style="height: 150px; object-fit: cover;">
+                        <div class="position-relative d-inline-block">
+                            <img src="" id="mainImagePreview" class="rounded border shadow-sm clickable-photo" style="height: 150px; object-fit: cover;" title="Click to view big photo">
+                        </div>
+                        <div class="small text-muted mt-1"><i class="bi bi-zoom-in me-1"></i>Click image to view big photo</div>
                     </div>
                 </div>
                 
@@ -334,7 +365,24 @@
                     <div class="mt-2 d-flex gap-2 flex-wrap d-none" id="subImagesPreviewContainer">
                         <!-- Preview images will be appended here -->
                     </div>
+                    <div class="small text-muted mt-1 d-none" id="subImagesHint"><i class="bi bi-zoom-in me-1"></i>Click image to view big photo</div>
                 </div>
+
+                @if(!empty($isIntegrated))
+                <!-- Action Buttons: Save & Next / Save & Exit -->
+                <div class="col-md-12 mb-3 mt-2" id="photoSectionActionCard">
+                    <div class="d-flex flex-wrap justify-content-end gap-2">
+                        <button type="submit" name="action_type" value="save_next" class="btn btn-primary px-3 py-2 fw-semibold d-inline-flex align-items-center gap-2 shadow-sm btn-submit-action" id="btnSaveNextTop">
+                            <i class="bi bi-arrow-right-circle fs-5"></i>
+                            <span>Save &amp; Next</span>
+                        </button>
+                        <button type="submit" name="action_type" value="save_exit" class="btn btn-success px-3 py-2 fw-semibold d-inline-flex align-items-center gap-2 shadow-sm btn-submit-action" id="btnSaveExitTop">
+                            <i class="bi bi-check2-circle fs-5"></i>
+                            <span>Save &amp; Exit</span>
+                        </button>
+                    </div>
+                </div>
+                @endif
 
                 <!-- Basic Details section -->
                 <div class="col-md-12 mb-3 mt-3">
@@ -344,12 +392,18 @@
                 </div>
                 
                 <div class="col-md-6 mb-3">
-                    <label class="form-label fw-bold">Product Name *</label>
+                    <label class="form-label fw-bold">
+                        Product Name *
+                        <span class="badge bg-secondary-subtle text-secondary border ms-1 d-none" id="product_name_locked_badge"><i class="bi bi-lock-fill me-1"></i>From Item Name</span>
+                    </label>
                     <input type="text" name="name" id="product_name_input" class="form-control" value="{{ old('name') }}" placeholder="e.g. Premium Cotton Shirt" required>
                 </div>
 
                 <div class="col-md-6 mb-3">
-                    <label class="form-label fw-bold">Product SKU</label>
+                    <label class="form-label fw-bold">
+                        Product SKU
+                        <span class="badge bg-secondary-subtle text-secondary border ms-1 d-none" id="product_sku_locked_badge"><i class="bi bi-lock-fill me-1"></i>Locked</span>
+                    </label>
                     <div class="input-group">
                         <span class="input-group-text bg-light"><i class="bi bi-upc"></i></span>
                         <input type="text" name="product_sku" id="product_sku_input" class="form-control" value="{{ old('product_sku') }}" placeholder="e.g. SKU-12345">
@@ -377,6 +431,7 @@
                         Stock <span class="badge bg-success-subtle text-success border border-success-subtle ms-1" id="total_available_stock_badge">Total Available: <span id="total_available_stock_count">0</span></span>
                     </label>
                     <input type="number" name="stock" id="stock_input" class="form-control" value="{{ old('stock', 1) }}" min="1">
+                    <small class="text-danger d-none" id="stock_max_warning"><i class="bi bi-exclamation-triangle-fill me-1"></i>Cannot add more than actual stock (<span id="stock_max_val">0</span>)</small>
                 </div>
                 
                 <div class="col-md-12 mb-3">
@@ -390,172 +445,196 @@
                 <!-- =========================================================
                      INTEGRATED MASTER ATTRIBUTES SECTION
                 ========================================================= -->
-                <div id="integratedAttributesSection" class="col-md-12">
-                    <h5 class="text-primary border-bottom pb-2 mt-3 mb-3">
-                        <i class="bi bi-collection me-1"></i> Master Attributes
-                    </h5>
-
-                    <div class="row">
-                        {{-- Item Name --}}
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">Item Name *</label>
-                            <select name="item_name" id="master_item_name" class="form-select select2-master" required>
-                                <option value="">Select an option</option>
-                                @foreach($masters['itemNames'] ?? [] as $m)
-                                    <option value="{{ $m->id }}" data-name="{{ $m->itemname }}" data-code="{{ $m->code }}" {{ old('item_name') == $m->id ? 'selected' : '' }}>
-                                        {{ $m->itemname }} @if(!empty($m->code)) ({{ $m->code }}) @endif
-                                    </option>
-                                @endforeach
-                            </select>
+                <div id="integratedAttributesSection" class="col-md-12 mb-3">
+                    <div class="card border rounded shadow-sm">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center py-2 px-3" 
+                             style="cursor: pointer; user-select: none;" 
+                             id="toggleMasterAttributesHeader"
+                             data-bs-toggle="collapse" 
+                             data-bs-target="#masterAttributesCollapse" 
+                             aria-expanded="false" 
+                             aria-controls="masterAttributesCollapse">
+                            <span class="fw-bold text-primary d-flex align-items-center gap-2">
+                                <i class="bi bi-collection"></i>
+                                <span>Master Attributes</span>
+                            </span>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-secondary-subtle text-secondary border small fw-normal">
+                                    <i class="bi bi-lock-fill me-1"></i> Read-only from Specification
+                                </span>
+                                <span class="badge bg-primary text-white d-flex align-items-center gap-1 px-2 py-1">
+                                    <span id="masterAttrToggleText">Click to View Attributes</span>
+                                    <i class="bi bi-chevron-down" id="masterAttrToggleIcon"></i>
+                                </span>
+                            </div>
                         </div>
 
-                        {{-- Item Type --}}
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">Item Type *</label>
-                            <select name="item_type" id="master_item_type" class="form-select select2-master" required>
-                                <option value="">Select an option</option>
-                                @foreach($masters['itemTypes'] ?? [] as $m)
-                                    <option value="{{ $m->id }}" data-name="{{ $m->itemtype }}" data-code="{{ $m->code }}" {{ old('item_type') == $m->id ? 'selected' : '' }}>
-                                        {{ $m->itemtype }} @if(!empty($m->code)) ({{ $m->code }}) @endif
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                        <div class="collapse" id="masterAttributesCollapse">
+                            <div class="card-body border-top p-3 bg-white locked-master-fields">
+                                <div class="row">
+                                    {{-- Item Name --}}
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label fw-bold">Item Name</label>
+                                        <select name="item_name" id="master_item_name" class="form-select select2-master">
+                                            <option value="">Select an option</option>
+                                            @foreach($masters['itemNames'] ?? [] as $m)
+                                                <option value="{{ $m->id }}" data-name="{{ $m->itemname }}" data-code="{{ $m->code }}" {{ old('item_name') == $m->id ? 'selected' : '' }}>
+                                                    {{ $m->itemname }} @if(!empty($m->code)) ({{ $m->code }}) @endif
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
 
-                        {{-- Designer --}}
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">Designer *</label>
-                            <select name="designer" id="master_designer" class="form-select select2-master" required>
-                                <option value="">Select an option</option>
-                                @foreach($masters['designers'] ?? [] as $m)
-                                    <option value="{{ $m->id }}" data-name="{{ $m->designername }}" data-code="{{ $m->code }}" {{ old('designer') == $m->id ? 'selected' : '' }}>
-                                        {{ $m->designername }} @if(!empty($m->code)) ({{ $m->code }}) @endif
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                                    {{-- Item Type --}}
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label fw-bold">Item Type</label>
+                                        <select name="item_type" id="master_item_type" class="form-select select2-master">
+                                            <option value="">Select an option</option>
+                                            @foreach($masters['itemTypes'] ?? [] as $m)
+                                                <option value="{{ $m->id }}" data-name="{{ $m->itemtype }}" data-code="{{ $m->code }}" {{ old('item_type') == $m->id ? 'selected' : '' }}>
+                                                    {{ $m->itemtype }} @if(!empty($m->code)) ({{ $m->code }}) @endif
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
 
-                        {{-- Gender --}}
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">Gender *</label>
-                            <select name="gender" id="master_gender" class="form-select select2-master" required>
-                                <option value="">Select an option</option>
-                                @foreach($masters['genders'] ?? [] as $m)
-                                    <option value="{{ $m->id }}" data-name="{{ $m->name }}" data-code="{{ $m->code }}" {{ old('gender') == $m->id ? 'selected' : '' }}>
-                                        {{ $m->name }} @if(!empty($m->code)) ({{ $m->code }}) @endif
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                                    {{-- Designer --}}
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label fw-bold">Designer</label>
+                                        <select name="designer" id="master_designer" class="form-select select2-master">
+                                            <option value="">Select an option</option>
+                                            @foreach($masters['designers'] ?? [] as $m)
+                                                <option value="{{ $m->id }}" data-name="{{ $m->designername }}" data-code="{{ $m->code }}" {{ old('designer') == $m->id ? 'selected' : '' }}>
+                                                    {{ $m->designername }} @if(!empty($m->code)) ({{ $m->code }}) @endif
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
 
-                        {{-- Composition --}}
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">Composition *</label>
-                            <select name="composition" id="master_composition" class="form-select select2-master" required>
-                                <option value="">Select an option</option>
-                                @foreach($masters['compositions'] ?? [] as $m)
-                                    <option value="{{ $m->id }}" data-name="{{ $m->composition_details }}" data-code="{{ $m->code }}" {{ old('composition') == $m->id ? 'selected' : '' }}>
-                                        {{ $m->composition_details }} @if(!empty($m->code)) ({{ $m->code }}) @endif
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                                    {{-- Gender --}}
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label fw-bold">Gender</label>
+                                        <select name="gender" id="master_gender" class="form-select select2-master">
+                                            <option value="">Select an option</option>
+                                            @foreach($masters['genders'] ?? [] as $m)
+                                                <option value="{{ $m->id }}" data-name="{{ $m->name }}" data-code="{{ $m->code }}" {{ old('gender') == $m->id ? 'selected' : '' }}>
+                                                    {{ $m->name }} @if(!empty($m->code)) ({{ $m->code }}) @endif
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
 
-                        {{-- Colour --}}
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">Colour *</label>
-                            <select name="colour" id="master_colour" class="form-select select2-master" required>
-                                <option value="">Select an option</option>
-                                @foreach($masters['colours'] ?? [] as $m)
-                                    <option value="{{ $m->id }}" data-name="{{ $m->colourname }}" data-code="{{ $m->code }}" {{ old('colour') == $m->id ? 'selected' : '' }}>
-                                        {{ $m->colourname }} @if(!empty($m->code)) ({{ $m->code }}) @endif
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                                    {{-- Composition --}}
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label fw-bold">Composition</label>
+                                        <select name="composition" id="master_composition" class="form-select select2-master">
+                                            <option value="">Select an option</option>
+                                            @foreach($masters['compositions'] ?? [] as $m)
+                                                <option value="{{ $m->id }}" data-name="{{ $m->composition_details }}" data-code="{{ $m->code }}" {{ old('composition') == $m->id ? 'selected' : '' }}>
+                                                    {{ $m->composition_details }} @if(!empty($m->code)) ({{ $m->code }}) @endif
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
 
-                        {{-- Yarn Name --}}
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">Yarn Name</label>
-                            <select name="yarn" id="master_yarn" class="form-select select2-master">
-                                <option value="">Select an option</option>
-                                @foreach($masters['yarns'] ?? [] as $m)
-                                    <option value="{{ $m->id }}" data-name="{{ $m->yarnname }}" data-code="{{ $m->code }}" {{ old('yarn') == $m->id ? 'selected' : '' }}>
-                                        {{ $m->yarnname }} @if(!empty($m->code)) ({{ $m->code }}) @endif
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                                    {{-- Colour --}}
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label fw-bold">Colour</label>
+                                        <select name="colour" id="master_colour" class="form-select select2-master">
+                                            <option value="">Select an option</option>
+                                            @foreach($masters['colours'] ?? [] as $m)
+                                                <option value="{{ $m->id }}" data-name="{{ $m->colourname }}" data-code="{{ $m->code }}" {{ old('colour') == $m->id ? 'selected' : '' }}>
+                                                    {{ $m->colourname }} @if(!empty($m->code)) ({{ $m->code }}) @endif
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
 
-                        {{-- Size --}}
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">Size *</label>
-                            <select name="size" id="master_size" class="form-select select2-master" required>
-                                <option value="">Select an option</option>
-                                @foreach($masters['sizes'] ?? [] as $m)
-                                    <option value="{{ $m->id }}" data-name="{{ $m->size }}" data-code="{{ $m->code }}" {{ old('size') == $m->id ? 'selected' : '' }}>
-                                        {{ $m->size }} @if(!empty($m->code)) ({{ $m->code }}) @endif
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                                    {{-- Yarn Name --}}
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label fw-bold">Yarn Name</label>
+                                        <select name="yarn" id="master_yarn" class="form-select select2-master">
+                                            <option value="">Select an option</option>
+                                            @foreach($masters['yarns'] ?? [] as $m)
+                                                <option value="{{ $m->id }}" data-name="{{ $m->yarnname }}" data-code="{{ $m->code }}" {{ old('yarn') == $m->id ? 'selected' : '' }}>
+                                                    {{ $m->yarnname }} @if(!empty($m->code)) ({{ $m->code }}) @endif
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
 
-                        {{-- Embellishment --}}
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">Embellishment</label>
-                            <select name="embellishment" id="master_embellishment" class="form-select select2-master">
-                                <option value="">Select an option</option>
-                                @foreach($masters['embellishments'] ?? [] as $m)
-                                    <option value="{{ $m->id }}" data-name="{{ $m->embellishmentname }}" data-code="{{ $m->code }}" {{ old('embellishment') == $m->id ? 'selected' : '' }}>
-                                        {{ $m->embellishmentname }} @if(!empty($m->code)) ({{ $m->code }}) @endif
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                                    {{-- Size --}}
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label fw-bold">Size</label>
+                                        <select name="size" id="master_size" class="form-select select2-master">
+                                            <option value="">Select an option</option>
+                                            @foreach($masters['sizes'] ?? [] as $m)
+                                                <option value="{{ $m->id }}" data-name="{{ $m->size }}" data-code="{{ $m->code }}" {{ old('size') == $m->id ? 'selected' : '' }}>
+                                                    {{ $m->size }} @if(!empty($m->code)) ({{ $m->code }}) @endif
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
 
-                        {{-- Manufacturing Process --}}
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">Manufacturing Process</label>
-                            <select name="manufacturing_process" id="master_manufacturing_process" class="form-select select2-master">
-                                <option value="">Select an option</option>
-                                @foreach($masters['manufacturingProcesses'] ?? [] as $m)
-                                    <option value="{{ $m->id }}" data-name="{{ $m->manufacturing_process }}" data-code="{{ $m->code }}" {{ old('manufacturing_process') == $m->id ? 'selected' : '' }}>
-                                        {{ $m->manufacturing_process }} @if(!empty($m->code)) ({{ $m->code }}) @endif
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                                    {{-- Embellishment --}}
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label fw-bold">Embellishment</label>
+                                        <select name="embellishment" id="master_embellishment" class="form-select select2-master">
+                                            <option value="">Select an option</option>
+                                            @foreach($masters['embellishments'] ?? [] as $m)
+                                                <option value="{{ $m->id }}" data-name="{{ $m->embellishmentname }}" data-code="{{ $m->code }}" {{ old('embellishment') == $m->id ? 'selected' : '' }}>
+                                                    {{ $m->embellishmentname }} @if(!empty($m->code)) ({{ $m->code }}) @endif
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
 
-                        {{-- Craftsman --}}
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">Craftsman</label>
-                            <select name="craftsman" id="master_craftsman" class="form-select select2-master">
-                                <option value="">Select an option</option>
-                                @foreach($masters['craftsmen'] ?? [] as $m)
-                                    <option value="{{ $m->id }}" data-name="{{ $m->name }}" data-code="{{ $m->code }}" {{ old('craftsman') == $m->id ? 'selected' : '' }}>
-                                        {{ $m->name }} @if(!empty($m->code)) ({{ $m->code }}) @endif
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                                    {{-- Manufacturing Process --}}
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label fw-bold">Manufacturing Process</label>
+                                        <select name="manufacturing_process" id="master_manufacturing_process" class="form-select select2-master">
+                                            <option value="">Select an option</option>
+                                            @foreach($masters['manufacturingProcesses'] ?? [] as $m)
+                                                <option value="{{ $m->id }}" data-name="{{ $m->manufacturing_process }}" data-code="{{ $m->code }}" {{ old('manufacturing_process') == $m->id ? 'selected' : '' }}>
+                                                    {{ $m->manufacturing_process }} @if(!empty($m->code)) ({{ $m->code }}) @endif
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
 
-                        {{-- Manufacture --}}
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">Manufacture</label>
-                            <select name="manufacture" id="master_manufacture" class="form-select select2-master">
-                                <option value="">Select an option</option>
-                                @foreach($masters['manufactures'] ?? [] as $m)
-                                    <option value="{{ $m->id }}" data-name="{{ $m->name }}" data-code="{{ $m->code }}" {{ old('manufacture') == $m->id ? 'selected' : '' }}>
-                                        {{ $m->name }} @if(!empty($m->code)) ({{ $m->code }}) @endif
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                                    {{-- Craftsman --}}
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label fw-bold">Craftsman</label>
+                                        <select name="craftsman" id="master_craftsman" class="form-select select2-master">
+                                            <option value="">Select an option</option>
+                                            @foreach($masters['craftsmen'] ?? [] as $m)
+                                                <option value="{{ $m->id }}" data-name="{{ $m->name }}" data-code="{{ $m->code }}" {{ old('craftsman') == $m->id ? 'selected' : '' }}>
+                                                    {{ $m->name }} @if(!empty($m->code)) ({{ $m->code }}) @endif
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
 
-                        {{-- Collection --}}
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">Collection</label>
-                            <input type="text" name="collection" class="form-control" value="{{ old('collection') }}" placeholder="e.g. Summer 2026">
+                                    {{-- Manufacture --}}
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label fw-bold">Manufacture</label>
+                                        <select name="manufacture" id="master_manufacture" class="form-select select2-master">
+                                            <option value="">Select an option</option>
+                                            @foreach($masters['manufactures'] ?? [] as $m)
+                                                <option value="{{ $m->id }}" data-name="{{ $m->name }}" data-code="{{ $m->code }}" {{ old('manufacture') == $m->id ? 'selected' : '' }}>
+                                                    {{ $m->name }} @if(!empty($m->code)) ({{ $m->code }}) @endif
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+
+                                    {{-- Collection --}}
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label fw-bold">Collection</label>
+                                        <input type="text" name="collection" class="form-control" value="{{ old('collection') }}" placeholder="e.g. Summer 2026">
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -654,13 +733,59 @@
 
             </div>
 
-            <div class="mt-4 pt-3 border-top d-flex gap-2">
-                <button type="submit" class="btn btn-primary px-4">
-                    <i class="bi bi-check-lg me-1"></i> Save Product
-                </button>
+            <div class="mt-4 pt-3 border-top d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <a href="{{ route('supplier.products.index') }}" class="btn btn-light border">Cancel</a>
+                @if(!empty($isIntegrated))
+                    <div id="integratedBottomActionButtons" class="d-flex flex-wrap justify-content-end gap-2">
+                        <button type="submit" name="action_type" value="save_next" class="btn btn-primary px-3 py-2 fw-semibold d-inline-flex align-items-center gap-2 shadow-sm btn-submit-action" id="btnSaveNextBottom">
+                            <i class="bi bi-arrow-right-circle fs-5"></i>
+                            <span>Save &amp; Next</span>
+                        </button>
+                        <button type="submit" name="action_type" value="save_exit" class="btn btn-success px-3 py-2 fw-semibold d-inline-flex align-items-center gap-2 shadow-sm btn-submit-action" id="btnSaveExitBottom">
+                            <i class="bi bi-check2-circle fs-5"></i>
+                            <span>Save &amp; Exit</span>
+                        </button>
+                    </div>
+                    <div id="manualBottomActionButtons" class="d-none">
+                        <button type="submit" name="action_type" value="save" class="btn btn-primary px-4">
+                            <i class="bi bi-check-lg me-1"></i> Save Product
+                        </button>
+                    </div>
+                @else
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-check-lg me-1"></i> Save Product
+                    </button>
+                @endif
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Image Preview Modal -->
+<div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-labelledby="imagePreviewModalLabel" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content shadow border-0" style="border-radius: 12px; overflow: hidden;">
+            <div class="modal-header py-2 px-3 bg-light border-bottom">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-zoom-in text-primary fs-5"></i>
+                    <h6 class="modal-title fw-bold text-dark mb-0" id="imagePreviewModalLabel">Image Preview</h6>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-3 d-flex align-items-center justify-content-center" style="background-color: #0b1120; min-height: 350px; max-height: 80vh; overflow: auto;">
+                <img id="imagePreviewModalImg" src="" alt="Full Preview" class="img-fluid rounded shadow" style="max-height: 75vh; max-width: 100%; object-fit: contain;">
+            </div>
+            <div class="modal-footer py-2 px-3 bg-light border-top d-flex justify-content-between align-items-center">
+                <span class="text-muted small fw-medium" id="imagePreviewModalCaption"></span>
+                <div class="d-flex gap-2">
+                    <a id="imagePreviewModalNewTab" href="#" target="_blank" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1">
+                        <i class="bi bi-arrows-fullscreen"></i>
+                        <span>Open Full Size</span>
+                    </a>
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -691,6 +816,43 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Image preview in modal helper
+        function showImageInModal(src, title, caption) {
+            if (!src) return;
+            const modalEl = document.getElementById('imagePreviewModal');
+            if (!modalEl) return;
+
+            const modalImg = document.getElementById('imagePreviewModalImg');
+            const modalTitle = document.getElementById('imagePreviewModalLabel');
+            const modalCaption = document.getElementById('imagePreviewModalCaption');
+            const newTabBtn = document.getElementById('imagePreviewModalNewTab');
+
+            if (modalImg) modalImg.src = src;
+            if (modalTitle) modalTitle.textContent = title || 'Image Preview';
+            if (modalCaption) modalCaption.textContent = caption || '';
+
+            if (newTabBtn) {
+                if (src.startsWith('data:')) {
+                    newTabBtn.onclick = function(e) {
+                        e.preventDefault();
+                        const win = window.open();
+                        if (win) {
+                            win.document.write('<iframe src="' + src + '" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>');
+                        }
+                    };
+                    newTabBtn.removeAttribute('href');
+                    newTabBtn.removeAttribute('target');
+                } else {
+                    newTabBtn.onclick = null;
+                    newTabBtn.href = src;
+                    newTabBtn.target = '_blank';
+                }
+            }
+
+            const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            bsModal.show();
+        }
+
         // Image preview logic
         const mainInput = document.getElementById('mainImageInput');
         const mainPreviewContainer = document.getElementById('mainImagePreviewContainer');
@@ -715,7 +877,22 @@
                     reader.readAsDataURL(file);
                 } else {
                     if (mainNotice) mainNotice.innerHTML = '';
-                    mainPreviewContainer.classList.add('d-none');
+                    const existingSpecImg = $('#existing_spec_image_input').val();
+                    if (existingSpecImg) {
+                        mainPreview.src = existingSpecImg;
+                    } else {
+                        mainPreviewContainer.classList.add('d-none');
+                    }
+                }
+            });
+        }
+
+        // Click on main image to view in modal (auto-selected or chosen)
+        if (mainPreview) {
+            mainPreview.addEventListener('click', function() {
+                if (this.src && this.src.trim() !== '') {
+                    const name = $('#product_name_input').val() || 'Main Product Image';
+                    showImageInModal(this.src, 'Main Image Preview', name);
                 }
             });
         }
@@ -723,6 +900,7 @@
         const subInput = document.getElementById('subImagesInput');
         const subPreviewContainer = document.getElementById('subImagesPreviewContainer');
         const subNotice = document.getElementById('subImagesNotice');
+        const subHint = document.getElementById('subImagesHint');
 
         if (subInput) {
             subInput.addEventListener('change', function(e) {
@@ -730,6 +908,7 @@
                 
                 if (e.target.files.length > 0) {
                     subPreviewContainer.classList.remove('d-none');
+                    if (subHint) subHint.classList.remove('d-none');
                     let oversizedCount = 0;
                     Array.from(e.target.files).forEach(file => {
                         if (file.size > 2 * 1024 * 1024) oversizedCount++;
@@ -745,10 +924,11 @@
                         reader.onload = function(e) {
                             const img = document.createElement('img');
                             img.src = e.target.result;
-                            img.className = 'rounded border shadow-sm';
+                            img.className = 'rounded border shadow-sm clickable-photo';
                             img.style.height = '100px';
                             img.style.width = '100px';
                             img.style.objectFit = 'cover';
+                            img.title = 'Click to view big photo';
                             subPreviewContainer.appendChild(img);
                         }
                         reader.readAsDataURL(file);
@@ -756,11 +936,23 @@
                 } else {
                     if (subNotice) subNotice.innerHTML = '';
                     subPreviewContainer.classList.add('d-none');
+                    if (subHint) subHint.classList.add('d-none');
                 }
             });
         }
 
-        // Initialize Select2 on master selects if jQuery is available
+        // Click on any additional image preview to view in modal
+        if (subPreviewContainer) {
+            subPreviewContainer.addEventListener('click', function(e) {
+                const targetImg = e.target.closest('img');
+                if (targetImg && targetImg.src) {
+                    const name = $('#product_name_input').val() || 'Additional Image';
+                    showImageInModal(targetImg.src, 'Additional Image Preview', name);
+                }
+            });
+        }
+
+        // Initialize Select2 on master selects and filter selects if jQuery is available
         function initSelect2() {
             if (typeof $ !== 'undefined' && $.fn.select2) {
                 $('.select2-master').each(function() {
@@ -772,11 +964,38 @@
                         });
                     }
                 });
+
+                $('.select2-filter').each(function() {
+                    if (!$(this).hasClass('select2-hidden-accessible')) {
+                        $(this).select2({
+                            width: '100%'
+                        });
+                    }
+                });
             }
         }
 
         @if(!empty($isIntegrated))
             initSelect2();
+
+            // Handle Master Attributes collapsible dropdown toggle text, icon & Select2 resize
+            $('#masterAttributesCollapse').on('show.bs.collapse', function () {
+                $('#masterAttrToggleText').text('Click to Hide Attributes');
+                $('#masterAttrToggleIcon').removeClass('bi-chevron-down').addClass('bi-chevron-up');
+            }).on('shown.bs.collapse', function () {
+                $('.select2-master').each(function() {
+                    if (!$(this).hasClass('select2-hidden-accessible')) {
+                        $(this).select2({
+                            placeholder: 'Select an option',
+                            allowClear: true,
+                            width: '100%'
+                        });
+                    }
+                });
+            }).on('hide.bs.collapse', function () {
+                $('#masterAttrToggleText').text('Click to View Attributes');
+                $('#masterAttrToggleIcon').removeClass('bi-chevron-up').addClass('bi-chevron-down');
+            });
 
             // When Item Name is selected from the master dropdown, auto-fill Product Name if blank
             const masterItemName = $('#master_item_name');
@@ -794,41 +1013,6 @@
                 }
             });
 
-            // Toggle between Integrated Masters and Manual Entry modes
-            const modeRadios = document.querySelectorAll('input[name="catalog_mode_switch"]');
-            const integratedSection = document.getElementById('integratedAttributesSection');
-            const manualSection = document.getElementById('manualAttributesSection');
-
-            function updateMode(mode) {
-                $('#catalog_mode_input').val(mode);
-                if (mode === 'integrated') {
-                    $('#chooseSkuTopCard').removeClass('d-none');
-                    if (integratedSection) integratedSection.classList.remove('d-none');
-                    if (manualSection) manualSection.classList.add('d-none');
-
-                    // Enable integrated inputs, disable manual inputs so they don't conflict
-                    $('#integratedAttributesSection select, #integratedAttributesSection input').prop('disabled', false);
-                    $('#select_vendor_sku').prop('disabled', false);
-                    $('#manualAttributesSection input').prop('disabled', true);
-                    initSelect2();
-                } else {
-                    $('#chooseSkuTopCard').addClass('d-none');
-                    if (integratedSection) integratedSection.classList.add('d-none');
-                    if (manualSection) manualSection.classList.remove('d-none');
-
-                    // Disable integrated inputs, enable manual inputs
-                    $('#integratedAttributesSection select, #integratedAttributesSection input').prop('disabled', true);
-                    $('#select_vendor_sku').prop('disabled', true);
-                    $('#manualAttributesSection input').prop('disabled', false);
-                }
-            }
-
-            modeRadios.forEach(radio => {
-                radio.addEventListener('change', function() {
-                    updateMode(this.value);
-                });
-            });
-
             // =========================================================================
             // PRODUCT SPECIFICATION MASTER - FILTERS, TABLE SEARCH & AUTO-FILL
             // =========================================================================
@@ -836,11 +1020,9 @@
             const filterItemName = $('#filterItemName');
             const filterComposition = $('#filterComposition');
             const filterGender = $('#filterGender');
+            const filterStockQty = $('#filterStockQty');
             const btnApplyFilters = $('#btnApplyFilters');
             const btnClearFilters = $('#btnClearFilters');
-            const productTableSearch = $('#productTableSearch');
-            const btnResetTableSearch = $('#btnResetTableSearch');
-            const productTableSearchInfo = $('#productTableSearchInfo');
             const tableBody = $('#productSpecificationTableBody');
             const totalProductsBadge = $('#totalProducts');
             const hiddenSkuInput = $('#select_vendor_sku');
@@ -849,6 +1031,144 @@
 
             let loadedSpecifications = [];
             let currentSelectedSku = hiddenSkuInput.val() || '';
+
+            // Helper to blank/reset photo and media details completely
+            function clearPhotoDetails() {
+                $('#mainImageInput').val('');
+                if (mainNotice) mainNotice.innerHTML = '';
+                $('#subImagesInput').val('');
+                if (subNotice) subNotice.innerHTML = '';
+
+                if (subPreviewContainer) {
+                    subPreviewContainer.innerHTML = '';
+                    subPreviewContainer.classList.add('d-none');
+                }
+                if (subHint) subHint.classList.add('d-none');
+
+                if (mainPreview) mainPreview.src = '';
+                if (mainPreviewContainer) mainPreviewContainer.classList.add('d-none');
+                $('#existing_spec_image_input').val('');
+            }
+
+            // Helper to clean all product details completely
+            function clearAllProductDetails() {
+                currentSelectedSku = '';
+                hiddenSkuInput.val('');
+                $('#selected_spec_id').val('');
+
+                // Clear Product Name & SKU
+                userTypedName = false;
+                $('#product_name_input').val('').prop('readonly', false).removeClass('bg-light');
+                $('#product_name_locked_badge').addClass('d-none');
+                $('#product_sku_input').val('').prop('readonly', false).removeClass('bg-light');
+                $('#product_sku_locked_badge').addClass('d-none');
+
+                // Clear Prices & Stock
+                $('input[name="price"]').val('');
+                $('input[name="sale_price"]').val('');
+                $('input[name="min_price"]').val('');
+                $('#stock_input').val('1').removeAttr('max').removeAttr('min');
+                $('#total_available_stock_count').text('0');
+                $('#stock_max_val').text('0');
+                $('#stock_max_warning').addClass('d-none');
+
+                // Clear Description
+                $('textarea[name="description"]').val('');
+
+                // Blank all photo and media details
+                clearPhotoDetails();
+
+                // Clear Master Dropdowns
+                $('#master_item_name').val('').trigger('change');
+                $('#master_item_type').val('').trigger('change');
+                $('#master_designer').val('').trigger('change');
+                $('#master_gender').val('').trigger('change');
+                $('#master_composition').val('').trigger('change');
+                $('#master_colour').val('').trigger('change');
+                $('#master_yarn').val('').trigger('change');
+                $('#master_size').val('').trigger('change');
+                $('#master_embellishment').val('').trigger('change');
+                $('#master_manufacturing_process').val('').trigger('change');
+                $('#master_craftsman').val('').trigger('change');
+                $('#master_manufacture').val('').trigger('change');
+
+                // Clear Manual Inputs
+                $('.manual-input').val('');
+
+                // Clear confirmation alert
+                skuAutoFillAlert.addClass('d-none').removeClass('d-flex');
+
+
+
+                // Re-render table to unselect rows
+                if (typeof renderSpecificationTable === 'function') {
+                    renderSpecificationTable(loadedSpecifications);
+                }
+            }
+
+            // Toggle between Integrated Masters and Manual Entry modes
+            const modeRadios = document.querySelectorAll('input[name="catalog_mode_switch"]');
+            const integratedSection = document.getElementById('integratedAttributesSection');
+            const manualSection = document.getElementById('manualAttributesSection');
+
+            function updateMode(mode, isUserClick = false) {
+                $('#catalog_mode_input').val(mode);
+                if (mode === 'integrated') {
+                    $('#form_action_type').val('save_next');
+                    $('#chooseSkuTopCard').removeClass('d-none');
+                    if (integratedSection) integratedSection.classList.remove('d-none');
+                    if (manualSection) manualSection.classList.add('d-none');
+                    $('#photoSectionActionCard').removeClass('d-none');
+                    $('#integratedBottomActionButtons').removeClass('d-none');
+                    $('#manualBottomActionButtons').addClass('d-none');
+
+                    // Enable integrated inputs, disable manual inputs so they don't conflict
+                    $('#integratedAttributesSection select, #integratedAttributesSection input').prop('disabled', false);
+                    $('#select_vendor_sku').prop('disabled', false);
+                    $('#manualAttributesSection input').prop('disabled', true);
+                    initSelect2();
+
+                    if (currentSelectedSku) {
+                        $('#product_name_input').prop('readonly', true).addClass('bg-light');
+                        $('#product_name_locked_badge').removeClass('d-none');
+                        $('#product_sku_input').prop('readonly', true).addClass('bg-light');
+                        $('#product_sku_locked_badge').removeClass('d-none');
+                    } else if (isUserClick) {
+                        clearAllProductDetails();
+                    }
+                } else {
+                    $('#form_action_type').val('save');
+                    $('#chooseSkuTopCard').addClass('d-none');
+                    if (integratedSection) integratedSection.classList.add('d-none');
+                    if (manualSection) manualSection.classList.remove('d-none');
+                    $('#photoSectionActionCard').addClass('d-none');
+                    $('#integratedBottomActionButtons').addClass('d-none');
+                    $('#manualBottomActionButtons').removeClass('d-none');
+
+                    // Disable integrated inputs, enable manual inputs
+                    $('#integratedAttributesSection select, #integratedAttributesSection input').prop('disabled', true);
+                    $('#select_vendor_sku').prop('disabled', true);
+                    $('#manualAttributesSection input').prop('disabled', false);
+
+                    // When clicking "Add New Product", clean all details completely
+                    if (isUserClick) {
+                        clearAllProductDetails();
+                    } else {
+                        $('#product_name_input').prop('readonly', false).removeClass('bg-light');
+                        $('#product_name_locked_badge').addClass('d-none');
+                        $('#product_sku_input').prop('readonly', false).removeClass('bg-light');
+                        $('#product_sku_locked_badge').addClass('d-none');
+                        $('#stock_input').removeAttr('max');
+                        $('#stock_max_warning').addClass('d-none');
+                    }
+                }
+            }
+
+            modeRadios.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    updateMode(this.value, true);
+                });
+            });
 
             function escapeHtml(str) {
                 if (str === null || str === undefined) return '';
@@ -872,12 +1192,27 @@
             }
 
             function renderSpecificationTable(items) {
-                // Filter out any items with 0 stock
+                const stockFilterVal = filterStockQty.val();
+
+                // Filter out any items with 0 stock and match selected stock quantity
                 items = (items || []).filter(item => {
                     const stock = (item.available_stock !== undefined && item.available_stock !== null)
                         ? parseInt(item.available_stock, 10)
                         : (parseInt(item.total_stock, 10) || 0);
-                    return stock > 0;
+
+                    if (stock <= 0) return false;
+
+                    if (stockFilterVal === '1') {
+                        return stock === 1;
+                    } else if (stockFilterVal === 'less_than_5') {
+                        return stock > 1 && stock < 5;
+                    } else if (stockFilterVal === '5_10') {
+                        return stock >= 5 && stock <= 10;
+                    } else if (stockFilterVal === '10_above') {
+                        return stock >= 10;
+                    }
+
+                    return true;
                 });
 
                 tableBody.empty();
@@ -893,7 +1228,6 @@
                             </td>
                         </tr>
                     `);
-                    productTableSearchInfo.text('');
                     return;
                 }
 
@@ -908,7 +1242,8 @@
                         imageHtml = `
                             <img src="${escapeHtml(item.image_url)}"
                                  alt="Product Image"
-                                 class="product-table-image"
+                                 class="product-table-image clickable-photo"
+                                 title="Click to view big photo"
                                  loading="lazy"
                                  onerror="this.outerHTML='<div class=&quot;no-product-image&quot;><i class=&quot;bi bi-image&quot;></i><span>Unavailable</span></div>';">
                         `;
@@ -951,8 +1286,6 @@
 
                     tableBody.append(tr);
                 });
-
-                applyClientTableSearch();
             }
 
             function fetchSpecifications() {
@@ -970,7 +1303,7 @@
                     item_name: filterItemName.val() || '',
                     composition: filterComposition.val() || '',
                     gender: filterGender.val() || '',
-                    q: productTableSearch.val().trim()
+                    stock_filter: filterStockQty.val() || ''
                 };
 
                 $.ajax({
@@ -995,58 +1328,32 @@
                 });
             }
 
-            function applyClientTableSearch() {
-                const query = productTableSearch.val().trim().toLowerCase();
-                const rows = tableBody.find('tr').filter(function() {
-                    return $(this).find('td').length === 8;
-                });
-
-                let visibleCount = 0;
-                rows.each(function() {
-                    const rowText = $(this).text().replace(/\s+/g, ' ').toLowerCase();
-                    const match = !query || rowText.indexOf(query) !== -1;
-                    $(this).toggle(match);
-                    if (match) visibleCount++;
-                });
-
-                tableBody.find('.table-search-no-result').remove();
-                if (query && rows.length > 0 && visibleCount === 0) {
-                    tableBody.append(`
-                        <tr class="table-search-no-result">
-                            <td colspan="8" class="text-center py-4 text-muted">
-                                <i class="bi bi-search" style="font-size: 24px;"></i>
-                                <div class="mt-2">No matching product specification found for "${escapeHtml(query)}".</div>
-                            </td>
-                        </tr>
-                    `);
-                }
-
-                if (query) {
-                    productTableSearchInfo.text(`${visibleCount} matching on this page`);
-                } else {
-                    productTableSearchInfo.text('');
-                }
-            }
-
             function applySpecification(spec) {
                 if (!spec) return;
 
+                // When choosing another product, blank previous photo/media details and description
+                clearPhotoDetails();
+                $('textarea[name="description"]').val('');
+
                 currentSelectedSku = spec.sku || '';
                 hiddenSkuInput.val(currentSelectedSku);
+                $('#selected_spec_id').val(spec.spec_id || spec.id || '');
 
                 let availStock = (spec.available_stock !== undefined && spec.available_stock !== null)
                     ? parseInt(spec.available_stock, 10)
                     : (parseInt(spec.total_stock, 10) || 0);
 
-                // Auto-fill form inputs
+                // Auto-fill Product SKU and lock it
                 if (spec.sku) {
-                    $('#product_sku_input').val(spec.sku);
+                    $('#product_sku_input').val(spec.sku).prop('readonly', true).addClass('bg-light');
+                    $('#product_sku_locked_badge').removeClass('d-none');
                 }
-                if (spec.item_name_text) {
-                    $('#product_name_input').val(spec.item_name_text);
-                } else if (spec.sku) {
-                    $('#product_name_input').val(spec.sku);
-                }
+
+                // Item Name as Product Name and lock it
+                const itemName = spec.item_name_text || spec.sku || '';
+                userTypedName = false;
+                $('#product_name_input').val(itemName).prop('readonly', true).addClass('bg-light');
+                $('#product_name_locked_badge').removeClass('d-none');
 
                 // Auto-select Master dropdowns
                 if (spec.item_name) setSelect2Val($('#master_item_name'), spec.item_name, spec.item_name_text);
@@ -1062,23 +1369,33 @@
                 if (spec.craftsman !== undefined && spec.craftsman !== null) setSelect2Val($('#master_craftsman'), spec.craftsman);
                 if (spec.manufacture) setSelect2Val($('#master_manufacture'), spec.manufacture);
 
-                // Auto-fill Prices & Stock
-                if (spec.price) $('input[name="price"]').val(spec.price);
-                if (spec.sale_price) $('input[name="sale_price"]').val(spec.sale_price);
-                if (spec.min_price) $('input[name="min_price"]').val(spec.min_price);
+                // Ensure product name is preserved as item name
+                $('#product_name_input').val(itemName);
 
+                // Auto-fill Prices & Stock (only prices, image, sub-images, description can be changed; stock capped at availStock)
+                $('input[name="price"]').val(spec.price || '');
+                $('input[name="sale_price"]').val(spec.sale_price || '');
+                $('input[name="min_price"]').val(spec.min_price || '');
+
+                const maxStock = availStock > 0 ? availStock : 1;
                 $('#total_available_stock_count').text(availStock);
-                $('input[name="stock"]').val(availStock > 0 ? availStock : 1);
+                $('#stock_max_val').text(maxStock);
+                $('#stock_input').attr('max', maxStock).attr('min', 1).val(maxStock);
+                $('#stock_max_warning').addClass('d-none');
 
-                // Auto-fill Image
+                // Auto-fill Image for this specific product
                 if (spec.image_url) {
                     $('#mainImagePreview').attr('src', spec.image_url);
                     $('#mainImagePreviewContainer').removeClass('d-none');
                     $('#existing_spec_image_input').val(spec.img_path || spec.image_url);
+                } else {
+                    $('#mainImagePreview').attr('src', '');
+                    $('#mainImagePreviewContainer').addClass('d-none');
+                    $('#existing_spec_image_input').val('');
                 }
 
                 // Show confirmation alert
-                skuAutoFillMsg.html(`Specification <strong>${escapeHtml(spec.sku)}</strong> selected and applied to product form below.`);
+                skuAutoFillMsg.html(`Specification <strong>${escapeHtml(spec.sku)}</strong> selected. Item Name <strong>${escapeHtml(itemName)}</strong> applied as Product Name. Only prices, images, description, and stock (up to max ${maxStock}) can be changed.`);
                 skuAutoFillAlert.removeClass('d-none').addClass('d-flex');
 
                 // Re-render table to mark active selection
@@ -1091,6 +1408,69 @@
                 }
             }
 
+            // Realtime clamp on stock input so it cannot exceed actual stock
+            $('#stock_input').on('input change keyup paste', function() {
+                const max = parseInt($(this).attr('max'), 10);
+                const current = parseInt($(this).val(), 10);
+                if (!isNaN(max) && max > 0) {
+                    if (current > max) {
+                        $(this).val(max);
+                        $('#stock_max_warning').removeClass('d-none');
+                    } else if (current < 1 && $(this).val() !== '') {
+                        $(this).val(1);
+                        $('#stock_max_warning').addClass('d-none');
+                    } else {
+                        $('#stock_max_warning').addClass('d-none');
+                    }
+                }
+            });
+
+            function syncFilterHiddenInputs() {
+                $('#hidden_filter_item_type').val(filterItemType.val() || '');
+                $('#hidden_filter_item_name').val(filterItemName.val() || '');
+                $('#hidden_filter_composition').val(filterComposition.val() || '');
+                $('#hidden_filter_gender').val(filterGender.val() || '');
+                $('#hidden_filter_stock_qty').val(filterStockQty.val() || '');
+            }
+
+            // Sync hidden inputs whenever filters change
+            filterItemType.on('change', syncFilterHiddenInputs);
+            filterItemName.on('change', syncFilterHiddenInputs);
+            filterComposition.on('change', syncFilterHiddenInputs);
+            filterGender.on('change', syncFilterHiddenInputs);
+            filterStockQty.on('change', syncFilterHiddenInputs);
+
+            // Handle clicking any submit action button (Save & Next, Save & Exit, etc.)
+            $(document).on('click', '.btn-submit-action', function() {
+                const action = $(this).val() || $(this).data('action') || 'save_next';
+                $('#form_action_type').val(action);
+                syncFilterHiddenInputs();
+            });
+
+            // Prevent form submit if stock exceeds actual available stock or if ready product not chosen
+            $('#productForm').on('submit', function(e) {
+                syncFilterHiddenInputs();
+
+                const mode = $('#catalog_mode_input').val();
+                if (mode === 'integrated' && !currentSelectedSku) {
+                    e.preventDefault();
+                    alert('Please choose a product from the Ready Products List first.');
+                    const card = document.getElementById('specTableCard');
+                    if (card) card.scrollIntoView({ behavior: 'smooth' });
+                    return false;
+                }
+
+                const max = parseInt($('#stock_input').attr('max'), 10);
+                const current = parseInt($('#stock_input').val(), 10);
+                if (!isNaN(max) && max > 0 && current > max) {
+                    e.preventDefault();
+                    $('#stock_input').val(max).focus();
+                    $('#stock_max_warning').removeClass('d-none');
+                    alert('Stock quantity cannot be greater than the actual available stock (' + max + ').');
+                    return false;
+                }
+            });
+
             // Click Choose button on a table row
             tableBody.on('click', '.js-choose-spec', function() {
                 const idx = $(this).data('index');
@@ -1100,7 +1480,23 @@
                 }
             });
 
+            // Click on specification table row image to preview big photo
+            tableBody.on('click', '.product-table-image', function(e) {
+                e.stopPropagation();
+                const src = $(this).attr('src');
+                const tr = $(this).closest('tr');
+                const itemName = tr.find('td:nth-child(4) div.fw-bold').text().trim() || 'Specification Product Image';
+                const itemSku = tr.find('td:nth-child(4) div.small').text().trim();
+                if (src) {
+                    showImageInModal(src, 'Specification Product Image', itemName + (itemSku ? ` (${itemSku})` : ''));
+                }
+            });
+
             // Filter actions
+            filterStockQty.on('change', function() {
+                fetchSpecifications();
+            });
+
             btnApplyFilters.on('click', function() {
                 fetchSpecifications();
             });
@@ -1110,27 +1506,13 @@
                 filterItemName.val('').trigger('change');
                 filterComposition.val('').trigger('change');
                 filterGender.val('').trigger('change');
-                productTableSearch.val('');
+                filterStockQty.val('');
+                syncFilterHiddenInputs();
                 fetchSpecifications();
             });
 
-            // Table search with input event (client filter) and debounce for server query
-            let searchDebounceTimer = null;
-            productTableSearch.on('input', function() {
-                applyClientTableSearch();
-                clearTimeout(searchDebounceTimer);
-                searchDebounceTimer = setTimeout(function() {
-                    const q = productTableSearch.val().trim();
-                    if (q.length >= 2) {
-                        fetchSpecifications();
-                    }
-                }, 400);
-            });
-
-            btnResetTableSearch.on('click', function() {
-                productTableSearch.val('');
-                applyClientTableSearch();
-            });
+            // Initial sync of filter inputs
+            syncFilterHiddenInputs();
 
             // Initial load of specifications
             fetchSpecifications();

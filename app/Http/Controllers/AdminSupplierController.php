@@ -12,7 +12,9 @@ class AdminSupplierController extends Controller
 {
     public function index()
     {
-        $suppliers = Supplier::withCount('users')->orderBy('sno', 'desc')->paginate(10);
+        $suppliers = Supplier::where(function($query) {
+            $query->where('type', 'supplier')->orWhereNull('type');
+        })->withCount('users')->orderBy('sno', 'desc')->paginate(10);
         return view('admin.suppliers.index', compact('suppliers'));
     }
 

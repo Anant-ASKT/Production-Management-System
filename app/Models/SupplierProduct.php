@@ -18,7 +18,7 @@ class SupplierProduct extends Model
         'design_names', 'compositions', 'mfg_processes', 'craftsmen', 'designers', 'variations',
         'item_type', 'designer', 'gender', 'composition', 'colour', 'yarn', 'size', 'embellishment',
         'manufacturing_process', 'craftsman', 'manufacture', 'collection', 'item_name',
-        'is_integrated', 'product_sku'
+        'is_integrated', 'product_sku', 'status_done'
     ];
 
     protected $casts = [

@@ -22,29 +22,109 @@
     </div>
 
 
-    {{-- SEARCH --}}
+    {{-- STATUS QUICK FILTERS --}}
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <button type="button" class="btn btn-sm btn-dark filter-status-pill active" data-status="all">
+            <i class="bi bi-grid-fill me-1"></i> All Products
+            <span class="badge bg-light text-dark ms-1 rounded-pill" id="badgeCountAll">...</span>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-success filter-status-pill" data-status="saved">
+            <i class="bi bi-check-circle-fill me-1"></i> AI Description Saved
+            <span class="badge bg-success ms-1 rounded-pill text-white" id="badgeCountSaved">...</span>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-primary filter-status-pill" data-status="ready">
+            <i class="bi bi-stars me-1"></i> Ready for Description (Has AI Image)
+            <span class="badge bg-primary ms-1 rounded-pill text-white" id="badgeCountReady">...</span>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary filter-status-pill" data-status="no_image">
+            <i class="bi bi-hourglass-split me-1"></i> Waiting for AI Image
+            <span class="badge bg-secondary ms-1 rounded-pill text-white" id="badgeCountNoImage">...</span>
+        </button>
+    </div>
 
+    {{-- FILTER BAR --}}
     <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-3">
+            <div class="row g-2 align-items-end">
+                {{-- Search --}}
+                <div class="col-12 col-md-4 col-lg-3">
+                    <label class="form-label small fw-semibold text-muted mb-1">Search</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white">
+                            <i class="bi bi-search text-muted"></i>
+                        </span>
+                        <input
+                            type="text"
+                            id="aiDescriptionSearch"
+                            class="form-control"
+                            placeholder="Product, SKU or barcode..."
+                        >
+                    </div>
+                </div>
 
-        <div class="card-body">
+                {{-- Status Dropdown --}}
+                <div class="col-6 col-md-3 col-lg-2">
+                    <label class="form-label small fw-semibold text-muted mb-1">Status</label>
+                    <select id="filterStatus" class="form-select form-select-sm">
+                        <option value="all">All Statuses</option>
+                        <option value="saved">✓ AI Description Saved</option>
+                        <option value="ready">Ready (AI Image Approved)</option>
+                        <option value="pending">Pending (Not Saved)</option>
+                        <option value="no_image">Waiting for AI Image</option>
+                    </select>
+                </div>
 
-            <div class="input-group">
+                {{-- Product Type --}}
+                <div class="col-6 col-md-3 col-lg-2">
+                    <label class="form-label small fw-semibold text-muted mb-1">Product Type</label>
+                    <select id="filterItemType" class="form-select form-select-sm">
+                        <option value="">All Product Types</option>
+                        @foreach($itemTypes ?? [] as $it)
+                            <option value="{{ $it->id }}">{{ $it->itemtype }}</option>
+                        @endforeach
+                    </select>
+                </div>
 
-                <span class="input-group-text">
-                    <i class="bi bi-search"></i>
-                </span>
+                {{-- Product Name --}}
+                <div class="col-6 col-md-3 col-lg-2">
+                    <label class="form-label small fw-semibold text-muted mb-1">Product Name</label>
+                    <select id="filterItemName" class="form-select form-select-sm">
+                        <option value="">All Product Names</option>
+                        @foreach($itemNames ?? [] as $in)
+                            <option value="{{ $in->id }}">{{ $in->itemname }}</option>
+                        @endforeach
+                    </select>
+                </div>
 
-                <input
-                    type="text"
-                    id="aiDescriptionSearch"
-                    class="form-control"
-                    placeholder="Search by product, SKU or barcode..."
-                >
+                {{-- Gender --}}
+                <div class="col-6 col-md-2 col-lg-1">
+                    <label class="form-label small fw-semibold text-muted mb-1">Gender</label>
+                    <select id="filterGender" class="form-select form-select-sm">
+                        <option value="">All</option>
+                        @foreach($genders ?? [] as $g)
+                            <option value="{{ $g->id }}">{{ $g->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
 
+                {{-- Per Page --}}
+                <div class="col-6 col-md-2 col-lg-1">
+                    <label class="form-label small fw-semibold text-muted mb-1">Per Page</label>
+                    <select id="filterPerPage" class="form-select form-select-sm">
+                        <option value="20" selected>20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+
+                {{-- Reset Button --}}
+                <div class="col-6 col-md-2 col-lg-1">
+                    <button type="button" id="btnResetFilters" class="btn btn-sm btn-outline-secondary w-100" title="Reset Filters">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                    </button>
+                </div>
             </div>
-
         </div>
-
     </div>
 
 
@@ -1476,7 +1556,51 @@ document.addEventListener(
                 'aiDescriptionPagination'
             );
 
+        const filterStatus = document.getElementById('filterStatus');
+        const filterItemType = document.getElementById('filterItemType');
+        const filterItemName = document.getElementById('filterItemName');
+        const filterGender = document.getElementById('filterGender');
+        const filterPerPage = document.getElementById('filterPerPage');
+        const btnResetFilters = document.getElementById('btnResetFilters');
+        const statusPills = document.querySelectorAll('.filter-status-pill');
+        const badgeCountAll = document.getElementById('badgeCountAll');
+        const badgeCountSaved = document.getElementById('badgeCountSaved');
+        const badgeCountReady = document.getElementById('badgeCountReady');
+        const badgeCountNoImage = document.getElementById('badgeCountNoImage');
+
         let currentPage = 1;
+
+        function setActiveStatusPill(statusVal) {
+            if (filterStatus && filterStatus.value !== statusVal) {
+                filterStatus.value = statusVal;
+            }
+            statusPills.forEach(pill => {
+                const pStatus = pill.getAttribute('data-status');
+                if (pStatus === statusVal) {
+                    pill.classList.add('active');
+                    if (pStatus === 'all') {
+                        pill.className = 'btn btn-sm btn-dark filter-status-pill active';
+                    } else if (pStatus === 'saved') {
+                        pill.className = 'btn btn-sm btn-success text-white filter-status-pill active';
+                    } else if (pStatus === 'ready') {
+                        pill.className = 'btn btn-sm btn-primary text-white filter-status-pill active';
+                    } else if (pStatus === 'no_image') {
+                        pill.className = 'btn btn-sm btn-secondary text-white filter-status-pill active';
+                    }
+                } else {
+                    pill.classList.remove('active');
+                    if (pStatus === 'all') {
+                        pill.className = 'btn btn-sm btn-outline-dark filter-status-pill';
+                    } else if (pStatus === 'saved') {
+                        pill.className = 'btn btn-sm btn-outline-success filter-status-pill';
+                    } else if (pStatus === 'ready') {
+                        pill.className = 'btn btn-sm btn-outline-primary filter-status-pill';
+                    } else if (pStatus === 'no_image') {
+                        pill.className = 'btn btn-sm btn-outline-secondary filter-status-pill';
+                    }
+                }
+            });
+        }
 
 
         /*
@@ -1549,32 +1673,22 @@ document.addEventListener(
 
             try {
 
-                /*
-                |--------------------------------------------------------------------------
-                | SEARCH
-                |--------------------------------------------------------------------------
-                */
+                const search = searchInput ? searchInput.value.trim() : '';
+                const status = filterStatus ? filterStatus.value : 'all';
+                const itemType = filterItemType ? filterItemType.value : '';
+                const itemName = filterItemName ? filterItemName.value : '';
+                const gender = filterGender ? filterGender.value : '';
+                const perPage = filterPerPage ? filterPerPage.value : 20;
 
-                const search =
-                    searchInput.value.trim();
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | PARAMETERS
-                |--------------------------------------------------------------------------
-                */
-
-                const params =
-                    new URLSearchParams({
-
-                        page: page,
-
-                        per_page: 20,
-
-                        search: search
-
-                    });
+                const params = new URLSearchParams({
+                    page: page,
+                    per_page: perPage,
+                    search: search,
+                    status: status,
+                    item_type: itemType,
+                    item_name: itemName,
+                    gender: gender
+                });
 
 
                 /*
@@ -1625,6 +1739,13 @@ document.addEventListener(
                         result.message ||
                         'Unable to load products.'
                     );
+                }
+
+                if (result.status_counts) {
+                    if (badgeCountAll) badgeCountAll.textContent = result.status_counts.all ?? 0;
+                    if (badgeCountSaved) badgeCountSaved.textContent = result.status_counts.saved ?? 0;
+                    if (badgeCountReady) badgeCountReady.textContent = result.status_counts.ready ?? 0;
+                    if (badgeCountNoImage) badgeCountNoImage.textContent = result.status_counts.no_image ?? 0;
                 }
 
 
@@ -2209,6 +2330,47 @@ if (aiImage) {
                     );
             }
         );
+
+        /*
+        |--------------------------------------------------------------------------
+        | STATUS PILLS & FILTER EVENTS
+        |--------------------------------------------------------------------------
+        */
+
+        statusPills.forEach(pill => {
+            pill.addEventListener('click', function () {
+                const statusVal = this.getAttribute('data-status');
+                setActiveStatusPill(statusVal);
+                loadAiDescriptionData(1);
+            });
+        });
+
+        if (filterStatus) {
+            filterStatus.addEventListener('change', function () {
+                setActiveStatusPill(this.value);
+                loadAiDescriptionData(1);
+            });
+        }
+
+        [filterItemType, filterItemName, filterGender, filterPerPage].forEach(el => {
+            if (el) {
+                el.addEventListener('change', function () {
+                    loadAiDescriptionData(1);
+                });
+            }
+        });
+
+        if (btnResetFilters) {
+            btnResetFilters.addEventListener('click', function () {
+                if (searchInput) searchInput.value = '';
+                if (filterItemType) filterItemType.value = '';
+                if (filterItemName) filterItemName.value = '';
+                if (filterGender) filterGender.value = '';
+                if (filterPerPage) filterPerPage.value = '20';
+                setActiveStatusPill('all');
+                loadAiDescriptionData(1);
+            });
+        }
 
 
         /*

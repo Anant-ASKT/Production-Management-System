@@ -91,10 +91,6 @@
                                             <a href="{{ route('admin.suppliers.website.index', $supplier->sno) }}" class="btn btn-sm btn-outline-success" title="Manage WordPress Website Products & Categories">
                                                 <i class="bi bi-shop me-1"></i> Store Manager
                                             </a>
-                                        @else
-                                            <button type="button" class="btn btn-sm btn-outline-secondary opacity-50" disabled title="WordPress store URL not configured">
-                                                <i class="bi bi-shop me-1"></i> No Store
-                                            </button>
                                         @endif
                                     </div>
                                 </td>

@@ -38,7 +38,7 @@
         {{-- BACK LINK --}}
         <div class="mb-4">
             <a href="{{ route('admin.publish-products.index') }}" class="text-decoration-none text-secondary fw-medium small d-inline-flex align-items-center">
-                <span class="me-1.5">&larr;</span> Back to Products
+                <span class="me-1.5">&larr;</span> Back to Ready for Publish products
             </a>
         </div>
 
@@ -149,18 +149,6 @@
                         <button type="button" class="btn btn-primary px-4 py-2.5 fw-bold rounded-2 shadow-xs d-inline-flex align-items-center" style="background-color: #006699; border-color: #006699; min-height: 44px;" data-bs-toggle="modal" data-bs-target="#publishModal">
                             <i class="bi bi-cloud-arrow-up-fill me-2 fs-6"></i> Publish to WooCommerce
                         </button>
-
-                        @if($publishedRecords->count() > 0)
-                            @php 
-                                $latestPublish = $publishedRecords->first(); 
-                                $latestDomain = !empty($latestPublish->target_store_url) ? parse_url($latestPublish->target_store_url, PHP_URL_HOST) : null;
-                            @endphp
-                            @if($latestPublish->permalink)
-                                <a href="{{ $latestPublish->permalink }}" target="_blank" class="btn btn-outline-secondary px-3 py-2.5 fw-medium rounded-2 small d-inline-flex align-items-center" style="min-height: 44px;">
-                                    <i class="bi bi-box-arrow-up-right me-1.5"></i> View Live ({{ $latestDomain ?: $latestPublish->target_supplier_name }})
-                                </a>
-                            @endif
-                        @endif
                     </div>
 
                     {{-- Product Metadata Attributes List --}}
@@ -414,7 +402,7 @@
                         @endforeach
                     </select>
                     <div id="modalTargetDomainInfo" class="mt-1 small" style="font-size: 0.75rem;"></div>
-                    <small class="text-muted d-block mt-0.5" style="font-size: 0.75rem;">Select target store domain to publish or update this product to on WooCommerce.</small>
+                    <small class="text-muted d-block mt-0.5" style="font-size: 0.75rem;">Select target retailer store domain to publish or update this product to on WooCommerce.</small>
                 </div>
 
                 <div class="mb-3">
