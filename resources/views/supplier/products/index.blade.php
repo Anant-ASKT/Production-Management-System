@@ -172,21 +172,6 @@
                                 </td>
                                 <td class="text-end">
                                     <div class="d-inline-flex gap-1 align-items-center">
-                                        @if($product->is_integrated)
-                                            <form action="{{ route('supplier.products.send-single-to-photo-section', $product->sno) }}" method="POST" class="d-inline">
-                                                @csrf
-                                                <button type="submit" class="btn btn-sm btn-outline-success" title="Send to Photo Section">
-                                                    <i class="bi bi-camera"></i> Send
-                                                </button>
-                                            </form>
-                                        @else
-                                            <form action="{{ route('supplier.products.send-single-to-specification', $product->sno) }}" method="POST" class="d-inline">
-                                                @csrf
-                                                <button type="submit" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1" title="Send to Specification">
-                                                    <i class="bi bi-file-earmark-text"></i> Send
-                                                </button>
-                                            </form>
-                                        @endif
                                         <a href="{{ route('supplier.products.show', $product->sno) }}" class="btn btn-sm btn-outline-primary" title="View Details">
                                             <i class="bi bi-eye"></i> View
                                         </a>

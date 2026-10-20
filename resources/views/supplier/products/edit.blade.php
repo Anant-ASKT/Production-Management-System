@@ -1138,7 +1138,7 @@
                 if (spec.image_url) {
                     $('#mainImagePreview').attr('src', spec.image_url);
                     $('#mainImagePreviewContainer').removeClass('d-none');
-                    $('#existing_spec_image_input').val(spec.img_path || spec.image_url);
+                    $('#existing_spec_image_input').val(spec.image_url || spec.img_path || '');
                 }
 
                 // Show confirmation alert

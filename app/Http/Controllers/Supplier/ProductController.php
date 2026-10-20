@@ -111,7 +111,7 @@ class ProductController extends Controller
         $supplier = \App\Models\Supplier::find($user->supplier_id);
         $isIntegrated = $supplier ? (bool) $supplier->is_integrated : false;
         $masters = $this->getSupplierMasterData($user, $supplier);
-        $vendorStockSkus = $isIntegrated ? $this->getSupplierVendorStockSkus($user, $supplier) : collect();
+        $vendorStockSkus = collect();
 
         $supplierNickname = '';
         if ($supplier) {
@@ -287,6 +287,13 @@ class ProductController extends Controller
                     'item_name' => $request->input('filter_item_name'),
                     'composition' => $request->input('filter_composition'),
                     'gender' => $request->input('filter_gender'),
+                    'collection' => $request->input('filter_collection'),
+                    'designer' => $request->input('filter_designer'),
+                    'size' => $request->input('filter_size'),
+                    'colour' => $request->input('filter_colour'),
+                    'manufacture' => $request->input('filter_manufacture'),
+                    'manufacturing_process' => $request->input('filter_manufacturing_process'),
+                    'craftsman' => $request->input('filter_craftsman'),
                     'stock_qty' => $request->input('filter_stock_qty'),
                 ], function($val) {
                     return $val !== null && $val !== '';
@@ -403,7 +410,14 @@ class ProductController extends Controller
         $itemName = $request->get('item_name');
         $composition = $request->get('composition');
         $gender = $request->get('gender');
-        $stockFilter = (string) $request->get('stock_filter', '');
+        $collection = $request->get('collection');
+        $designer = $request->get('designer');
+        $size = $request->get('size');
+        $colour = $request->get('colour', $request->get('color'));
+        $manufacture = $request->get('manufacture');
+        $manufacturingProcess = $request->get('manufacturing_process');
+        $craftsman = $request->get('craftsman');
+        $stockFilter = (string) $request->get('stock_filter', $request->get('stock_qty', ''));
 
         $stockByBarcode = \Illuminate\Support\Facades\DB::table('vendor_stock')
             ->whereNotNull('barcode')
@@ -440,6 +454,14 @@ class ProductController extends Controller
             ->leftJoin('auto_colour_master as icolour', 'icolour.id', '=', 'spec.colour')
             ->leftJoin('auto_size_master as isize', 'isize.id', '=', 'spec.sizes')
             ->leftJoin('auto_composition_master_stock as icomp', 'icomp.id', '=', 'spec.composition')
+            ->leftJoin('auto_designer_master as idesigner', 'idesigner.id', '=', 'spec.designer_name')
+            ->leftJoin('auto_manufacture_master as imanuf', 'imanuf.id', '=', 'spec.manufecture')
+            ->leftJoin('auto_manufacturing_process_master as iprocess', 'iprocess.id', '=', 'spec.manufacturing_process')
+            ->leftJoin('auto_craftsman_master as icraftsman', function($join) {
+                $join->on('icraftsman.id', '=', 'spec.craftsman')
+                     ->orOn('icraftsman.sno', '=', 'spec.craftsman');
+            })
+            ->leftJoin('auto_client_master as iclient', 'iclient.id', '=', 'spec.client')
             ->leftJoin('suppliers', 'suppliers.sno', '=', \Illuminate\Support\Facades\DB::raw('COALESCE(vs_bar.vendor_id, vs_item.vendor_id, spec.supplier_id)'))
             ->select(
                 'spec.id as spec_id',
@@ -451,6 +473,7 @@ class ProductController extends Controller
                 'spec.item_type',
                 'itype.itemtype as item_type_text',
                 'spec.designer_name as designer',
+                'idesigner.designername as designer_text',
                 'spec.gender',
                 'igender.name as gender_text',
                 'spec.composition',
@@ -462,8 +485,14 @@ class ProductController extends Controller
                 'isize.size as size_text',
                 'spec.embellishment',
                 'spec.manufacturing_process',
+                'iprocess.manufacturing_process as manufacturing_process_text',
                 'spec.craftsman',
+                'icraftsman.name as craftsman_text',
                 'spec.manufecture as manufacture',
+                'imanuf.name as manufacture_text',
+                'spec.client as collection',
+                'iclient.name as collection_text',
+                'iclient.code as collection_code',
                 \Illuminate\Support\Facades\DB::raw("COALESCE(spec.price, vs_bar.purchase_price, vs_item.purchase_price) as price"),
                 \Illuminate\Support\Facades\DB::raw("COALESCE(spec.sale_price, vs_bar.sale_price, vs_item.sale_price) as sale_price"),
                 'spec.min_price',
@@ -485,6 +514,31 @@ class ProductController extends Controller
         }
         if (!empty($gender)) {
             $query->where('spec.gender', $gender);
+        }
+        if (!empty($collection)) {
+            $query->where('spec.client', $collection);
+        }
+        if (!empty($designer)) {
+            $query->where('spec.designer_name', $designer);
+        }
+        if (!empty($size)) {
+            $query->where('spec.sizes', $size);
+        }
+        if (!empty($colour)) {
+            $query->where('spec.colour', $colour);
+        }
+        if (!empty($manufacture)) {
+            $query->where('spec.manufecture', $manufacture);
+        }
+        if (!empty($manufacturingProcess)) {
+            $query->where('spec.manufacturing_process', $manufacturingProcess);
+        }
+        if (!empty($craftsman)) {
+            $query->where(function ($w) use ($craftsman) {
+                $w->where('spec.craftsman', $craftsman)
+                  ->orWhere('icraftsman.id', $craftsman)
+                  ->orWhere('icraftsman.sno', $craftsman);
+            });
         }
 
         // Only show products with stock > 0 (exclude 0 stock items)
@@ -517,7 +571,13 @@ class ProductController extends Controller
                   ->orWhere('igender.name', 'LIKE', "%{$q}%")
                   ->orWhere('icolour.colourname', 'LIKE', "%{$q}%")
                   ->orWhere('isize.size', 'LIKE', "%{$q}%")
-                  ->orWhere('icomp.composition_details', 'LIKE', "%{$q}%");
+                  ->orWhere('icomp.composition_details', 'LIKE', "%{$q}%")
+                  ->orWhere('idesigner.designername', 'LIKE', "%{$q}%")
+                  ->orWhere('imanuf.name', 'LIKE', "%{$q}%")
+                  ->orWhere('iprocess.manufacturing_process', 'LIKE', "%{$q}%")
+                  ->orWhere('icraftsman.name', 'LIKE', "%{$q}%")
+                  ->orWhere('iclient.name', 'LIKE', "%{$q}%")
+                  ->orWhere('iclient.code', 'LIKE', "%{$q}%");
             });
         }
 
@@ -530,7 +590,7 @@ class ProductController extends Controller
             ->unique('sku')
             ->values()
             ->map(function ($item) {
-                $item->image_url = $this->resolveSpecImage($item->img_path);
+                $item->image_url = $this->resolveSpecImage($item->img_path, $item->subimg_path ?? null);
                 return $item;
             });
 
@@ -540,55 +600,119 @@ class ProductController extends Controller
     /**
      * Helper to resolve specification images to full accessible URL
      */
-    public function resolveSpecImage($imgPath)
+    public function resolveSpecImage($imgPath, $subImgPath = null)
     {
-        if (empty($imgPath)) return null;
+        $findImage = function($pathInput) {
+            if (empty($pathInput)) return null;
 
-        if (is_string($imgPath) && (str_starts_with($imgPath, '[') || str_starts_with($imgPath, '{'))) {
-            $decoded = json_decode($imgPath, true);
-            if (is_array($decoded) && !empty($decoded)) {
-                $imgPath = is_array($decoded[0]) ? ($decoded[0]['url'] ?? reset($decoded[0])) : $decoded[0];
+            $images = [];
+            if (is_string($pathInput)) {
+                $trimmed = trim($pathInput);
+                if (str_starts_with($trimmed, '[') || str_starts_with($trimmed, '{')) {
+                    $decoded = json_decode($trimmed, true);
+                    $images = is_array($decoded) ? $decoded : [$trimmed];
+                } else {
+                    $images = [$trimmed];
+                }
+            } elseif (is_array($pathInput)) {
+                $images = $pathInput;
             }
-        }
 
-        if (empty($imgPath)) return null;
+            $validExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'jfif', 'avif'];
 
-        if (str_starts_with($imgPath, 'http://') || str_starts_with($imgPath, 'https://')) {
-            return $imgPath;
-        }
+            foreach ($images as $img) {
+                if (is_array($img)) {
+                    $img = $img['url'] ?? $img['path'] ?? reset($img);
+                }
+                if (!is_string($img)) {
+                    continue;
+                }
 
-        $marker = 'ItemsDesigner_Masterwithbarcode/';
-        $pos = strpos($imgPath, $marker);
-        if ($pos !== false) {
-            $rel = trim(substr($imgPath, $pos), '/');
-            $fullPath = public_path($rel);
-            if (is_file($fullPath)) {
-                return asset($rel);
-            }
-            if (is_dir($fullPath)) {
-                $files = @scandir($fullPath);
-                if ($files) {
-                    foreach ($files as $f) {
-                        if ($f === '.' || $f === '..') continue;
-                        $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
-                        if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'])) {
-                            return asset($rel . '/' . $f);
+                $img = str_replace('\\', '/', trim($img));
+                if ($img === '') {
+                    continue;
+                }
+
+                // If already an absolute HTTP/HTTPS URL
+                if (preg_match('/^https?:\\/\\//i', $img)) {
+                    return $img;
+                }
+
+                // Check ItemsDesigner_Masterwithbarcode
+                $marker = 'ItemsDesigner_Masterwithbarcode/';
+                $pos = strpos($img, $marker);
+                if ($pos !== false) {
+                    $rel = trim(substr($img, $pos), '/');
+                    $physicalPath = public_path($rel);
+
+                    if (is_file($physicalPath)) {
+                        return asset($rel);
+                    }
+
+                    if (is_dir($physicalPath)) {
+                        $files = @scandir($physicalPath);
+                        if (is_array($files)) {
+                            foreach ($files as $file) {
+                                if ($file === '.' || $file === '..') continue;
+                                $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+                                if (in_array($ext, $validExtensions, true)) {
+                                    return asset($rel . '/' . $file);
+                                }
+                            }
+                        }
+                    }
+                    continue;
+                }
+
+                // Check other direct or relative paths
+                $clean = ltrim($img, '/');
+                $physicalPath = public_path($clean);
+                if (is_file($physicalPath)) {
+                    return asset($clean);
+                }
+
+                if (is_dir($physicalPath)) {
+                    $files = @scandir($physicalPath);
+                    if (is_array($files)) {
+                        foreach ($files as $file) {
+                            if ($file === '.' || $file === '..') continue;
+                            $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+                            if (in_array($ext, $validExtensions, true)) {
+                                return asset($clean . '/' . $file);
+                            }
                         }
                     }
                 }
+
+                if (is_file(storage_path('app/public/' . $clean))) {
+                    return asset('storage/' . $clean);
+                }
+
+                if (str_starts_with($clean, 'storage/')) {
+                    return asset($clean);
+                }
+
+                if (str_starts_with($clean, 'raw_products/')) {
+                    return asset($clean);
+                }
             }
-            return asset($rel);
+
+            return null;
+        };
+
+        $resolved = $findImage($imgPath);
+        if ($resolved) {
+            return $resolved;
         }
 
-        $cleanPath = ltrim($imgPath, '/');
-        if (is_file(public_path($cleanPath))) {
-            return asset($cleanPath);
-        }
-        if (is_file(storage_path('app/public/' . $cleanPath))) {
-            return asset('storage/' . $cleanPath);
+        if (!empty($subImgPath)) {
+            $subResolved = $findImage($subImgPath);
+            if ($subResolved) {
+                return $subResolved;
+            }
         }
 
-        return asset($cleanPath);
+        return null;
     }
 
     /**
@@ -669,7 +793,7 @@ class ProductController extends Controller
             ->unique('sku')
             ->values()
             ->map(function ($item) {
-                $item->image_url = $this->resolveSpecImage($item->img_path);
+                $item->image_url = $this->resolveSpecImage($item->img_path, $item->subimg_path ?? null);
                 return $item;
             });
     }
@@ -696,6 +820,7 @@ class ProductController extends Controller
             'manufacturingProcesses' => $loadMaster('auto_manufacturing_process_master', 'manufacturing_process', ['sno', 'id', 'manufacturing_process', 'code']),
             'craftsmen' => $loadMaster('auto_craftsman_master', 'name', ['sno', 'id', 'name', 'code']),
             'manufactures' => $loadMaster('auto_manufacture_master', 'name', ['sno', 'id', 'name', 'code']),
+            'collections' => $loadMaster('auto_client_master', 'name', ['sno', 'id', 'name', 'code']),
         ];
     }
 

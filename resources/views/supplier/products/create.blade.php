@@ -5,22 +5,60 @@
 
 @section('content')
 <style>
-    .filter-card,
-    .result-card {
+    .filter-card {
         border: 1px solid #dee2e6;
         border-radius: 10px;
         background: #fff;
     }
 
-    .filter-card .card-header,
-    .result-card .card-header {
-        background: #f8f9fa;
-        border-bottom: 1px solid #dee2e6;
-        padding: 12px 16px;
+    .result-card {
+        border: 2px solid #a5b4fc !important;
+        border-radius: 12px !important;
+        background: #ffffff !important;
+        box-shadow: 0 4px 16px rgba(49, 46, 129, 0.1) !important;
+        overflow: hidden !important;
     }
 
-    .filter-card .card-body {
-        padding: 16px;
+    .result-card .card-header {
+        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%) !important;
+        border-bottom: 2px solid #312e81 !important;
+        padding: 12px 18px !important;
+        color: #ffffff !important;
+    }
+
+    #productSpecificationTable thead th {
+        background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%) !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        font-size: 11.5px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+        border-color: #334155 !important;
+        padding: 12px 12px !important;
+        vertical-align: middle !important;
+    }
+
+    #productSpecificationTable tbody tr {
+        transition: background-color 0.15s ease;
+    }
+
+    #productSpecificationTable tbody tr:nth-child(even) {
+        background-color: #f8fafc;
+    }
+
+    #productSpecificationTable tbody tr:hover {
+        background-color: #e0e7ff !important;
+    }
+
+    #productSpecificationTable tbody tr.spec-row-selected {
+        background: linear-gradient(90deg, #dbeafe 0%, #eff6ff 100%) !important;
+        border-left: 5px solid #2563eb !important;
+    }
+
+    #productSpecificationTable tbody td {
+        padding: 10px 12px !important;
+        vertical-align: middle !important;
+        border-color: #e2e8f0 !important;
     }
 
     .filter-label {
@@ -29,7 +67,88 @@
         margin-bottom: 6px;
     }
 
+    /* Level 1 Filter Card (Royal Blue Theme) */
+    .filter-card-l1 {
+        background-color: #eaf2ff !important;
+        border: 2px solid #7cb0f8 !important;
+        border-radius: 12px !important;
+        overflow: hidden;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.12) !important;
+    }
+    .filter-card-l1 .card-header {
+        background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%) !important;
+        border-bottom: 2px solid #7cb0f8 !important;
+        color: #ffffff !important;
+    }
+    .filter-card-l1 .card-body {
+        background-color: #eaf2ff !important;
+    }
+    .filter-card-l1 .filter-label {
+        color: #1e3a8a !important;
+        font-weight: 700 !important;
+        font-size: 13px !important;
+    }
+    .filter-card-l1 .select2-container .select2-selection {
+        background-color: #ffffff !important;
+        border: 1.5px solid #93c5fd !important;
+        border-radius: 6px !important;
+        box-shadow: 0 1px 3px rgba(30, 64, 175, 0.06) !important;
+    }
+    .filter-card-l1 .select2-container .select2-selection:hover,
+    .filter-card-l1 .select2-container--open .select2-selection {
+        border-color: #2563eb !important;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2) !important;
+    }
 
+    /* Level 2 Filter Card (Emerald / Teal Theme) */
+    .filter-card-l2 {
+        background-color: #e4f7f4 !important;
+        border: 2px solid #5eead4 !important;
+        border-radius: 12px !important;
+        overflow: hidden;
+        box-shadow: 0 4px 14px rgba(13, 148, 136, 0.12) !important;
+    }
+    .filter-card-l2 .card-header {
+        background: linear-gradient(135deg, #065f46 0%, #0d9488 100%) !important;
+        border-bottom: 2px solid #5eead4 !important;
+        color: #ffffff !important;
+    }
+    .filter-card-l2 .card-body {
+        background-color: #e4f7f4 !important;
+    }
+    .filter-card-l2 .filter-label {
+        color: #065f46 !important;
+        font-weight: 700 !important;
+        font-size: 13px !important;
+    }
+    .filter-card-l2 .select2-container .select2-selection {
+        background-color: #ffffff !important;
+        border: 1.5px solid #5eead4 !important;
+        border-radius: 6px !important;
+        box-shadow: 0 1px 3px rgba(13, 148, 136, 0.06) !important;
+    }
+    .filter-card-l2 .select2-container .select2-selection:hover,
+    .filter-card-l2 .select2-container--open .select2-selection {
+        border-color: #0d9488 !important;
+        box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.2) !important;
+    }
+
+    .filter-card-l2 .filter-locked .select2-selection {
+        background-color: #f1f5f9 !important;
+        border-color: #cbd5e1 !important;
+        color: #64748b !important;
+        cursor: not-allowed !important;
+        opacity: 0.8 !important;
+    }
+    .filter-card-l2 .filter-locked .select2-selection__rendered {
+        color: #475569 !important;
+        cursor: not-allowed !important;
+    }
+    .filter-lock-badge {
+        font-size: 10px;
+        font-weight: 600;
+        vertical-align: middle;
+    }
 
     .product-image-cell {
         width: 85px;
@@ -216,152 +335,377 @@
                 <input type="hidden" name="filter_item_name" id="hidden_filter_item_name" value="{{ request('item_name', request('filter_item_name')) }}">
                 <input type="hidden" name="filter_composition" id="hidden_filter_composition" value="{{ request('composition', request('filter_composition')) }}">
                 <input type="hidden" name="filter_gender" id="hidden_filter_gender" value="{{ request('gender', request('filter_gender')) }}">
+                <input type="hidden" name="filter_collection" id="hidden_filter_collection" value="{{ request('collection', request('filter_collection')) }}">
+                <input type="hidden" name="filter_designer" id="hidden_filter_designer" value="{{ request('designer', request('filter_designer')) }}">
+                <input type="hidden" name="filter_size" id="hidden_filter_size" value="{{ request('size', request('filter_size')) }}">
+                <input type="hidden" name="filter_colour" id="hidden_filter_colour" value="{{ request('colour', request('filter_colour', request('color'))) }}">
+                <input type="hidden" name="filter_manufacture" id="hidden_filter_manufacture" value="{{ request('manufacture', request('filter_manufacture')) }}">
+                <input type="hidden" name="filter_manufacturing_process" id="hidden_filter_manufacturing_process" value="{{ request('manufacturing_process', request('filter_manufacturing_process')) }}">
+                <input type="hidden" name="filter_craftsman" id="hidden_filter_craftsman" value="{{ request('craftsman', request('filter_craftsman')) }}">
                 <input type="hidden" name="filter_stock_qty" id="hidden_filter_stock_qty" value="{{ request('stock_qty', request('filter_stock_qty')) }}">
 
-                {{-- FILTER CARD --}}
-                <div class="card shadow-sm filter-card mb-3">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <strong>
-                            <i class="bi bi-funnel me-1"></i>
-                            Filters
-                        </strong>
+                {{-- LEVEL 1 FILTER CARD (Single Dimension Selector) --}}
+                <div class="card shadow mb-4 filter-card-l1">
+                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2 py-2 px-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-white text-primary px-2 py-1 fw-bold shadow-sm">Level 1</span>
+                            <strong class="text-white fs-6">Primary Filters (Level 1)</strong>
+                            <small class="text-white-50 d-none d-md-inline">&bull; Filters selected here are automatically locked in Level 2</small>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span id="level1ActivePill" class="badge bg-white text-primary fw-bold shadow-sm d-none">
+                                <i class="bi bi-funnel-fill me-1"></i> <span id="level1ActivePillText">Active</span>
+                            </span>
+                            <button type="button" id="btnClearLevel1" class="btn btn-sm btn-light border-0 py-1 px-3 text-primary fw-semibold shadow-sm" title="Reset Level 1 Filter">
+                                <i class="bi bi-arrow-clockwise me-1"></i> Reset Level 1
+                            </button>
+                        </div>
                     </div>
-
-                    <div class="card-body">
-                        <div class="row g-3">
+                    <div class="card-body p-3">
+                        <div class="row g-2">
                             {{-- ITEM TYPE --}}
-                            <div class="col-md-3">
-                                <label for="filterItemType" class="form-label filter-label">
-                                    Item Type
-                                </label>
-                                <select id="filterItemType" class="form-select select2-filter">
-                                    <option value="">All</option>
-                                    @if(isset($masters['itemTypes']))
-                                        @foreach($masters['itemTypes'] as $itemType)
-                                            <option value="{{ $itemType->id }}" {{ (string)request('item_type', request('filter_item_type')) === (string)$itemType->id ? 'selected' : '' }}>
-                                                {{ $itemType->itemtype }}
-                                            </option>
-                                        @endforeach
-                                    @endif
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterItemTypeL1" class="form-label filter-label mb-1">Item Type</label>
+                                <select id="filterItemTypeL1" class="form-select form-select-sm filter-l1 select2-filter" data-field="item_type" data-label="Item Type">
+                                    <option value="">All Item Types</option>
+                                    @foreach($masters['itemTypes'] ?? [] as $m)
+                                        <option value="{{ $m->id }}">{{ $m->itemtype }}</option>
+                                    @endforeach
                                 </select>
                             </div>
 
                             {{-- ITEM NAME --}}
-                            <div class="col-md-3">
-                                <label for="filterItemName" class="form-label filter-label">
-                                    Item Name
-                                </label>
-                                <select id="filterItemName" class="form-select select2-filter">
-                                    <option value="">All</option>
-                                    @if(isset($masters['itemNames']))
-                                        @foreach($masters['itemNames'] as $itemName)
-                                            <option value="{{ $itemName->id }}" {{ (string)request('item_name', request('filter_item_name')) === (string)$itemName->id ? 'selected' : '' }}>
-                                                {{ $itemName->itemname }}
-                                            </option>
-                                        @endforeach
-                                    @endif
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterItemNameL1" class="form-label filter-label mb-1">Item Name</label>
+                                <select id="filterItemNameL1" class="form-select form-select-sm filter-l1 select2-filter" data-field="item_name" data-label="Item Name">
+                                    <option value="">All Item Names</option>
+                                    @foreach($masters['itemNames'] ?? [] as $m)
+                                        <option value="{{ $m->id }}">{{ $m->itemname }}</option>
+                                    @endforeach
                                 </select>
                             </div>
 
                             {{-- COMPOSITION --}}
-                            <div class="col-md-3">
-                                <label for="filterComposition" class="form-label filter-label">
-                                    Composition
-                                </label>
-                                <select id="filterComposition" class="form-select select2-filter">
-                                    <option value="">All</option>
-                                    @if(isset($masters['compositions']))
-                                        @foreach($masters['compositions'] as $composition)
-                                            <option value="{{ $composition->id }}" {{ (string)request('composition', request('filter_composition')) === (string)$composition->id ? 'selected' : '' }}>
-                                                {{ $composition->composition_details }}
-                                            </option>
-                                        @endforeach
-                                    @endif
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterCompositionL1" class="form-label filter-label mb-1">Composition</label>
+                                <select id="filterCompositionL1" class="form-select form-select-sm filter-l1 select2-filter" data-field="composition" data-label="Composition">
+                                    <option value="">All Compositions</option>
+                                    @foreach($masters['compositions'] ?? [] as $m)
+                                        <option value="{{ $m->id }}">{{ $m->composition_details }}</option>
+                                    @endforeach
                                 </select>
                             </div>
 
                             {{-- GENDER --}}
-                            <div class="col-md-3">
-                                <label for="filterGender" class="form-label filter-label">
-                                    Gender Type
-                                </label>
-                                <select id="filterGender" class="form-select select2-filter">
-                                    <option value="">All</option>
-                                    @if(isset($masters['genders']))
-                                        @foreach($masters['genders'] as $gender)
-                                            <option value="{{ $gender->id }}" {{ (string)request('gender', request('filter_gender')) === (string)$gender->id ? 'selected' : '' }}>
-                                                {{ $gender->name }}
-                                            </option>
-                                        @endforeach
-                                    @endif
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterGenderL1" class="form-label filter-label mb-1">Gender</label>
+                                <select id="filterGenderL1" class="form-select form-select-sm filter-l1 select2-filter" data-field="gender" data-label="Gender">
+                                    <option value="">All Genders</option>
+                                    @foreach($masters['genders'] ?? [] as $m)
+                                        <option value="{{ $m->id }}">{{ $m->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- COLLECTION --}}
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterCollectionL1" class="form-label filter-label mb-1">Collection</label>
+                                <select id="filterCollectionL1" class="form-select form-select-sm filter-l1 select2-filter" data-field="collection" data-label="Collection">
+                                    <option value="">All Collections</option>
+                                    @foreach($masters['collections'] ?? [] as $m)
+                                        <option value="{{ $m->id }}">{{ $m->name }}@if(!empty($m->code) && !str_contains($m->name, '(' . $m->code . ')')) ({{ $m->code }})@endif</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- DESIGNER --}}
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterDesignerL1" class="form-label filter-label mb-1">Designer</label>
+                                <select id="filterDesignerL1" class="form-select form-select-sm filter-l1 select2-filter" data-field="designer" data-label="Designer">
+                                    <option value="">All Designers</option>
+                                    @foreach($masters['designers'] ?? [] as $m)
+                                        <option value="{{ $m->id }}">{{ $m->designername }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- SIZE --}}
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterSizeL1" class="form-label filter-label mb-1">Size</label>
+                                <select id="filterSizeL1" class="form-select form-select-sm filter-l1 select2-filter" data-field="size" data-label="Size">
+                                    <option value="">All Sizes</option>
+                                    @foreach($masters['sizes'] ?? [] as $m)
+                                        <option value="{{ $m->id }}">{{ $m->size }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- COLOR --}}
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterColourL1" class="form-label filter-label mb-1">Color</label>
+                                <select id="filterColourL1" class="form-select form-select-sm filter-l1 select2-filter" data-field="colour" data-label="Color">
+                                    <option value="">All Colors</option>
+                                    @foreach($masters['colours'] ?? [] as $m)
+                                        <option value="{{ $m->id }}">{{ $m->colourname }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- MANUFACTURE --}}
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterManufactureL1" class="form-label filter-label mb-1">Manufacture</label>
+                                <select id="filterManufactureL1" class="form-select form-select-sm filter-l1 select2-filter" data-field="manufacture" data-label="Manufacture">
+                                    <option value="">All Manufactures</option>
+                                    @foreach($masters['manufactures'] ?? [] as $m)
+                                        <option value="{{ $m->id }}">{{ $m->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- MANUFACTURING PROCESS --}}
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterManufacturingProcessL1" class="form-label filter-label mb-1">Mfg Process</label>
+                                <select id="filterManufacturingProcessL1" class="form-select form-select-sm filter-l1 select2-filter" data-field="manufacturing_process" data-label="Mfg Process">
+                                    <option value="">All Processes</option>
+                                    @foreach($masters['manufacturingProcesses'] ?? [] as $m)
+                                        <option value="{{ $m->id }}">{{ $m->manufacturing_process }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- CRAFTSMAN --}}
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterCraftsmanL1" class="form-label filter-label mb-1">Craftsman</label>
+                                <select id="filterCraftsmanL1" class="form-select form-select-sm filter-l1 select2-filter" data-field="craftsman" data-label="Craftsman">
+                                    <option value="">All Craftsmen</option>
+                                    @foreach($masters['craftsmen'] ?? [] as $m)
+                                        <option value="{{ $m->id }}">{{ $m->name }}</option>
+                                    @endforeach
                                 </select>
                             </div>
                         </div>
+                    </div>
+                </div>
 
-                        <div class="mt-3">
-                            <button type="button" id="btnApplyFilters" class="btn btn-primary">
-                                <i class="bi bi-search me-1"></i>
-                                Apply Filters
+                {{-- LEVEL 2 FILTER CARD (Multi-Filter & Stock) --}}
+                <div class="card shadow mb-4 filter-card-l2">
+                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2 py-2 px-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-white text-success px-2 py-1 fw-bold shadow-sm">Level 2</span>
+                            <strong class="text-white fs-6">Refined Filters (Multi-Select &amp; Stock)</strong>
+                            <small class="text-white-50 d-none d-md-inline">&bull; Level 1 filters are locked here &bull; Refine further with attributes &amp; stock</small>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" id="btnApplyFilters" class="btn btn-sm btn-light border-0 py-1 px-3 text-success fw-bold shadow-sm">
+                                <i class="bi bi-search me-1"></i> Apply Filters
                             </button>
+                            <button type="button" id="btnClearFilters" class="btn btn-sm btn-outline-light py-1 px-2 fw-semibold">
+                                <i class="bi bi-arrow-clockwise me-1"></i> Clear All
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="row g-2">
+                            {{-- ITEM TYPE --}}
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterItemTypeL2" class="form-label filter-label mb-1">Item Type</label>
+                                <select id="filterItemTypeL2" class="form-select form-select-sm filter-l2 select2-filter" data-field="item_type">
+                                    <option value="">All</option>
+                                    @foreach($masters['itemTypes'] ?? [] as $m)
+                                        <option value="{{ $m->id }}" {{ (string)request('item_type', request('filter_item_type')) === (string)$m->id ? 'selected' : '' }}>{{ $m->itemtype }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
 
-                            <button type="button" id="btnClearFilters" class="btn btn-secondary">
-                                <i class="bi bi-arrow-clockwise me-1"></i>
-                                Clear
-                            </button>
+                            {{-- ITEM NAME --}}
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterItemNameL2" class="form-label filter-label mb-1">Item Name</label>
+                                <select id="filterItemNameL2" class="form-select form-select-sm filter-l2 select2-filter" data-field="item_name">
+                                    <option value="">All</option>
+                                    @foreach($masters['itemNames'] ?? [] as $m)
+                                        <option value="{{ $m->id }}" {{ (string)request('item_name', request('filter_item_name')) === (string)$m->id ? 'selected' : '' }}>{{ $m->itemname }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- COMPOSITION --}}
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterCompositionL2" class="form-label filter-label mb-1">Composition</label>
+                                <select id="filterCompositionL2" class="form-select form-select-sm filter-l2 select2-filter" data-field="composition">
+                                    <option value="">All</option>
+                                    @foreach($masters['compositions'] ?? [] as $m)
+                                        <option value="{{ $m->id }}" {{ (string)request('composition', request('filter_composition')) === (string)$m->id ? 'selected' : '' }}>{{ $m->composition_details }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- GENDER --}}
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterGenderL2" class="form-label filter-label mb-1">Gender</label>
+                                <select id="filterGenderL2" class="form-select form-select-sm filter-l2 select2-filter" data-field="gender">
+                                    <option value="">All</option>
+                                    @foreach($masters['genders'] ?? [] as $m)
+                                        <option value="{{ $m->id }}" {{ (string)request('gender', request('filter_gender')) === (string)$m->id ? 'selected' : '' }}>{{ $m->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- COLLECTION --}}
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterCollectionL2" class="form-label filter-label mb-1">Collection</label>
+                                <select id="filterCollectionL2" class="form-select form-select-sm filter-l2 select2-filter" data-field="collection">
+                                    <option value="">All</option>
+                                    @foreach($masters['collections'] ?? [] as $m)
+                                        <option value="{{ $m->id }}" {{ (string)request('collection', request('filter_collection')) === (string)$m->id ? 'selected' : '' }}>
+                                            {{ $m->name }}@if(!empty($m->code) && !str_contains($m->name, '(' . $m->code . ')')) ({{ $m->code }})@endif
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- DESIGNER --}}
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterDesignerL2" class="form-label filter-label mb-1">Designer</label>
+                                <select id="filterDesignerL2" class="form-select form-select-sm filter-l2 select2-filter" data-field="designer">
+                                    <option value="">All</option>
+                                    @foreach($masters['designers'] ?? [] as $m)
+                                        <option value="{{ $m->id }}" {{ (string)request('designer', request('filter_designer')) === (string)$m->id ? 'selected' : '' }}>{{ $m->designername }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- SIZE --}}
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterSizeL2" class="form-label filter-label mb-1">Size</label>
+                                <select id="filterSizeL2" class="form-select form-select-sm filter-l2 select2-filter" data-field="size">
+                                    <option value="">All</option>
+                                    @foreach($masters['sizes'] ?? [] as $m)
+                                        <option value="{{ $m->id }}" {{ (string)request('size', request('filter_size')) === (string)$m->id ? 'selected' : '' }}>{{ $m->size }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- COLOR --}}
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterColourL2" class="form-label filter-label mb-1">Color</label>
+                                <select id="filterColourL2" class="form-select form-select-sm filter-l2 select2-filter" data-field="colour">
+                                    <option value="">All</option>
+                                    @foreach($masters['colours'] ?? [] as $m)
+                                        <option value="{{ $m->id }}" {{ (string)request('colour', request('filter_colour', request('color'))) === (string)$m->id ? 'selected' : '' }}>{{ $m->colourname }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- MANUFACTURE --}}
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterManufactureL2" class="form-label filter-label mb-1">Manufacture</label>
+                                <select id="filterManufactureL2" class="form-select form-select-sm filter-l2 select2-filter" data-field="manufacture">
+                                    <option value="">All</option>
+                                    @foreach($masters['manufactures'] ?? [] as $m)
+                                        <option value="{{ $m->id }}" {{ (string)request('manufacture', request('filter_manufacture')) === (string)$m->id ? 'selected' : '' }}>{{ $m->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- MANUFACTURING PROCESS --}}
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterManufacturingProcessL2" class="form-label filter-label mb-1">Mfg Process</label>
+                                <select id="filterManufacturingProcessL2" class="form-select form-select-sm filter-l2 select2-filter" data-field="manufacturing_process">
+                                    <option value="">All</option>
+                                    @foreach($masters['manufacturingProcesses'] ?? [] as $m)
+                                        <option value="{{ $m->id }}" {{ (string)request('manufacturing_process', request('filter_manufacturing_process')) === (string)$m->id ? 'selected' : '' }}>{{ $m->manufacturing_process }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- CRAFTSMAN --}}
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterCraftsmanL2" class="form-label filter-label mb-1">Craftsman</label>
+                                <select id="filterCraftsmanL2" class="form-select form-select-sm filter-l2 select2-filter" data-field="craftsman">
+                                    <option value="">All</option>
+                                    @foreach($masters['craftsmen'] ?? [] as $m)
+                                        <option value="{{ $m->id }}" {{ (string)request('craftsman', request('filter_craftsman')) === (string)$m->id ? 'selected' : '' }}>{{ $m->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- STOCK QTY (EXTRA FILTER IN LEVEL 2) --}}
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                <label for="filterStockQtyL2" class="form-label filter-label mb-1 text-primary fw-bold">
+                                    <i class="bi bi-box-seam me-1"></i>Stock
+                                </label>
+                                <select id="filterStockQtyL2" class="form-select form-select-sm filter-l2 select2-filter" data-field="stock_qty">
+                                    <option value="">All Stock</option>
+                                    <option value="1" {{ (string)request('stock_qty', request('filter_stock_qty')) === '1' ? 'selected' : '' }}>1</option>
+                                    <option value="less_than_5" {{ (string)request('stock_qty', request('filter_stock_qty')) === 'less_than_5' ? 'selected' : '' }}>Less than 5</option>
+                                    <option value="5_10" {{ (string)request('stock_qty', request('filter_stock_qty')) === '5_10' ? 'selected' : '' }}>5 - 10</option>
+                                    <option value="10_above" {{ (string)request('stock_qty', request('filter_stock_qty')) === '10_above' ? 'selected' : '' }}>10 Above</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 {{-- RESULT CARD --}}
-                <div class="card shadow-sm result-card mb-4" id="specTableCard">
-                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="card shadow result-card mb-4" id="specTableCard">
+                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2 py-2 px-3">
                         <div class="d-flex align-items-center gap-2">
-                            <strong>
-                                <i class="bi bi-list-ul me-1"></i>
+                            <strong class="fs-6 text-white d-flex align-items-center gap-2">
+                                <i class="bi bi-stars text-warning fs-5"></i>
                                 Ready Products List
                             </strong>
-
-                            <span id="totalProducts" class="badge bg-primary">0</span>
+                            <span id="totalProducts" class="badge bg-white text-dark fw-bold px-3 py-1 shadow-sm fs-6">0</span>
                         </div>
 
-                        <div class="d-flex align-items-center gap-2">
-                            <label for="filterStockQty" class="form-label mb-0 small fw-bold text-muted text-nowrap">
-                                <i class="bi bi-funnel me-1"></i>Stock:
-                            </label>
-                            <select id="filterStockQty" class="form-select form-select-sm" style="min-width: 160px;">
-                                <option value="">All Stock</option>
-                                <option value="1" {{ (string)request('stock_qty', request('filter_stock_qty')) === '1' ? 'selected' : '' }}>1</option>
-                                <option value="less_than_5" {{ (string)request('stock_qty', request('filter_stock_qty')) === 'less_than_5' ? 'selected' : '' }}>Less than 5</option>
-                                <option value="5_10" {{ (string)request('stock_qty', request('filter_stock_qty')) === '5_10' ? 'selected' : '' }}>5 - 10</option>
-                                <option value="10_above" {{ (string)request('stock_qty', request('filter_stock_qty')) === '10_above' ? 'selected' : '' }}>10 Above</option>
-                            </select>
+                        <div class="small text-white-50 d-flex align-items-center gap-1">
+                            <i class="bi bi-arrow-left-right text-warning"></i>
+                            <span>Horizontal scrollable list with all garment attributes</span>
                         </div>
                     </div>
 
                     <div class="card-body p-0">
-
-                        <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
-                            <table class="table table-bordered table-hover mb-0 align-middle" id="productSpecificationTable">
-                                <thead class="table-light position-sticky top-0 shadow-sm" style="z-index: 2;">
+                        <div class="table-responsive" style="max-height: 520px; overflow-y: auto; overflow-x: auto;">
+                            <table class="table table-bordered mb-0 align-middle text-nowrap" id="productSpecificationTable">
+                                <thead class="position-sticky top-0 shadow-sm" style="z-index: 2;">
                                     <tr>
-                                        <th style="width: 50px;">#</th>
+                                        <th style="width: 50px;" class="text-center">#</th>
                                         <th class="text-center" style="width: 85px;">Image</th>
-                                        <th>Item Type</th>
-                                        <th>Item Name</th>
-                                        <th>Composition</th>
-                                        <th>Gender Type</th>
-                                        <th class="text-end" style="width: 110px;">Stock Qty</th>
                                         <th class="text-center" style="width: 110px;">Action</th>
+                                        <th style="min-width: 140px;">Item Type</th>
+                                        <th style="min-width: 200px;">Item Name</th>
+                                        <th style="min-width: 140px;">Composition</th>
+                                        <th style="min-width: 110px;">Gender</th>
+                                        <th style="min-width: 120px;">Collection</th>
+                                        <th style="min-width: 130px;">Designer</th>
+                                        <th style="min-width: 90px;">Size</th>
+                                        <th style="min-width: 120px;">Color</th>
+                                        <th style="min-width: 140px;">Manufacture</th>
+                                        <th style="min-width: 160px;">Manufacturing Process</th>
+                                        <th style="min-width: 130px;">Craftsman</th>
+                                        <th class="text-end" style="width: 110px;">Stock Qty</th>
                                     </tr>
                                 </thead>
                                 <tbody id="productSpecificationTableBody">
                                     <tr>
-                                        <td colspan="8" class="text-center py-4 text-muted">
+                                        <td colspan="15" class="text-center py-4 text-muted">
                                             <span class="spinner-border spinner-border-sm me-1" role="status"></span> Loading specifications...
                                         </td>
                                     </tr>
                                 </tbody>
                             </table>
+                        </div>
+                        <div id="tableLoadMoreContainer" class="d-none card-footer bg-light d-flex justify-content-between align-items-center py-2 px-3 border-top">
+                            <small class="text-muted fw-semibold">
+                                Showing <span id="tableShownCount" class="text-primary fw-bold">0</span> of <span id="tableTotalCount" class="fw-bold">0</span> products
+                            </small>
+                            <div class="d-flex gap-2">
+                                <button type="button" id="btnTableLoadMore" class="btn btn-sm btn-primary px-3 shadow-sm">
+                                    <i class="bi bi-arrow-down-circle me-1"></i> Load More (+50)
+                                </button>
+                                <button type="button" id="btnTableLoadAll" class="btn btn-sm btn-outline-secondary px-2">
+                                    Load All
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -539,7 +883,7 @@
                                     {{-- Item Name --}}
                                     <div class="col-md-4 mb-3">
                                         <label class="form-label fw-bold">Item Name</label>
-                                        <select name="item_name" id="master_item_name" class="form-select select2-master">
+                                        <select id="master_item_name" class="form-select select2-master">
                                             <option value="">Select an option</option>
                                             @foreach($masters['itemNames'] ?? [] as $m)
                                                 <option value="{{ $m->id }}" data-name="{{ $m->itemname }}" data-code="{{ $m->code }}" {{ old('item_name') == $m->id ? 'selected' : '' }}>
@@ -695,7 +1039,14 @@
                                     {{-- Collection --}}
                                     <div class="col-md-4 mb-3">
                                         <label class="form-label fw-bold">Collection</label>
-                                        <input type="text" name="collection" class="form-control" value="{{ old('collection') }}" placeholder="e.g. Summer 2026">
+                                        <select name="collection" id="master_collection" class="form-select select2-master">
+                                            <option value="">Select an option</option>
+                                            @foreach($masters['collections'] ?? [] as $m)
+                                                <option value="{{ $m->id }}" data-name="{{ $m->name }}" data-code="{{ $m->code }}" {{ old('collection') == $m->id ? 'selected' : '' }}>
+                                                    {{ $m->name }} @if(!empty($m->code) && !str_contains($m->name, '(' . $m->code . ')')) ({{ $m->code }}) @endif
+                                                </option>
+                                            @endforeach
+                                        </select>
                                     </div>
                                 </div>
                             </div>
@@ -1103,18 +1454,20 @@
                 const name = selectedOpt.data('name') || selectedOpt.text().trim();
                 productNameHidden.val(name);
 
-                // Auto-generate SKU
-                $.ajax({
-                    url: "{{ route('supplier.products.generate-sku') }}",
-                    type: "GET",
-                    data: { item_name_id: val },
-                    dataType: "json",
-                    success: function(res) {
-                        if (res && res.sku) {
-                            productSkuInput.val(res.sku);
+                // Auto-generate SKU only if not in specification mode / SKU not locked
+                if (!currentSelectedSku && !productSkuInput.prop('readonly')) {
+                    $.ajax({
+                        url: "{{ route('supplier.products.generate-sku') }}",
+                        type: "GET",
+                        data: { item_name_id: val },
+                        dataType: "json",
+                        success: function(res) {
+                            if (res && res.sku && !currentSelectedSku && !productSkuInput.prop('readonly')) {
+                                productSkuInput.val(res.sku);
+                            }
                         }
-                    }
-                });
+                    });
+                }
             }
         });
 
@@ -1329,13 +1682,18 @@
             // =========================================================================
             // PRODUCT SPECIFICATION MASTER - FILTERS, TABLE SEARCH & AUTO-FILL
             // =========================================================================
-            const filterItemType = $('#filterItemType');
-            const filterItemName = $('#filterItemName');
-            const filterComposition = $('#filterComposition');
-            const filterGender = $('#filterGender');
-            const filterStockQty = $('#filterStockQty');
+            // =========================================================================
+            // PRODUCT SPECIFICATION MASTER - TWO-LEVEL FILTERS & SPECIFICATION TABLE
+            // =========================================================================
+            const filterL1Selects = $('.filter-l1');
+            const filterL2Selects = $('.filter-l2');
+            const filterStockQtyL2 = $('#filterStockQtyL2');
             const btnApplyFilters = $('#btnApplyFilters');
             const btnClearFilters = $('#btnClearFilters');
+            const btnClearLevel1 = $('#btnClearLevel1');
+            const level1ActivePill = $('#level1ActivePill');
+            const level1ActivePillText = $('#level1ActivePillText');
+
             const tableBody = $('#productSpecificationTableBody');
             const totalProductsBadge = $('#totalProducts');
             const hiddenSkuInput = $('#select_vendor_sku');
@@ -1344,6 +1702,7 @@
 
             let loadedSpecifications = [];
             let currentSelectedSku = hiddenSkuInput.val() || '';
+            let isFilterSyncing = false;
 
             // Helper to blank/reset photo and media details completely
             function clearPhotoDetails() {
@@ -1391,6 +1750,14 @@
                 // Blank all photo and media details
                 clearPhotoDetails();
 
+                // Reset Item Name in Basic Details
+                $('#supplier_item_name_select').val('').trigger('change');
+                $('#supplier_item_name_select').next('.select2-container').css('pointer-events', '').find('.select2-selection').removeClass('bg-light');
+                $('#btnSupplierAddItemName').removeClass('d-none');
+                $('#product_name_locked_badge').addClass('d-none');
+                $('#product_sku_locked_badge').addClass('d-none');
+                $('#product_sku_input').prop('readonly', false).removeClass('bg-light');
+
                 // Clear Master Dropdowns
                 $('#master_item_name').val('').trigger('change');
                 $('#master_item_type').val('').trigger('change');
@@ -1404,14 +1771,13 @@
                 $('#master_manufacturing_process').val('').trigger('change');
                 $('#master_craftsman').val('').trigger('change');
                 $('#master_manufacture').val('').trigger('change');
+                $('#master_collection').val('').trigger('change');
 
                 // Clear Manual Inputs
                 $('.manual-input').val('');
 
                 // Clear confirmation alert
                 skuAutoFillAlert.addClass('d-none').removeClass('d-flex');
-
-
 
                 // Re-render table to unselect rows
                 if (typeof renderSpecificationTable === 'function') {
@@ -1504,47 +1870,98 @@
                 }
             }
 
-            function renderSpecificationTable(items) {
-                const stockFilterVal = filterStockQty.val();
-
-                // Filter out any items with 0 stock and match selected stock quantity
-                items = (items || []).filter(item => {
-                    const stock = (item.available_stock !== undefined && item.available_stock !== null)
-                        ? parseInt(item.available_stock, 10)
-                        : (parseInt(item.total_stock, 10) || 0);
-
-                    if (stock <= 0) return false;
-
-                    if (stockFilterVal === '1') {
-                        return stock === 1;
-                    } else if (stockFilterVal === 'less_than_5') {
-                        return stock > 1 && stock < 5;
-                    } else if (stockFilterVal === '5_10') {
-                        return stock >= 5 && stock <= 10;
-                    } else if (stockFilterVal === '10_above') {
-                        return stock >= 10;
+            function updateLevel1Badge() {
+                let activeParts = [];
+                filterL1Selects.each(function() {
+                    const val = $(this).val();
+                    if (val) {
+                        const label = $(this).data('label') || 'Filter';
+                        const text = $(this).find('option:selected').text().trim();
+                        activeParts.push(label + ': ' + text);
                     }
-
-                    return true;
                 });
 
-                tableBody.empty();
-                totalProductsBadge.text(items ? items.length : 0);
+                if (activeParts.length > 0) {
+                    level1ActivePillText.text(activeParts.join(' • '));
+                    level1ActivePill.removeClass('d-none');
+                } else {
+                    level1ActivePill.addClass('d-none');
+                }
+            }
 
-                if (!items || items.length === 0) {
-                    tableBody.html(`
-                        <tr>
-                            <td colspan="8" class="text-center py-5 text-muted">
-                                <i class="bi bi-box-seam" style="font-size: 32px;"></i>
-                                <div class="mt-2 fw-semibold">No product specification stock found.</div>
-                                <small class="text-muted">Try adjusting your filters above.</small>
-                            </td>
-                        </tr>
-                    `);
-                    return;
+            function syncFilterHiddenInputs() {
+                const getVal = (field) => {
+                    const l2 = $(`#filter${field}L2`).val();
+                    const l1 = $(`#filter${field}L1`).val();
+                    return l2 || l1 || '';
+                };
+
+                $('#hidden_filter_item_type').val(getVal('ItemType'));
+                $('#hidden_filter_item_name').val(getVal('ItemName'));
+                $('#hidden_filter_composition').val(getVal('Composition'));
+                $('#hidden_filter_gender').val(getVal('Gender'));
+                $('#hidden_filter_collection').val(getVal('Collection'));
+                $('#hidden_filter_designer').val(getVal('Designer'));
+                $('#hidden_filter_size').val(getVal('Size'));
+                $('#hidden_filter_colour').val(getVal('Colour'));
+                $('#hidden_filter_manufacture').val(getVal('Manufacture'));
+                $('#hidden_filter_manufacturing_process').val(getVal('ManufacturingProcess'));
+                $('#hidden_filter_craftsman').val(getVal('Craftsman'));
+                $('#hidden_filter_stock_qty').val($('#filterStockQtyL2').val() || '');
+            }
+
+            let currentRenderedCount = 0;
+            const PAGE_SIZE = 50;
+            let filteredItems = [];
+
+            function renderSpecificationTable(items, isAppend = false) {
+                if (!isAppend) {
+                    const stockFilterVal = filterStockQtyL2.val();
+
+                    filteredItems = (items || []).filter(item => {
+                        const stock = (item.available_stock !== undefined && item.available_stock !== null)
+                            ? parseInt(item.available_stock, 10)
+                            : (parseInt(item.total_stock, 10) || 0);
+
+                        if (stock <= 0) return false;
+
+                        if (stockFilterVal === '1') {
+                            return stock === 1;
+                        } else if (stockFilterVal === 'less_than_5') {
+                            return stock > 1 && stock < 5;
+                        } else if (stockFilterVal === '5_10') {
+                            return stock >= 5 && stock <= 10;
+                        } else if (stockFilterVal === '10_above') {
+                            return stock >= 10;
+                        }
+
+                        return true;
+                    });
+
+                    tableBody.empty();
+                    totalProductsBadge.text(filteredItems ? filteredItems.length : 0);
+                    currentRenderedCount = 0;
+
+                    if (!filteredItems || filteredItems.length === 0) {
+                        tableBody.html(`
+                            <tr>
+                                <td colspan="15" class="text-center py-5 text-muted">
+                                    <i class="bi bi-box-seam" style="font-size: 32px;"></i>
+                                    <div class="mt-2 fw-semibold">No product specification stock found.</div>
+                                    <small class="text-muted">Try adjusting your Level 1 or Level 2 filters above.</small>
+                                </td>
+                            </tr>
+                        `);
+                        $('#tableLoadMoreContainer').addClass('d-none');
+                        return;
+                    }
                 }
 
-                items.forEach((item, index) => {
+                const nextBatch = filteredItems.slice(currentRenderedCount, currentRenderedCount + PAGE_SIZE);
+                const rowsHtml = [];
+
+                nextBatch.forEach((item, batchIdx) => {
+                    const index = currentRenderedCount + batchIdx;
                     const isSelected = currentSelectedSku && item.sku === currentSelectedSku;
                     const availStock = (item.available_stock !== undefined && item.available_stock !== null)
                         ? parseInt(item.available_stock, 10)
@@ -1558,7 +1975,7 @@
                                  class="product-table-image clickable-photo"
                                  title="Click to view big photo"
                                  loading="lazy"
-                                 onerror="this.outerHTML='<div class=&quot;no-product-image&quot;><i class=&quot;bi bi-image&quot;></i><span>Unavailable</span></div>';">
+                                 onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'52\\' height=\\'52\\' viewBox=\\'0 0 52 52\\'><rect width=\\'52\\' height=\\'52\\' fill=\\'%23f1f5f9\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' font-size=\\'9\\' fill=\\'%2394a3b8\\'>No Image</text></svg>';">
                         `;
                     } else {
                         imageHtml = `
@@ -1570,56 +1987,128 @@
                     }
 
                     const actionHtml = isSelected
-                        ? `<button type="button" class="btn btn-sm btn-success disabled">
-                               <i class="bi bi-check-lg me-1"></i> Selected
+                        ? `<button type="button" class="btn btn-sm btn-success fw-bold shadow-sm px-3 disabled" style="background: linear-gradient(135deg, #10b981, #059669); border: none;">
+                               <i class="bi bi-check-circle-fill me-1"></i> Selected
                            </button>`
-                        : `<button type="button" class="btn btn-sm btn-primary js-choose-spec" data-index="${index}">
-                               <i class="bi bi-check2-circle me-1"></i> Choose
+                        : `<button type="button" class="btn btn-sm btn-primary fw-bold shadow-sm px-3 js-choose-spec" data-index="${index}" style="background: linear-gradient(135deg, #4f46e5, #3b82f6); border: none;">
+                               <i class="bi bi-hand-index-thumb me-1"></i> Choose
                            </button>`;
 
-                    const tr = $(`
-                        <tr class="${isSelected ? 'table-primary spec-row-selected' : ''}" data-spec-id="${item.spec_id}">
-                            <td>${index + 1}</td>
-                            <td class="product-image-cell">${imageHtml}</td>
-                            <td>${escapeHtml(item.item_type_text || '-')}</td>
+                    const genderBadge = item.gender_text
+                        ? (String(item.gender_text).toLowerCase().includes('women')
+                            ? `<span class="badge" style="background-color: #fce7f3; color: #be185d; border: 1px solid #fbcfe8;">${escapeHtml(item.gender_text)}</span>`
+                            : (String(item.gender_text).toLowerCase().includes('men')
+                                ? `<span class="badge" style="background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">${escapeHtml(item.gender_text)}</span>`
+                                : `<span class="badge bg-light text-dark border">${escapeHtml(item.gender_text)}</span>`))
+                        : '<span class="text-muted">-</span>';
+
+                    const collectionText = item.collection_text || item.collection;
+                    const collectionBadge = collectionText
+                        ? `<span class="badge" style="background-color: #ede9fe; color: #6d28d9; border: 1px solid #ddd6fe; font-weight: 600;">${escapeHtml(collectionText)}</span>`
+                        : '<span class="text-muted">-</span>';
+
+                    const itemTypeBadge = item.item_type_text
+                        ? `<span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">${escapeHtml(item.item_type_text)}</span>`
+                        : '<span class="text-muted">-</span>';
+
+                    const sizeBadge = item.size_text
+                        ? `<span class="badge bg-secondary-subtle text-secondary border font-monospace px-2 py-1 fw-bold">${escapeHtml(item.size_text)}</span>`
+                        : '<span class="text-muted">-</span>';
+
+                    const colourBadge = item.colour_text
+                        ? `<span class="badge bg-warning-subtle text-dark border border-warning-subtle px-2 py-1"><i class="bi bi-palette me-1 text-warning"></i>${escapeHtml(item.colour_text)}</span>`
+                        : '<span class="text-muted">-</span>';
+
+                    const mfgBadge = item.manufacturing_process_text
+                        ? `<span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">${escapeHtml(item.manufacturing_process_text)}</span>`
+                        : '<span class="text-muted">-</span>';
+
+                    const craftsmanBadge = item.craftsman_text
+                        ? `<span class="badge bg-success-subtle text-success-emphasis border border-success-subtle">${escapeHtml(item.craftsman_text)}</span>`
+                        : '<span class="text-muted">-</span>';
+
+                    rowsHtml.push(`
+                        <tr class="${isSelected ? 'spec-row-selected' : ''}" data-spec-id="${item.spec_id}">
+                            <td class="text-center fw-bold text-muted">${index + 1}</td>
+                            <td class="product-image-cell text-center">${imageHtml}</td>
+                            <td class="text-center">${actionHtml}</td>
+                            <td>${itemTypeBadge}</td>
                             <td>
-                                <div class="fw-bold text-dark">${escapeHtml(item.item_name_text || '-')}</div>
-                                <div class="small text-muted font-monospace">${escapeHtml(item.sku || '')}</div>
+                                <div class="fw-bold text-dark fs-6">${escapeHtml(item.item_name_text || '-')}</div>
+                                <span class="badge bg-light text-muted border font-monospace mt-1">${escapeHtml(item.sku || '')}</span>
                             </td>
-                            <td>${escapeHtml(item.composition_text || '-')}</td>
-                            <td>${escapeHtml(item.gender_text || '-')}</td>
+                            <td><span class="text-dark fw-medium">${escapeHtml(item.composition_text || '-')}</span></td>
+                            <td>${genderBadge}</td>
+                            <td>${collectionBadge}</td>
+                            <td><span class="text-dark fw-semibold">${escapeHtml(item.designer_text || '-')}</span></td>
+                            <td>${sizeBadge}</td>
+                            <td>${colourBadge}</td>
+                            <td><span class="text-dark">${escapeHtml(item.manufacture_text || '-')}</span></td>
+                            <td>${mfgBadge}</td>
+                            <td>${craftsmanBadge}</td>
                             <td class="text-end">
-                                <span class="badge ${availStock > 0 ? 'bg-success' : 'bg-secondary'} stock-qty-badge">
-                                    ${availStock}
+                                <span class="badge ${availStock > 0 ? 'bg-success' : 'bg-secondary'} px-2 py-1 shadow-sm stock-qty-badge fs-6">
+                                    <i class="bi bi-box-seam me-1"></i>${availStock}
                                 </span>
                             </td>
-                            <td class="text-center">${actionHtml}</td>
                         </tr>
                     `);
-
-                    tableBody.append(tr);
                 });
+
+                currentRenderedCount += nextBatch.length;
+                if (isAppend) {
+                    tableBody.append(rowsHtml.join(''));
+                } else {
+                    tableBody.html(rowsHtml.join(''));
+                }
+
+                if (currentRenderedCount < filteredItems.length) {
+                    $('#tableLoadMoreContainer').removeClass('d-none');
+                    $('#tableShownCount').text(currentRenderedCount);
+                    $('#tableTotalCount').text(filteredItems.length);
+                } else {
+                    $('#tableLoadMoreContainer').addClass('d-none');
+                }
             }
 
+            let currentSpecAjax = null;
+
             function fetchSpecifications() {
+                if (currentSpecAjax && currentSpecAjax.readyState !== 4) {
+                    currentSpecAjax.abort();
+                }
+
                 tableBody.html(`
                     <tr>
-                        <td colspan="8" class="text-center py-4 text-muted">
+                        <td colspan="15" class="text-center py-4 text-muted">
                             <span class="spinner-border spinner-border-sm me-2" role="status"></span>
                             Loading product specifications...
                         </td>
                     </tr>
                 `);
 
-                const params = {
-                    item_type: filterItemType.val() || '',
-                    item_name: filterItemName.val() || '',
-                    composition: filterComposition.val() || '',
-                    gender: filterGender.val() || '',
-                    stock_filter: filterStockQty.val() || ''
+                const getVal = (field) => {
+                    const l2 = $(`#filter${field}L2`).val();
+                    const l1 = $(`#filter${field}L1`).val();
+                    return l2 || l1 || '';
                 };
 
-                $.ajax({
+                const params = {
+                    item_type: getVal('ItemType'),
+                    item_name: getVal('ItemName'),
+                    composition: getVal('Composition'),
+                    gender: getVal('Gender'),
+                    collection: getVal('Collection'),
+                    designer: getVal('Designer'),
+                    size: getVal('Size'),
+                    colour: getVal('Colour'),
+                    manufacture: getVal('Manufacture'),
+                    manufacturing_process: getVal('ManufacturingProcess'),
+                    craftsman: getVal('Craftsman'),
+                    stock_filter: $('#filterStockQtyL2').val() || ''
+                };
+
+                currentSpecAjax = $.ajax({
                     url: '{{ route("supplier.products.search-specifications") }}',
                     method: 'GET',
                     data: params,
@@ -1629,10 +2118,11 @@
                         renderSpecificationTable(loadedSpecifications);
                     },
                     error: function(err) {
+                        if (err && err.statusText === 'abort') return;
                         console.error('Error fetching specifications:', err);
                         tableBody.html(`
                             <tr>
-                                <td colspan="8" class="text-center text-danger py-4">
+                                <td colspan="15" class="text-center text-danger py-4">
                                     <i class="bi bi-exclamation-triangle me-1"></i> Failed to load product specifications. Please try again.
                                 </td>
                             </tr>
@@ -1668,8 +2158,28 @@
                 $('#product_name_input').val(itemName).prop('readonly', true).addClass('bg-light');
                 $('#product_name_locked_badge').removeClass('d-none');
 
+                // Auto-select Item Name in Basic Details and Master Attributes
+                if (spec.item_name) {
+                    setSelect2Val($('#supplier_item_name_select'), spec.item_name, spec.item_name_text);
+                    setSelect2Val($('#master_item_name'), spec.item_name, spec.item_name_text);
+                    $('#supplier_item_name_select').next('.select2-container').css('pointer-events', 'none').find('.select2-selection').addClass('bg-light');
+                    $('#btnSupplierAddItemName').addClass('d-none');
+                } else if (spec.item_name_text) {
+                    let matchedOpt = $('#supplier_item_name_select option').filter(function() {
+                        return $(this).text().trim().toLowerCase().includes(spec.item_name_text.trim().toLowerCase());
+                    });
+                    if (matchedOpt.length) {
+                        setSelect2Val($('#supplier_item_name_select'), matchedOpt.val(), matchedOpt.text());
+                        setSelect2Val($('#master_item_name'), matchedOpt.val(), matchedOpt.text());
+                    } else {
+                        setSelect2Val($('#supplier_item_name_select'), spec.item_name_text, spec.item_name_text);
+                        setSelect2Val($('#master_item_name'), spec.item_name_text, spec.item_name_text);
+                    }
+                    $('#supplier_item_name_select').next('.select2-container').css('pointer-events', 'none').find('.select2-selection').addClass('bg-light');
+                    $('#btnSupplierAddItemName').addClass('d-none');
+                }
+
                 // Auto-select Master dropdowns
-                if (spec.item_name) setSelect2Val($('#master_item_name'), spec.item_name, spec.item_name_text);
                 if (spec.item_type) setSelect2Val($('#master_item_type'), spec.item_type, spec.item_type_text);
                 if (spec.designer) setSelect2Val($('#master_designer'), spec.designer);
                 if (spec.gender) setSelect2Val($('#master_gender'), spec.gender, spec.gender_text);
@@ -1681,6 +2191,7 @@
                 if (spec.manufacturing_process) setSelect2Val($('#master_manufacturing_process'), spec.manufacturing_process);
                 if (spec.craftsman !== undefined && spec.craftsman !== null) setSelect2Val($('#master_craftsman'), spec.craftsman);
                 if (spec.manufacture) setSelect2Val($('#master_manufacture'), spec.manufacture);
+                if (spec.collection) setSelect2Val($('#master_collection'), spec.collection, spec.collection_text);
 
                 // Ensure product name is preserved as item name
                 $('#product_name_input').val(itemName);
@@ -1700,7 +2211,7 @@
                 if (spec.image_url) {
                     $('#mainImagePreview').attr('src', spec.image_url);
                     $('#mainImagePreviewContainer').removeClass('d-none');
-                    $('#existing_spec_image_input').val(spec.img_path || spec.image_url);
+                    $('#existing_spec_image_input').val(spec.image_url || spec.img_path || '');
                 } else {
                     $('#mainImagePreview').attr('src', '');
                     $('#mainImagePreviewContainer').addClass('d-none');
@@ -1738,21 +2249,6 @@
                 }
             });
 
-            function syncFilterHiddenInputs() {
-                $('#hidden_filter_item_type').val(filterItemType.val() || '');
-                $('#hidden_filter_item_name').val(filterItemName.val() || '');
-                $('#hidden_filter_composition').val(filterComposition.val() || '');
-                $('#hidden_filter_gender').val(filterGender.val() || '');
-                $('#hidden_filter_stock_qty').val(filterStockQty.val() || '');
-            }
-
-            // Sync hidden inputs whenever filters change
-            filterItemType.on('change', syncFilterHiddenInputs);
-            filterItemName.on('change', syncFilterHiddenInputs);
-            filterComposition.on('change', syncFilterHiddenInputs);
-            filterGender.on('change', syncFilterHiddenInputs);
-            filterStockQty.on('change', syncFilterHiddenInputs);
-
             // Handle clicking any submit action button (Save & Next, Save & Exit, etc.)
             $(document).on('click', '.btn-submit-action', function() {
                 const action = $(this).val() || $(this).data('action') || 'save_next';
@@ -1787,9 +2283,20 @@
             // Click Choose button on a table row
             tableBody.on('click', '.js-choose-spec', function() {
                 const idx = $(this).data('index');
-                const selectedItem = loadedSpecifications[idx];
+                const selectedItem = (filteredItems && filteredItems[idx]) ? filteredItems[idx] : loadedSpecifications[idx];
                 if (selectedItem) {
                     applySpecification(selectedItem);
+                }
+            });
+
+            // Load More button handlers
+            $('#btnTableLoadMore').on('click', function() {
+                renderSpecificationTable(null, true);
+            });
+
+            $('#btnTableLoadAll').on('click', function() {
+                while (currentRenderedCount < filteredItems.length) {
+                    renderSpecificationTable(null, true);
                 }
             });
 
@@ -1798,34 +2305,117 @@
                 e.stopPropagation();
                 const src = $(this).attr('src');
                 const tr = $(this).closest('tr');
-                const itemName = tr.find('td:nth-child(4) div.fw-bold').text().trim() || 'Specification Product Image';
-                const itemSku = tr.find('td:nth-child(4) div.small').text().trim();
+                const itemName = tr.find('td:nth-child(5) div.fw-bold').text().trim() || 'Specification Product Image';
+                const itemSku = tr.find('td:nth-child(5) div.small').text().trim();
                 if (src) {
                     showImageInModal(src, 'Specification Product Image', itemName + (itemSku ? ` (${itemSku})` : ''));
                 }
             });
 
-            // Filter actions
-            filterStockQty.on('change', function() {
+            // =========================================================================
+            // INTERLOCKING LEVEL 1 & LEVEL 2 FILTER ACTIONS
+            // =========================================================================
+
+            // Apply Level 1 selections to Level 2 and LOCK them so they cannot be changed in Level 2
+            function syncAndLockLevel1ToLevel2() {
+                filterL1Selects.each(function() {
+                    const field = $(this).data('field');
+                    const val = $(this).val();
+                    const l2Select = filterL2Selects.filter(`[data-field="${field}"]`);
+                    const l2Label = $(`label[for="${l2Select.attr('id')}"]`);
+
+                    if (l2Select.length) {
+                        if (val) {
+                            // Selected in Level 1: mirror into Level 2 and lock it
+                            l2Select.val(val).prop('disabled', true).trigger('change.select2', [true]);
+                            l2Select.next('.select2-container')
+                                .addClass('filter-locked')
+                                .css('pointer-events', 'none')
+                                .find('.select2-selection')
+                                .addClass('bg-light');
+
+                            if (!l2Label.find('.filter-lock-badge').length) {
+                                l2Label.append(' <span class="badge bg-secondary-subtle text-secondary border px-1 py-0 ms-1 filter-lock-badge" title="Locked by Level 1 filter"><i class="bi bi-lock-fill"></i> Locked</span>');
+                            }
+                        } else {
+                            // Cleared in Level 1: unlock in Level 2
+                            l2Select.prop('disabled', false).trigger('change.select2', [true]);
+                            l2Select.next('.select2-container')
+                                .removeClass('filter-locked')
+                                .css('pointer-events', '')
+                                .find('.select2-selection')
+                                .removeClass('bg-light');
+
+                            l2Label.find('.filter-lock-badge').remove();
+                        }
+                    }
+                });
+            }
+
+            // Level 1: When user changes ANY filter in Level 1
+            filterL1Selects.on('change', function(e, isInternal) {
+                if (isFilterSyncing || isInternal) return;
+                isFilterSyncing = true;
+
+                syncAndLockLevel1ToLevel2();
+                updateLevel1Badge();
+                syncFilterHiddenInputs();
+
+                isFilterSyncing = false;
                 fetchSpecifications();
             });
 
-            btnApplyFilters.on('click', function() {
+            // Reset Level 1 button: clears Level 1 and unlocks Level 2
+            btnClearLevel1.on('click', function() {
+                isFilterSyncing = true;
+                filterL1Selects.val('').trigger('change.select2', [true]);
+                syncAndLockLevel1ToLevel2();
+                filterL2Selects.each(function() {
+                    if ($(this).data('field') !== 'stock_qty') {
+                        $(this).val('').trigger('change.select2', [true]);
+                    }
+                });
+                updateLevel1Badge();
+                syncFilterHiddenInputs();
+                isFilterSyncing = false;
                 fetchSpecifications();
             });
 
+            // Clear All Filters (in Level 2): clears non-locked Level 2 filters
             btnClearFilters.on('click', function() {
-                filterItemType.val('').trigger('change');
-                filterItemName.val('').trigger('change');
-                filterComposition.val('').trigger('change');
-                filterGender.val('').trigger('change');
-                filterStockQty.val('');
+                isFilterSyncing = true;
+                filterL2Selects.each(function() {
+                    if (!$(this).prop('disabled')) {
+                        $(this).val('').trigger('change.select2', [true]);
+                    }
+                });
+                filterStockQtyL2.val('').trigger('change.select2', [true]);
+                syncFilterHiddenInputs();
+                isFilterSyncing = false;
+                fetchSpecifications();
+            });
+
+            // Level 2 Multi-Select & Stock: Auto submit / fetch immediately on any select change
+            filterL2Selects.on('change', function(e, isInternal) {
+                if (isFilterSyncing || isInternal) return;
+                isFilterSyncing = true;
+                syncFilterHiddenInputs();
+                isFilterSyncing = false;
+                fetchSpecifications();
+            });
+
+            // Level 2: Apply Filters button (manual trigger also supported)
+            btnApplyFilters.on('click', function() {
                 syncFilterHiddenInputs();
                 fetchSpecifications();
             });
 
-            // Initial sync of filter inputs
-            syncFilterHiddenInputs();
+            // Initial state sync on load
+            (function initFilterState() {
+                syncAndLockLevel1ToLevel2();
+                updateLevel1Badge();
+                syncFilterHiddenInputs();
+            })();
 
             // Initial load of specifications
             fetchSpecifications();
