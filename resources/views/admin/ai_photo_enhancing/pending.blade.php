@@ -12145,10 +12145,22 @@ document.addEventListener(
                     const size = specification.size_text || specification.sizes || '-';
                     const specId = specification.sno || specification.id || '';
                     const supplierName = specification.supplier_name || '-';
+                    const isSupplierSent = Boolean(specification.is_supplier_sent);
+
+                    if (isSupplierSent) {
+                        tr.classList.add('table-light');
+                    }
+
+                    const supplierBadge = isSupplierSent 
+                        ? `<div class="mt-1"><span class="badge bg-primary text-white" style="font-size: 0.70rem; font-weight: 500;"><i class="bi bi-camera me-1"></i>Supplier Sent</span></div>` 
+                        : '';
 
                     tr.innerHTML = `
                         <td class="fw-bold text-muted text-center">${index}</td>
-                        <td>${escapeHtml(supplierName)}</td>
+                        <td>
+                            <span>${escapeHtml(supplierName)}</span>
+                            ${supplierBadge}
+                        </td>
                         <td>${escapeHtml(itemName)}</td>
                         <td>${escapeHtml(sku)}</td>
                         <td>${escapeHtml(size)}</td>

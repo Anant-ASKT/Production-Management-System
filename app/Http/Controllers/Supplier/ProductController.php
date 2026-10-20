@@ -1299,6 +1299,7 @@ class ProductController extends Controller
                 'supplier_id' => $supplierId,
                 'supplier_person_id' => $user->sno,
                 'supplier_product_id' => $product->sno,
+                'edatetime' => now(),
             ];
 
             // Preserve pending_specification status if not completed by admin
@@ -1367,6 +1368,7 @@ class ProductController extends Controller
                 'supplier_product_id' => $product->sno,
                 'is_sent_to_photo_section' => 0,
                 'status' => 'pending_specification',
+                'edatetime' => now(),
             ]);
         }
 

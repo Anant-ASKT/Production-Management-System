@@ -548,7 +548,12 @@ class AdminAiPhotoEnhancingController extends Controller
     $query->where(function ($q) {
         $q->whereNull('dsm.status')
           ->orWhere('dsm.status', '')
-          ->orWhere('dsm.status', 'done');
+          ->orWhere('dsm.status', 'done')
+          ->orWhere('dsm.status', 'pending_specification')
+          ->orWhere(function ($sq) {
+              $sq->whereNotNull('dsm.supplier_product_id')
+                 ->where('dsm.supplier_product_id', '>', 0);
+          });
     });
 
     /*
@@ -660,6 +665,32 @@ class AdminAiPhotoEnhancingController extends Controller
 
     $specifications = $query
 
+        ->orderByRaw("CASE 
+            WHEN EXISTS (
+                SELECT 1 FROM supplier_products sp 
+                WHERE (
+                    sp.sno = dsm.supplier_product_id 
+                    OR (sp.product_sku COLLATE utf8mb4_unicode_ci = dsm.sku COLLATE utf8mb4_unicode_ci AND dsm.sku IS NOT NULL AND dsm.sku != '') 
+                    OR (sp.product_sku COLLATE utf8mb4_unicode_ci = dsm.barcode COLLATE utf8mb4_unicode_ci AND dsm.barcode IS NOT NULL AND dsm.barcode != '')
+                )
+                AND (sp.status = 'sent_to_photo_section' OR sp.status_done = 'sent_to_photo_section')
+            ) THEN 0
+            WHEN (dsm.supplier_product_id IS NOT NULL AND dsm.supplier_product_id > 0) THEN 0
+            WHEN (dsm.supplier_person_id IS NOT NULL AND dsm.supplier_person_id > 0) THEN 0
+            ELSE 1 
+        END ASC")
+
+        ->orderByRaw("COALESCE(
+            (SELECT sp.updated_at FROM supplier_products sp 
+             WHERE (sp.sno = dsm.supplier_product_id 
+                    OR (sp.product_sku COLLATE utf8mb4_unicode_ci = dsm.sku COLLATE utf8mb4_unicode_ci AND dsm.sku IS NOT NULL AND dsm.sku != '')
+                    OR (sp.product_sku COLLATE utf8mb4_unicode_ci = dsm.barcode COLLATE utf8mb4_unicode_ci AND dsm.barcode IS NOT NULL AND dsm.barcode != ''))
+               AND (sp.status = 'sent_to_photo_section' OR sp.status_done = 'sent_to_photo_section')
+             ORDER BY sp.updated_at DESC LIMIT 1),
+            dsm.edatetime,
+            '2000-01-01'
+        ) DESC")
+
         ->orderByDesc('dsm.sno')
 
         ->select([
@@ -695,6 +726,9 @@ class AdminAiPhotoEnhancingController extends Controller
             'dsm.img_path',
             'dsm.edatetime',
             'dsm.clientreference',
+            'dsm.supplier_id',
+            'dsm.supplier_product_id',
+            'dsm.supplier_person_id',
             DB::raw("COALESCE(supplier.name, (SELECT s_vsw.name FROM vendor_stock_web vsw_sub JOIN suppliers s_vsw ON s_vsw.sno = vsw_sub.vendor_id WHERE (vsw_sub.item_id = dsm.id OR vsw_sub.item_id = dsm.sno OR vsw_sub.batch_no = dsm.sku) LIMIT 1)) as supplier_name"),
             // Optional specification values
             'dsm.embellishment',
@@ -742,9 +776,15 @@ class AdminAiPhotoEnhancingController extends Controller
 */
 
 $specifications->getCollection()->transform(function ($item) {
-    // 1. Check if supplier product exists with a newly uploaded image for this SKU or barcode
+    // 1. Check if supplier product exists (by supplier_product_id or SKU or barcode)
     $supplierProduct = null;
-    if (!empty($item->sku) || !empty($item->barcode)) {
+    if (!empty($item->supplier_product_id)) {
+        $supplierProduct = DB::table('supplier_products')
+            ->where('sno', $item->supplier_product_id)
+            ->first();
+    }
+
+    if (!$supplierProduct && (!empty($item->sku) || !empty($item->barcode))) {
         $supplierProduct = DB::table('supplier_products')
             ->where(function ($q) use ($item) {
                 if (!empty($item->sku)) {
@@ -754,11 +794,23 @@ $specifications->getCollection()->transform(function ($item) {
                     $q->orWhere('product_sku', $item->barcode);
                 }
             })
-            ->whereNotNull('main_image')
-            ->where('main_image', '!=', '')
             ->orderByDesc('sno')
             ->first();
     }
+
+    $isSupplierSent = false;
+    if ($supplierProduct) {
+        if ($supplierProduct->status === 'sent_to_photo_section' || 
+            $supplierProduct->status_done === 'sent_to_photo_section' || 
+            !empty($item->supplier_person_id) || 
+            (!empty($item->supplier_product_id) && $item->supplier_product_id == $supplierProduct->sno)) {
+            $isSupplierSent = true;
+        }
+    } elseif (!empty($item->supplier_person_id) || !empty($item->supplier_product_id)) {
+        $isSupplierSent = true;
+    }
+
+    $item->is_supplier_sent = $isSupplierSent;
 
     if ($supplierProduct && !empty($supplierProduct->main_image)) {
         $resolved = self::resolveSpecificationImage($supplierProduct->main_image, $item->barcode);
