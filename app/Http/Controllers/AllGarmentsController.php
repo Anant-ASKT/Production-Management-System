@@ -1519,8 +1519,18 @@ public function aiDescriptionData(Request $request)
     $statusCounts = (clone $query)
         ->selectRaw("
             COUNT(*) as total_all,
-            SUM(CASE WHEN EXISTS (SELECT 1 FROM AI_product_description WHERE product_id = dsm.sno) THEN 1 ELSE 0 END) as total_saved,
-            SUM(CASE WHEN aei.sno IS NOT NULL AND NOT EXISTS (SELECT 1 FROM AI_product_description WHERE product_id = dsm.sno) THEN 1 ELSE 0 END) as total_ready,
+            SUM(CASE WHEN EXISTS (
+                SELECT 1 FROM AI_product_description as aipd 
+                WHERE (aipd.product_id = dsm.sno OR aipd.product_id = dsm.id)
+                  AND aipd.AI_product_description IS NOT NULL 
+                  AND TRIM(aipd.AI_product_description) != ''
+            ) THEN 1 ELSE 0 END) as total_saved,
+            SUM(CASE WHEN aei.sno IS NOT NULL AND NOT EXISTS (
+                SELECT 1 FROM AI_product_description as aipd 
+                WHERE (aipd.product_id = dsm.sno OR aipd.product_id = dsm.id)
+                  AND aipd.AI_product_description IS NOT NULL 
+                  AND TRIM(aipd.AI_product_description) != ''
+            ) THEN 1 ELSE 0 END) as total_ready,
             SUM(CASE WHEN aei.sno IS NULL THEN 1 ELSE 0 END) as total_no_image
         ")
         ->first();
@@ -1535,20 +1545,35 @@ public function aiDescriptionData(Request $request)
         $query->whereExists(function ($q) {
             $q->select(DB::raw(1))
               ->from('AI_product_description as aipd')
-              ->whereColumn('aipd.product_id', 'dsm.sno');
+              ->where(function ($w) {
+                  $w->whereColumn('aipd.product_id', 'dsm.sno')
+                    ->orWhereColumn('aipd.product_id', 'dsm.id');
+              })
+              ->whereNotNull('aipd.AI_product_description')
+              ->whereRaw("TRIM(aipd.AI_product_description) != ''");
         });
     } elseif ($status === 'pending') {
         $query->whereNotExists(function ($q) {
             $q->select(DB::raw(1))
               ->from('AI_product_description as aipd')
-              ->whereColumn('aipd.product_id', 'dsm.sno');
+              ->where(function ($w) {
+                  $w->whereColumn('aipd.product_id', 'dsm.sno')
+                    ->orWhereColumn('aipd.product_id', 'dsm.id');
+              })
+              ->whereNotNull('aipd.AI_product_description')
+              ->whereRaw("TRIM(aipd.AI_product_description) != ''");
         });
     } elseif ($status === 'ready') {
         $query->whereNotNull('aei.sno')
               ->whereNotExists(function ($q) {
                   $q->select(DB::raw(1))
                     ->from('AI_product_description as aipd')
-                    ->whereColumn('aipd.product_id', 'dsm.sno');
+                    ->where(function ($w) {
+                        $w->whereColumn('aipd.product_id', 'dsm.sno')
+                          ->orWhereColumn('aipd.product_id', 'dsm.id');
+                    })
+                    ->whereNotNull('aipd.AI_product_description')
+                    ->whereRaw("TRIM(aipd.AI_product_description) != ''");
               });
     } elseif ($status === 'no_image') {
         $query->whereNull('aei.sno');
@@ -1694,12 +1719,22 @@ public function aiDescriptionData(Request $request)
                 WHEN EXISTS (
                     SELECT 1
                     FROM AI_product_description as aipd
-                    WHERE aipd.product_id = dsm.sno
+                    WHERE (aipd.product_id = dsm.sno OR aipd.product_id = dsm.id)
+                      AND aipd.AI_product_description IS NOT NULL
+                      AND TRIM(aipd.AI_product_description) != ''
                 )
                 THEN 1
                 ELSE 0
             END AS has_ai_description
-        ")
+        "),
+
+        DB::raw("(SELECT aipd.AI_product_name FROM AI_product_description as aipd WHERE (aipd.product_id = dsm.sno OR aipd.product_id = dsm.id) AND aipd.AI_product_description IS NOT NULL AND TRIM(aipd.AI_product_description) != '' ORDER BY aipd.sno DESC LIMIT 1) as AI_product_name"),
+        DB::raw("(SELECT aipd.AI_product_description FROM AI_product_description as aipd WHERE (aipd.product_id = dsm.sno OR aipd.product_id = dsm.id) AND aipd.AI_product_description IS NOT NULL AND TRIM(aipd.AI_product_description) != '' ORDER BY aipd.sno DESC LIMIT 1) as AI_product_description"),
+        DB::raw("(SELECT aipd.AI_Metatitle FROM AI_product_description as aipd WHERE (aipd.product_id = dsm.sno OR aipd.product_id = dsm.id) AND aipd.AI_product_description IS NOT NULL AND TRIM(aipd.AI_product_description) != '' ORDER BY aipd.sno DESC LIMIT 1) as AI_Metatitle"),
+        DB::raw("(SELECT aipd.AI_Metakeywards FROM AI_product_description as aipd WHERE (aipd.product_id = dsm.sno OR aipd.product_id = dsm.id) AND aipd.AI_product_description IS NOT NULL AND TRIM(aipd.AI_product_description) != '' ORDER BY aipd.sno DESC LIMIT 1) as AI_Metakeywards"),
+        DB::raw("(SELECT aipd.AI_Metadescription FROM AI_product_description as aipd WHERE (aipd.product_id = dsm.sno OR aipd.product_id = dsm.id) AND aipd.AI_product_description IS NOT NULL AND TRIM(aipd.AI_product_description) != '' ORDER BY aipd.sno DESC LIMIT 1) as AI_Metadescription"),
+        DB::raw("(SELECT aipd.AI_Producttag FROM AI_product_description as aipd WHERE (aipd.product_id = dsm.sno OR aipd.product_id = dsm.id) AND aipd.AI_product_description IS NOT NULL AND TRIM(aipd.AI_product_description) != '' ORDER BY aipd.sno DESC LIMIT 1) as AI_Producttag"),
+        DB::raw("(SELECT aipd.AI_Imagealttext FROM AI_product_description as aipd WHERE (aipd.product_id = dsm.sno OR aipd.product_id = dsm.id) AND aipd.AI_product_description IS NOT NULL AND TRIM(aipd.AI_product_description) != '' ORDER BY aipd.sno DESC LIMIT 1) as AI_Imagealttext")
 
     ]);
 
@@ -1860,6 +1895,17 @@ public function aiApprovedImages(Request $request)
             'original_image_path'
         ]);
 
+    $aiDescription = DB::table('AI_product_description')
+        ->where(function ($w) use ($specificationId, $product) {
+            $w->where('product_id', $specificationId);
+            if (!empty($product->id)) {
+                $w->orWhere('product_id', $product->id);
+            }
+        })
+        ->whereNotNull('AI_product_description')
+        ->whereRaw("TRIM(AI_product_description) != ''")
+        ->orderByDesc('sno')
+        ->first();
 
     return response()->json([
 
@@ -1874,7 +1920,10 @@ public function aiApprovedImages(Request $request)
                 $product->img_path,
 
             'approved_images' =>
-                $approvedImages
+                $approvedImages,
+
+            'ai_description' =>
+                $aiDescription,
 
         ]
 

@@ -368,7 +368,7 @@ class AdminAiPhotoReceivingController extends Controller
                 ]);
 
             DB::commit();
-            return redirect()->back()->with('success', 'Product photo enhancement review updated successfully.');
+            return redirect()->route('admin.ai-photo-enhancing.receiving')->with('success', 'Product photo enhancement review saved successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()->withErrors(['error' => 'Error updating reviews: ' . $e->getMessage()]);

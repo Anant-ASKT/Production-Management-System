@@ -11193,13 +11193,7 @@ document.addEventListener(
                     btnRefresh.addEventListener(
                         'click',
                         function() {
-                            const sf = document.getElementById('supplierFilter');
-                            if (sf) {
-                                $(sf).val('all').trigger('change.select2'); // Use change.select2 to update UI but avoid infinite loop if on('change') exists
-                            }
-                            if (search) search.value = '';
-                            currentSearch = '';
-                            loadSpecifications(1);
+                            loadSpecifications(currentPage || 1);
                         }
                     );
 
@@ -11726,6 +11720,11 @@ document.addEventListener(
 
                     currentPage = page;
 
+                    window.loadSpecifications = loadSpecifications;
+                    window.getCurrentSpecificationsPage = function () {
+                        return currentPage;
+                    };
+
                     cardsContainer.innerHTML = '';
 
                     empty.style.display = 'none';
@@ -11824,6 +11823,11 @@ document.addEventListener(
 
                                 meta = responseData;
 
+                            }
+
+                            if (data.length === 0 && meta && Number(meta.total) > 0 && currentPage > 1) {
+                                loadSpecifications(Math.min(currentPage - 1, Number(meta.last_page) || 1));
+                                return;
                             }
 
                             allSpecifications = data;
@@ -16492,13 +16496,30 @@ function openLargeImage(
                                 
                                 if (data.success) {
                                     assignModalInstance.hide();
-                                    const btnRefresh = document.getElementById('btnRefreshSpecifications');
-                                    if (btnRefresh) {
-                                        btnRefresh.click();
-                                    } else {
-                                        window.location.reload();
+                                    
+                                    if (typeof Swal !== 'undefined') {
+                                        Swal.fire({
+                                            icon: 'success',
+                                            title: 'Sent to Photo Enhancer',
+                                            text: data.message || 'Product assigned to photo enhancer successfully.',
+                                            timer: 1500,
+                                            showConfirmButton: false
+                                        });
                                     }
-                                    // Optionally show a toast notification here
+
+                                    if (typeof window.loadSpecifications === 'function') {
+                                        const pageToLoad = typeof window.getCurrentSpecificationsPage === 'function'
+                                            ? window.getCurrentSpecificationsPage()
+                                            : 1;
+                                        window.loadSpecifications(pageToLoad);
+                                    } else {
+                                        const btnRefresh = document.getElementById('btnRefreshSpecifications');
+                                        if (btnRefresh) {
+                                            btnRefresh.click();
+                                        } else {
+                                            window.location.reload();
+                                        }
+                                    }
                                 } else {
                                     alert(data.message || 'An error occurred while assigning the product.');
                                 }

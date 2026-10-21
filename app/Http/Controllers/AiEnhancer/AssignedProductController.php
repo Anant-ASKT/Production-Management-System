@@ -18,6 +18,16 @@ class AssignedProductController extends Controller
             ->leftJoin('auto_colour_master as colour', 'colour.id', '=', 'spec.colour')
             ->leftJoin('auto_gender_master as gender', 'gender.id', '=', 'spec.gender')
             ->where('apa.ai_photo_enhancer_id', $user->sno)
+            ->whereNotExists(function ($query) use ($user) {
+                $query->select(\DB::raw(1))
+                    ->from('enhanced_product_submissions as eps')
+                    ->whereColumn('eps.specification_id', 'apa.specification_id')
+                    ->where('eps.ai_photo_enhancer_id', $user->sno);
+            })
+            ->where(function ($q) {
+                $q->whereNull('apa.status')
+                  ->orWhere('apa.status', 'assigned');
+            })
             ->select(
                 'apa.id as assignment_id',
                 'apa.status as assignment_status',

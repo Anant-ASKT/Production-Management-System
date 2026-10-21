@@ -1372,13 +1372,13 @@ class ProductController extends Controller
             ]);
         }
 
-        // Upsert description in AI_product_description if table exists
-        if ($targetSpecId && \Illuminate\Support\Facades\Schema::hasTable('AI_product_description')) {
+        // Upsert description in AI_product_description only if supplier provided an actual description
+        if ($targetSpecId && !empty(trim($product->description ?? '')) && \Illuminate\Support\Facades\Schema::hasTable('AI_product_description')) {
             \Illuminate\Support\Facades\DB::table('AI_product_description')->updateOrInsert(
                 ['product_id' => $targetSpecId],
                 [
                     'AI_product_name' => $product->name ?: ($sku ?: 'Product'),
-                    'AI_product_description' => $product->description ?: '',
+                    'AI_product_description' => trim($product->description),
                 ]
             );
         }

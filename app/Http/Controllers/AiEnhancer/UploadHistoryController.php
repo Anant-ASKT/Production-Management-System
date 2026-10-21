@@ -62,7 +62,11 @@ class UploadHistoryController extends Controller
             });
         }
 
-        if ($status === 'pending') {
+        if ($status === 'all') {
+            // Do not show in listing if all photos for this product are approved
+            $query->havingRaw("SUM(CASE WHEN eps.status != 'approved' THEN 1 ELSE 0 END) > 0")
+                  ->havingRaw("COALESCE(MAX(apa.status), '') != 'approved'");
+        } elseif ($status === 'pending') {
             $query->having(DB::raw("SUM(CASE WHEN eps.status = 'pending' THEN 1 ELSE 0 END)"), '>', 0);
         } elseif ($status === 'approved') {
             $query->having(DB::raw("SUM(CASE WHEN eps.status = 'approved' THEN 1 ELSE 0 END)"), '>', 0)

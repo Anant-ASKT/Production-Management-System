@@ -122,19 +122,6 @@
             </li>
 
             <li class="nav-item">
-                <a href="{{ route('design-specifications.index') }}"
-                class="nav-link {{ request()->routeIs('design-specifications.*') ? 'active' : '' }}">
-
-                    <i class="bi bi-palette2 nav-icon"></i>
-
-                    <span>
-                        Design Specification Master
-                    </span>
-
-                </a>
-            </li>
-
-            <li class="nav-item">
                 <a href="{{ route('product-specification-masters.index') }}"
                 class="nav-link {{ request()->routeIs('product-specification-masters.*') ? 'active' : '' }}">
 
@@ -148,13 +135,117 @@
             </li>
 
             <li class="nav-item">
+                <a href="{{ route('design-specifications.index') }}"
+                class="nav-link {{ request()->routeIs('design-specifications.*') ? 'active' : '' }}">
+
+                    <i class="bi bi-palette2 nav-icon"></i>
+
+                    <span>
+                        Design Specification Master
+                    </span>
+
+                </a>
+            </li>
+
+            <li class="nav-item">
                 <a href="{{ route('admin.supplier-raw-data.index') }}"
                 class="nav-link {{ request()->routeIs('admin.supplier-raw-data.*') ? 'active' : '' }}">
 
                     <i class="bi bi-inbox-fill nav-icon"></i>
 
                     <span>
-                        Supplier Raw Data
+                        Supplier Raw Products
+                    </span>
+
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{{ route('admin.ai-photo-enhancing.pending') }}"
+                class="nav-link {{ request()->routeIs('admin.ai-photo-enhancing.pending*') ? 'active' : '' }}">
+
+                    <i class="bi bi-hourglass-split nav-icon"></i>
+
+                    <span>
+                        Pending Products for AI Enhancement
+                    </span>
+
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{{ route('admin.ai-photo-enhancing.receiving') }}"
+                class="nav-link {{ request()->routeIs('admin.ai-photo-enhancing.receiving*') ? 'active' : '' }}">
+
+                    <i class="bi bi-box-arrow-in-down nav-icon"></i>
+
+                    <span>
+                        Received Products from AI Enhancement
+                    </span>
+
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{{ route('ai-description.index') }}"
+                class="nav-link {{ request()->routeIs('ai-description.*') ? 'active' : '' }}">
+
+                    <i class="bi bi-stars nav-icon"></i>
+
+                    <span>
+                        Make AI Description
+                    </span>
+
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{{ route('admin.publish-products.index') }}"
+                class="nav-link {{ request()->routeIs('admin.publish-products.*') ? 'active' : '' }}">
+
+                    <i class="bi bi-send-check nav-icon"></i>
+
+                    <span>
+                        Ready for Publish products
+                    </span>
+
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{{ route('admin.published-products.index') }}"
+                class="nav-link {{ request()->routeIs('admin.published-products.*') ? 'active' : '' }}">
+
+                    <i class="bi bi-bag-check nav-icon"></i>
+
+                    <span>
+                        Published Products
+                    </span>
+
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{{ route('admin.website-orders.index') }}"
+                class="nav-link {{ request()->routeIs('admin.website-orders.*') ? 'active' : '' }}">
+
+                    <i class="bi bi-cart-check nav-icon"></i>
+
+                    <span>
+                        Website Orders
+                    </span>
+
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{{ route('admin.update-products.index') }}"
+                class="nav-link {{ request()->routeIs('admin.update-products.*') ? 'active' : '' }}">
+
+                    <i class="bi bi-pencil-square nav-icon"></i>
+
+                    <span>
+                        Update Product
                     </span>
 
                 </a>
@@ -241,70 +332,6 @@
 
             </li>
 
-            <li>
-                <a
-                    href="{{ route('ai-description.index') }}"
-                    class="{{ request()->routeIs('ai-description.*') ? 'active' : '' }}"
-                >
-                    <i class="bi bi-stars"></i>
-
-                    <span>
-                        Make AI Description
-                    </span>
-                </a>
-            </li>
-
-            <li>
-                <a
-                    href="{{ route('admin.publish-products.index') }}"
-                    class="{{ request()->routeIs('admin.publish-products.*') ? 'active' : '' }}"
-                >
-                    <i class="bi bi-send-check"></i>
-
-                    <span>
-                        Ready for Publish products
-                    </span>
-                </a>
-            </li>
-
-            <li>
-                <a
-                    href="{{ route('admin.published-products.index') }}"
-                    class="{{ request()->routeIs('admin.published-products.*') ? 'active' : '' }}"
-                >
-                    <i class="bi bi-bag-check"></i>
-
-                    <span>
-                        Published Products
-                    </span>
-                </a>
-            </li>
-
-            <li>
-                <a
-                    href="{{ route('admin.update-products.index') }}"
-                    class="{{ request()->routeIs('admin.update-products.*') ? 'active' : '' }}"
-                >
-                    <i class="bi bi-pencil-square"></i>
-
-                    <span>
-                        Update Product
-                    </span>
-                </a>
-            </li>
-
-            <li>
-                <a
-                    href="{{ route('admin.website-orders.index') }}"
-                    class="{{ request()->routeIs('admin.website-orders.*') ? 'active' : '' }}"
-                >
-                    <i class="bi bi-cart-check"></i>
-
-                    <span>
-                        Website Orders
-                    </span>
-                </a>
-            </li>
 
 
             <li>
@@ -466,26 +493,7 @@
             </ul>
     </div>
 
-    {{-- AI PHOTO ENHANCING --}}
-    <div class="sidebar-section">
-        <div class="sidebar-section-title">AI Photo Enhancing</div>
-        <ul class="sidebar-menu">
-            <li>
-                <a href="{{ route('admin.ai-photo-enhancing.pending') }}"
-                class="{{ request()->routeIs('admin.ai-photo-enhancing.pending') ? 'active' : '' }}">
-                    <i class="bi bi-hourglass-split"></i>
-                    <span>Pending Products</span>
-                </a>
-            </li>
-            <li>
-                <a href="{{ route('admin.ai-photo-enhancing.receiving') }}"
-                class="{{ request()->routeIs('admin.ai-photo-enhancing.receiving*') ? 'active' : '' }}">
-                    <i class="bi bi-box-arrow-in-down"></i>
-                    <span>Receiving Products</span>
-                </a>
-            </li>
-        </ul>
-    </div>
+
 
     <div class="sidebar-section">
         <div class="sidebar-section-title">System</div>

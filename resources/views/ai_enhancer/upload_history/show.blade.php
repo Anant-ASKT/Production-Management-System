@@ -150,15 +150,13 @@
 
                             {{-- Image Display --}}
                             <div class="p-3 text-center">
-                                <div class="d-flex align-items-center justify-content-center bg-light rounded-3 p-2 mb-2" style="height: 180px;">
-                                    <a href="{{ asset($sub->enhanced_image_path) }}" target="_blank" title="Click to view full photo">
-                                        <img src="{{ asset($sub->enhanced_image_path) }}" class="img-fluid rounded" style="max-height: 165px; object-fit: contain;" alt="Photo">
-                                    </a>
+                                <div class="d-flex align-items-center justify-content-center bg-light rounded-3 p-2 mb-2" style="height: 180px; cursor: pointer;" onclick="previewImage('{{ asset($sub->enhanced_image_path) }}', 'Enhanced Photo')">
+                                    <img src="{{ asset($sub->enhanced_image_path) }}" class="img-fluid rounded" style="max-height: 165px; object-fit: contain;" alt="Photo">
                                 </div>
                                 <div class="d-flex gap-2 justify-content-center">
-                                    <a href="{{ asset($sub->enhanced_image_path) }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold">
+                                    <button type="button" onclick="previewImage('{{ asset($sub->enhanced_image_path) }}', 'Enhanced Photo')" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold">
                                         <i class="bi bi-zoom-in me-1"></i> View Full
-                                    </a>
+                                    </button>
                                     <a href="{{ asset($sub->enhanced_image_path) }}" download class="btn btn-sm btn-outline-dark rounded-pill px-3 fw-semibold">
                                         <i class="bi bi-download me-1"></i> Download
                                     </a>
@@ -305,6 +303,47 @@
         hSubmitBtn.disabled = true;
         hSubmitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Sending photos... please wait`;
     });
+
+    function previewImage(url, title = 'Photo Preview') {
+        const modalEl = document.getElementById('imagePreviewModal');
+        const modalImg = document.getElementById('imagePreviewModalImg');
+        const modalTitle = document.getElementById('imagePreviewModalLabel');
+        const directLink = document.getElementById('imagePreviewDirectLink');
+
+        if (modalImg) modalImg.src = url;
+        if (modalTitle) modalTitle.innerHTML = `<i class="bi bi-image me-1 text-primary"></i> ${title}`;
+        if (directLink) directLink.href = url;
+
+        if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+        }
+    }
 </script>
+
+{{-- Image Preview Modal --}}
+<div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-labelledby="imagePreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom py-2 px-3">
+                <h6 class="modal-title fw-bold text-dark mb-0" id="imagePreviewModalLabel">
+                    <i class="bi bi-image me-1 text-primary"></i> Photo Preview
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-2 bg-light">
+                <div style="max-height: 75vh; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                    <img id="imagePreviewModalImg" src="" alt="Photo Preview" class="img-fluid" style="max-height: 72vh; max-width: 100%; object-fit: contain; border-radius: 6px;">
+                </div>
+            </div>
+            <div class="modal-footer border-top py-2 px-3 justify-content-between">
+                <a id="imagePreviewDirectLink" href="#" target="_blank" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-box-arrow-up-right me-1"></i> Open in New Tab
+                </a>
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 @endsection

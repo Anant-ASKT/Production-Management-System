@@ -1402,6 +1402,25 @@
 window.aiDescriptionProductCache = {};
 let selectedAiProduct = null;
 
+window.clearAiDescriptionFields = function () {
+    const fields = [
+        'txt_productName',
+        'txt_productDescription',
+        'txt_metaTitle',
+        'txt_metaKeywords',
+        'txt_metaDescription',
+        'txt_productTags',
+        'txt_image_alt_text'
+    ];
+
+    fields.forEach(function (id) {
+        const element = document.getElementById(id);
+        if (element) {
+            element.value = '';
+        }
+    });
+};
+
 function getImageUrl(path) {
 
     if (
@@ -1921,7 +1940,10 @@ row.dataset.specificationId =
 const hasAiDescription =
     Number(
         product.has_ai_description
-    ) === 1;
+    ) === 1 &&
+    (!product.hasOwnProperty('AI_product_description') ||
+        (product.AI_product_description &&
+            String(product.AI_product_description).trim() !== ''));
 
 
 /*
@@ -2736,6 +2758,10 @@ async function loadApprovedImages(
     errorBox.textContent =
         '';
 
+    if (typeof window.clearAiDescriptionFields === 'function') {
+        window.clearAiDescriptionFields();
+    }
+
 
     /*
     |--------------------------------------------------------------------------
@@ -3151,6 +3177,44 @@ async function loadApprovedImages(
 
         content.style.display =
             'block';
+
+        const savedAi = data.ai_description || null;
+        if (savedAi && savedAi.AI_product_description && String(savedAi.AI_product_description).trim() !== '') {
+            const setVal = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) el.value = val || '';
+            };
+            setVal('txt_productName', savedAi.AI_product_name || '');
+            setVal('txt_productDescription', savedAi.AI_product_description || '');
+            setVal('txt_metaTitle', savedAi.AI_Metatitle || '');
+            setVal('txt_metaKeywords', savedAi.AI_Metakeywards || '');
+            setVal('txt_metaDescription', savedAi.AI_Metadescription || '');
+            setVal('txt_productTags', savedAi.AI_Producttag || '');
+            setVal('txt_image_alt_text', savedAi.AI_Imagealttext || '');
+
+            if (product) {
+                product.has_ai_description = 1;
+                product.AI_product_name = savedAi.AI_product_name;
+                product.AI_product_description = savedAi.AI_product_description;
+                product.AI_Metatitle = savedAi.AI_Metatitle;
+                product.AI_Metakeywards = savedAi.AI_Metakeywards;
+                product.AI_Metadescription = savedAi.AI_Metadescription;
+                product.AI_Producttag = savedAi.AI_Producttag;
+                product.AI_Imagealttext = savedAi.AI_Imagealttext;
+            }
+        } else if (product && product.AI_product_description && String(product.AI_product_description).trim() !== '') {
+            const setVal = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) el.value = val || '';
+            };
+            setVal('txt_productName', product.AI_product_name || '');
+            setVal('txt_productDescription', product.AI_product_description || '');
+            setVal('txt_metaTitle', product.AI_Metatitle || '');
+            setVal('txt_metaKeywords', product.AI_Metakeywards || '');
+            setVal('txt_metaDescription', product.AI_Metadescription || '');
+            setVal('txt_productTags', product.AI_Producttag || '');
+            setVal('txt_image_alt_text', product.AI_Imagealttext || '');
+        }
 
 
     } catch (error) {
@@ -3821,6 +3885,19 @@ document.addEventListener(
 
             }
 
+            if (typeof window.clearAiDescriptionFields === 'function') {
+                window.clearAiDescriptionFields();
+            }
+
+        }
+
+        const modalElementForHide = document.getElementById('approvedImagesModal');
+        if (modalElementForHide) {
+            modalElementForHide.addEventListener('hidden.bs.modal', function () {
+                if (typeof window.clearAiDescriptionFields === 'function') {
+                    window.clearAiDescriptionFields();
+                }
+            });
         }
 
 
@@ -4326,6 +4403,13 @@ document.addEventListener(
 
                     product.has_ai_description =
                         1;
+                    product.AI_product_name = productName;
+                    product.AI_product_description = productDescription;
+                    product.AI_Metatitle = metaTitle;
+                    product.AI_Metakeywards = metaKeywords;
+                    product.AI_Metadescription = metaDescription;
+                    product.AI_Producttag = productTags;
+                    product.AI_Imagealttext = imageAltText;
 
 
                     /*

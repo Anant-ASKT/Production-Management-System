@@ -212,6 +212,11 @@ class AdminAiPhotoEnhancingController extends Controller
             ]);
 
         $suppliers = DB::table('suppliers')
+            ->where(function ($query) {
+                $query->where('type', 'supplier')
+                      ->orWhereNull('type');
+            })
+            ->where('type', '!=', 'retailer')
             ->orderBy('name')
             ->get([
                 'sno',
