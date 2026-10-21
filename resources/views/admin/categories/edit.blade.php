@@ -47,17 +47,20 @@
                         @enderror
                     </div>
 
-                    {{-- Supplier --}}
+                    {{-- Retailer --}}
                     <div class="col-md-6">
-                        <label class="form-label fw-semibold">Supplier <span class="text-danger">*</span></label>
-                        <select name="supplier_id" id="supplier_id" class="form-select @error('supplier_id') is-invalid @enderror" required>
-                            <option value="">-- Select Supplier --</option>
-                            @foreach($suppliers as $supplier)
-                                <option value="{{ $supplier->sno }}" {{ old('supplier_id', $category->supplier_id) == $supplier->sno ? 'selected' : '' }}>
-                                    {{ $supplier->name }} ({{ $supplier->email }})
+                        <label class="form-label fw-semibold">Retailer <span class="text-danger">*</span></label>
+                        <select name="retailer_id" id="retailer_id" class="form-select @error('retailer_id') is-invalid @enderror @error('supplier_id') is-invalid @enderror" required>
+                            <option value="">-- Select Retailer --</option>
+                            @foreach($retailers as $retailer)
+                                <option value="{{ $retailer->sno }}" {{ old('retailer_id', old('supplier_id', $category->supplier_id)) == $retailer->sno ? 'selected' : '' }}>
+                                    {{ $retailer->name }} ({{ $retailer->email }})
                                 </option>
                             @endforeach
                         </select>
+                        @error('retailer_id')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
                         @error('supplier_id')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
@@ -69,8 +72,8 @@
                         <select name="parent_id" id="parent_id" class="form-select @error('parent_id') is-invalid @enderror">
                             <option value="">-- None (This is a Main / Parent Category) --</option>
                             @foreach($parentCategories as $parent)
-                                <option value="{{ $parent->sno }}" {{ old('parent_id', $category->parent_id) == $parent->sno ? 'selected' : '' }} data-supplier="{{ $parent->supplier_id }}">
-                                    {{ $parent->name }} @if($parent->supplier) (Supplier: {{ $parent->supplier->name }}) @endif
+                                <option value="{{ $parent->sno }}" {{ old('parent_id', $category->parent_id) == $parent->sno ? 'selected' : '' }} data-retailer="{{ $parent->supplier_id }}">
+                                    {{ $parent->name }} @if($parent->supplier) (Retailer: {{ $parent->supplier->name }}) @endif
                                 </option>
                             @endforeach
                         </select>
@@ -95,4 +98,43 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const retailerSelect = document.getElementById('retailer_id');
+    const parentSelect = document.getElementById('parent_id');
+    if (!retailerSelect || !parentSelect) return;
+
+    const allParentOptions = Array.from(parentSelect.querySelectorAll('option'));
+
+    function filterParentCategories() {
+        const selectedRetailer = retailerSelect.value;
+        const currentParentVal = parentSelect.value;
+        let isCurrentValVisible = false;
+
+        allParentOptions.forEach(option => {
+            if (!option.value) {
+                option.hidden = false;
+                return;
+            }
+            const optRetailer = option.getAttribute('data-retailer');
+            if (!selectedRetailer || !optRetailer || optRetailer === selectedRetailer) {
+                option.hidden = false;
+                if (option.value === currentParentVal) {
+                    isCurrentValVisible = true;
+                }
+            } else {
+                option.hidden = true;
+            }
+        });
+
+        if (currentParentVal && !isCurrentValVisible) {
+            parentSelect.value = '';
+        }
+    }
+
+    retailerSelect.addEventListener('change', filterParentCategories);
+    filterParentCategories();
+});
+</script>
 @endsection

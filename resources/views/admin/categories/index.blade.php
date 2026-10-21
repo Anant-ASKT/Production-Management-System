@@ -42,12 +42,12 @@
                     <input type="text" name="search" class="form-control" placeholder="Category name..." value="{{ request('search') }}">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label fs-7 fw-semibold">Filter by Supplier</label>
-                    <select name="supplier_id" class="form-select">
-                        <option value="">-- All Suppliers --</option>
-                        @foreach($suppliers as $supplier)
-                            <option value="{{ $supplier->sno }}" {{ request('supplier_id') == $supplier->sno ? 'selected' : '' }}>
-                                {{ $supplier->name }}
+                    <label class="form-label fs-7 fw-semibold">Filter by Retailer</label>
+                    <select name="retailer_id" class="form-select">
+                        <option value="">-- All Retailers --</option>
+                        @foreach($retailers as $retailer)
+                            <option value="{{ $retailer->sno }}" {{ (request('retailer_id') == $retailer->sno || request('supplier_id') == $retailer->sno) ? 'selected' : '' }}>
+                                {{ $retailer->name }}
                             </option>
                         @endforeach
                     </select>
@@ -72,7 +72,7 @@
                     <button type="submit" class="btn btn-primary flex-fill">
                         <i class="bi bi-search me-1"></i> Filter
                     </button>
-                    @if(request()->hasAny(['search', 'supplier_id', 'parent_id']))
+                    @if(request()->hasAny(['search', 'retailer_id', 'supplier_id', 'parent_id']))
                         <a href="{{ route('admin.categories.index') }}" class="btn btn-outline-secondary">
                             Reset
                         </a>
@@ -92,7 +92,7 @@
                             <th style="width: 70px;">S.No</th>
                             <th>Category Name</th>
                             <th>Parent Category</th>
-                            <th>Supplier</th>
+                            <th>Retailer</th>
                             <th>Subcategories</th>
                             <th>Created At</th>
                             <th class="text-end" style="width: 140px;">Actions</th>
@@ -119,7 +119,7 @@
                                 <td>
                                     @if($category->supplier)
                                         <span class="badge bg-light text-dark border">
-                                            <i class="bi bi-truck me-1"></i>{{ $category->supplier->name }}
+                                            <i class="bi bi-shop me-1"></i>{{ $category->supplier->name }}
                                         </span>
                                     @else
                                         <span class="text-muted">Global / None</span>

@@ -21,6 +21,14 @@ class Category extends Model
     }
 
     /**
+     * Relationship with Retailer
+     */
+    public function retailer()
+    {
+        return $this->belongsTo(Supplier::class, 'supplier_id', 'sno');
+    }
+
+    /**
      * Parent category relationship
      */
     public function parent()

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use App\Models\Category;
 use App\Models\Supplier;
 
@@ -12,8 +13,9 @@ class AdminCategoryController extends Controller
     {
         $query = Category::with(['supplier', 'parent'])->withCount('children')->orderBy('sno', 'desc');
 
-        if ($request->filled('supplier_id')) {
-            $query->where('supplier_id', $request->supplier_id);
+        $retailerId = $request->input('retailer_id', $request->input('supplier_id'));
+        if (!empty($retailerId)) {
+            $query->where('supplier_id', $retailerId);
         }
 
         if ($request->filled('parent_id')) {
@@ -29,33 +31,49 @@ class AdminCategoryController extends Controller
         }
 
         $categories = $query->paginate(15)->withQueryString();
-        $suppliers = Supplier::orderBy('name', 'asc')->get();
+        $retailers = Supplier::where('type', 'retailer')->orderBy('name', 'asc')->get();
+        $suppliers = $retailers; // For backward compatibility
         $parentCategories = Category::with('supplier')->orderBy('name', 'asc')->get();
 
-        return view('admin.categories.index', compact('categories', 'suppliers', 'parentCategories'));
+        return view('admin.categories.index', compact('categories', 'retailers', 'suppliers', 'parentCategories'));
     }
 
     public function create()
     {
-        $suppliers = Supplier::orderBy('name', 'asc')->get();
+        $retailers = Supplier::where('type', 'retailer')->orderBy('name', 'asc')->get();
+        $suppliers = $retailers;
         $parentCategories = Category::with('supplier')->orderBy('name', 'asc')->get();
 
-        return view('admin.categories.create', compact('suppliers', 'parentCategories'));
+        return view('admin.categories.create', compact('retailers', 'suppliers', 'parentCategories'));
     }
 
     public function store(Request $request)
     {
+        $retailerId = $request->input('retailer_id', $request->input('supplier_id'));
+        $request->merge([
+            'retailer_id' => $retailerId,
+            'supplier_id' => $retailerId,
+        ]);
+
         $request->validate([
             'name' => 'required|string|max:255',
-            'supplier_id' => 'required|exists:suppliers,sno',
+            'retailer_id' => [
+                'required',
+                Rule::exists('suppliers', 'sno')->where(function ($query) {
+                    $query->where('type', 'retailer');
+                }),
+            ],
             'parent_id' => 'nullable|exists:categories,sno',
+        ], [
+            'retailer_id.required' => 'The retailer field is required.',
+            'retailer_id.exists' => 'The selected retailer is invalid.',
         ]);
 
         $user = auth()->user();
 
         Category::create([
             'name' => $request->name,
-            'supplier_id' => $request->supplier_id ?: null,
+            'supplier_id' => $retailerId ?: null,
             'parent_id' => $request->parent_id ?: null,
             'status' => 'active',
             'countryid' => $user->country_id ?? null,
@@ -71,7 +89,8 @@ class AdminCategoryController extends Controller
     public function edit($id)
     {
         $category = Category::findOrFail($id);
-        $suppliers = Supplier::orderBy('name', 'asc')->get();
+        $retailers = Supplier::where('type', 'retailer')->orderBy('name', 'asc')->get();
+        $suppliers = $retailers;
 
         // Exclude current category and its descendants to avoid cyclic hierarchy
         $descendantIds = $this->getDescendantIds($category);
@@ -82,7 +101,7 @@ class AdminCategoryController extends Controller
             ->orderBy('name', 'asc')
             ->get();
 
-        return view('admin.categories.edit', compact('category', 'suppliers', 'parentCategories'));
+        return view('admin.categories.edit', compact('category', 'retailers', 'suppliers', 'parentCategories'));
     }
 
     public function update(Request $request, $id)
@@ -92,9 +111,20 @@ class AdminCategoryController extends Controller
         $descendantIds = $this->getDescendantIds($category);
         $descendantIds[] = $category->sno;
 
+        $retailerId = $request->input('retailer_id', $request->input('supplier_id'));
+        $request->merge([
+            'retailer_id' => $retailerId,
+            'supplier_id' => $retailerId,
+        ]);
+
         $request->validate([
             'name' => 'required|string|max:255',
-            'supplier_id' => 'required|exists:suppliers,sno',
+            'retailer_id' => [
+                'required',
+                Rule::exists('suppliers', 'sno')->where(function ($query) {
+                    $query->where('type', 'retailer');
+                }),
+            ],
             'parent_id' => [
                 'nullable',
                 'exists:categories,sno',
@@ -104,13 +134,16 @@ class AdminCategoryController extends Controller
                     }
                 },
             ],
+        ], [
+            'retailer_id.required' => 'The retailer field is required.',
+            'retailer_id.exists' => 'The selected retailer is invalid.',
         ]);
 
         $user = auth()->user();
 
         $data = [
             'name' => $request->name,
-            'supplier_id' => $request->supplier_id ?: null,
+            'supplier_id' => $retailerId ?: null,
             'parent_id' => $request->parent_id ?: null,
             'countryid' => $user->country_id ?? null,
             'companyid' => $user->company_id ?? null,
