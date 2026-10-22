@@ -4644,7 +4644,44 @@ function extractSection(
 
 }
 
-async function imageToBase64(img) {
+async function imageToBase64(img, maxDim = 1024, quality = 0.82) {
+
+    /*
+    |--------------------------------------------------------------------------
+    | ENSURE IMAGE LOADED
+    |--------------------------------------------------------------------------
+    */
+
+    if (!img.complete || img.naturalWidth === 0) {
+        await new Promise((resolve) => {
+            if (img.complete && img.naturalWidth !== 0) return resolve();
+            img.onload = resolve;
+            img.onerror = resolve;
+            setTimeout(resolve, 2000);
+        });
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | CALCULATE PROPORTIONAL DOWNSCALE DIMENSIONS
+    |--------------------------------------------------------------------------
+    | Downscale large high-resolution images so that the POST body size never
+    | exceeds web server request limits (HTTP 413 Content Too Large).
+    | OpenAI Vision models downscale to 768px-1024px internally anyway.
+    */
+
+    let width = img.naturalWidth || img.width || 800;
+    let height = img.naturalHeight || img.height || 800;
+
+    if (width > maxDim || height > maxDim) {
+        if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+        } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+        }
+    }
 
     /*
     |--------------------------------------------------------------------------
@@ -4655,23 +4692,14 @@ async function imageToBase64(img) {
     const canvas =
         document.createElement('canvas');
 
-
     const ctx =
         canvas.getContext('2d');
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | IMAGE DIMENSIONS
-    |--------------------------------------------------------------------------
-    */
-
     canvas.width =
-        img.naturalWidth;
+        width;
 
     canvas.height =
-        img.naturalHeight;
-
+        height;
 
     /*
     |--------------------------------------------------------------------------
@@ -4682,9 +4710,10 @@ async function imageToBase64(img) {
     ctx.drawImage(
         img,
         0,
-        0
+        0,
+        width,
+        height
     );
-
 
     /*
     |--------------------------------------------------------------------------
@@ -4692,10 +4721,17 @@ async function imageToBase64(img) {
     |--------------------------------------------------------------------------
     */
 
-    return canvas.toDataURL(
+    let dataUrl = canvas.toDataURL(
         'image/jpeg',
-        0.90
+        quality
     );
+
+    // If still over 800KB base64 string, compress further
+    if (dataUrl.length > 800000) {
+        dataUrl = canvas.toDataURL('image/jpeg', 0.70);
+    }
+
+    return dataUrl;
 }
 
 </script>
