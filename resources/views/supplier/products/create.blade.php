@@ -350,7 +350,7 @@
                         <div class="d-flex align-items-center gap-2">
                             <span class="badge bg-white text-primary px-2 py-1 fw-bold shadow-sm">Level 1</span>
                             <strong class="text-white fs-6">Primary Filters (Level 1)</strong>
-                            <small class="text-white-50 d-none d-md-inline">&bull; Filters selected here are automatically locked in Level 2</small>
+                            <small class="text-white-50 d-none d-md-inline">&bull; Select one primary filter &bull; Automatically locked in Level 2</small>
                         </div>
                         <div class="d-flex align-items-center gap-2">
                             <span id="level1ActivePill" class="badge bg-white text-primary fw-bold shadow-sm d-none">
@@ -2316,40 +2316,65 @@
             // INTERLOCKING LEVEL 1 & LEVEL 2 FILTER ACTIONS
             // =========================================================================
 
-            // Apply Level 1 selections to Level 2 and LOCK them so they cannot be changed in Level 2
-            function syncAndLockLevel1ToLevel2() {
-                filterL1Selects.each(function() {
-                    const field = $(this).data('field');
-                    const val = $(this).val();
-                    const l2Select = filterL2Selects.filter(`[data-field="${field}"]`);
+            // Function to reset and unlock all Level 2 filters
+            function resetAllLevel2Filters() {
+                filterL2Selects.each(function() {
+                    const l2Select = $(this);
                     const l2Label = $(`label[for="${l2Select.attr('id')}"]`);
 
-                    if (l2Select.length) {
-                        if (val) {
-                            // Selected in Level 1: mirror into Level 2 and lock it
-                            l2Select.val(val).prop('disabled', true).trigger('change.select2', [true]);
-                            l2Select.next('.select2-container')
-                                .addClass('filter-locked')
-                                .css('pointer-events', 'none')
-                                .find('.select2-selection')
-                                .addClass('bg-light');
+                    l2Select.prop('disabled', false);
+                    l2Select.next('.select2-container')
+                        .removeClass('filter-locked')
+                        .css('pointer-events', '')
+                        .find('.select2-selection')
+                        .removeClass('bg-light');
 
-                            if (!l2Label.find('.filter-lock-badge').length) {
-                                l2Label.append(' <span class="badge bg-secondary-subtle text-secondary border px-1 py-0 ms-1 filter-lock-badge" title="Locked by Level 1 filter"><i class="bi bi-lock-fill"></i> Locked</span>');
-                            }
-                        } else {
-                            // Cleared in Level 1: unlock in Level 2
-                            l2Select.prop('disabled', false).trigger('change.select2', [true]);
-                            l2Select.next('.select2-container')
-                                .removeClass('filter-locked')
-                                .css('pointer-events', '')
-                                .find('.select2-selection')
-                                .removeClass('bg-light');
+                    l2Label.find('.filter-lock-badge').remove();
+                    l2Select.val('').trigger('change', [true]).trigger('change.select2', [true]);
+                });
+                filterStockQtyL2.val('').trigger('change', [true]).trigger('change.select2', [true]);
+            }
 
-                            l2Label.find('.filter-lock-badge').remove();
-                        }
+            // Apply single Level 1 selection:
+            // 1. Level 1 allows only ONE active filter at a time.
+            //    When any Level 1 filter changes, all other Level 1 filters reset to "All".
+            // 2. All Level 2 filters & stock reset to "All" (unlocked).
+            //    Only the single selected Level 1 filter is mirrored into Level 2 and locked.
+            function handleLevel1Selection(changedSelect) {
+                const activeField = changedSelect ? changedSelect.data('field') : null;
+                const activeVal = changedSelect ? (changedSelect.val() || '') : '';
+
+                // Reset all OTHER Level 1 dropdowns to "All" (empty)
+                filterL1Selects.each(function() {
+                    if (!activeField || $(this).data('field') !== activeField) {
+                        $(this).val('').trigger('change', [true]).trigger('change.select2', [true]);
                     }
                 });
+
+                // Reset all Level 2 filters and stock to "All" and unlock
+                resetAllLevel2Filters();
+
+                // If a Level 1 filter was chosen (not "All"), mirror and lock it into Level 2
+                if (activeField && activeVal) {
+                    const matchedL2 = filterL2Selects.filter(`[data-field="${activeField}"]`);
+                    const matchedLabel = $(`label[for="${matchedL2.attr('id')}"]`);
+
+                    if (matchedL2.length) {
+                        matchedL2.val(activeVal).prop('disabled', true).trigger('change', [true]).trigger('change.select2', [true]);
+                        matchedL2.next('.select2-container')
+                            .addClass('filter-locked')
+                            .css('pointer-events', 'none')
+                            .find('.select2-selection')
+                            .addClass('bg-light');
+
+                        if (!matchedLabel.find('.filter-lock-badge').length) {
+                            matchedLabel.append(' <span class="badge bg-secondary-subtle text-secondary border px-1 py-0 ms-1 filter-lock-badge" title="Locked by Level 1 filter"><i class="bi bi-lock-fill"></i> Locked</span>');
+                        }
+                    }
+                }
+
+                updateLevel1Badge();
+                syncFilterHiddenInputs();
             }
 
             // Level 1: When user changes ANY filter in Level 1
@@ -2357,27 +2382,23 @@
                 if (isFilterSyncing || isInternal) return;
                 isFilterSyncing = true;
 
-                syncAndLockLevel1ToLevel2();
-                updateLevel1Badge();
-                syncFilterHiddenInputs();
+                try {
+                    handleLevel1Selection($(this));
+                } finally {
+                    isFilterSyncing = false;
+                }
 
-                isFilterSyncing = false;
                 fetchSpecifications();
             });
 
-            // Reset Level 1 button: clears Level 1 and unlocks Level 2
+            // Reset Level 1 button: clears Level 1 and unlocks all Level 2 filters
             btnClearLevel1.on('click', function() {
                 isFilterSyncing = true;
-                filterL1Selects.val('').trigger('change.select2', [true]);
-                syncAndLockLevel1ToLevel2();
-                filterL2Selects.each(function() {
-                    if ($(this).data('field') !== 'stock_qty') {
-                        $(this).val('').trigger('change.select2', [true]);
-                    }
-                });
-                updateLevel1Badge();
-                syncFilterHiddenInputs();
-                isFilterSyncing = false;
+                try {
+                    handleLevel1Selection(null);
+                } finally {
+                    isFilterSyncing = false;
+                }
                 fetchSpecifications();
             });
 
@@ -2386,10 +2407,10 @@
                 isFilterSyncing = true;
                 filterL2Selects.each(function() {
                     if (!$(this).prop('disabled')) {
-                        $(this).val('').trigger('change.select2', [true]);
+                        $(this).val('').trigger('change', [true]).trigger('change.select2', [true]);
                     }
                 });
-                filterStockQtyL2.val('').trigger('change.select2', [true]);
+                filterStockQtyL2.val('').trigger('change', [true]).trigger('change.select2', [true]);
                 syncFilterHiddenInputs();
                 isFilterSyncing = false;
                 fetchSpecifications();
@@ -2412,9 +2433,23 @@
 
             // Initial state sync on load
             (function initFilterState() {
-                syncAndLockLevel1ToLevel2();
-                updateLevel1Badge();
-                syncFilterHiddenInputs();
+                let activeL1 = null;
+                filterL1Selects.each(function() {
+                    if ($(this).val()) {
+                        if (!activeL1) {
+                            activeL1 = $(this);
+                        } else {
+                            $(this).val('').trigger('change', [true]).trigger('change.select2', [true]);
+                        }
+                    }
+                });
+
+                if (activeL1) {
+                    handleLevel1Selection(activeL1);
+                } else {
+                    updateLevel1Badge();
+                    syncFilterHiddenInputs();
+                }
             })();
 
             // Initial load of specifications
