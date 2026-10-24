@@ -315,7 +315,8 @@
                             id="approvedMainImage"
                             src=""
                             alt="AI Approved Main Image"
-                            style="display:none;"
+                            class="clickable-photo"
+                            style="display:none; cursor: zoom-in;"
                         >
 
 
@@ -363,7 +364,8 @@
                             id="originalMainImage"
                             src=""
                             alt="Original Main Image"
-                            style="display:none;"
+                            class="clickable-photo"
+                            style="display:none; cursor: zoom-in;"
                         >
 
 
@@ -2022,17 +2024,25 @@ if (aiImage) {
             |--------------------------------------------------------------------------
             */
 
+            const productName = product.product_name || product.itemname || 'Product';
+            const skuText = product.sku || '';
+
             const mainImageHtml =
                 mainImage
                     ? `
                         <img
                             src="${escapeHtml(mainImage)}"
                             alt="Main Image"
+                            class="clickable-photo product-table-image rounded border shadow-xs"
+                            data-name="${escapeHtml(productName)}"
+                            data-sku="${escapeHtml(skuText)}"
+                            data-title="Main Image - ${escapeHtml(productName)}"
                             style="
                                 width:80px;
                                 height:80px;
                                 object-fit:contain;
                                 border-radius:8px;
+                                cursor:zoom-in;
                             "
                         >
                     `
@@ -2055,11 +2065,16 @@ if (aiImage) {
                         <img
                             src="${escapeHtml(aiImage)}"
                             alt="AI Approved"
+                            class="clickable-photo product-table-image rounded border shadow-xs"
+                            data-name="${escapeHtml(productName)}"
+                            data-sku="${escapeHtml(skuText)}"
+                            data-title="AI Approved Image - ${escapeHtml(productName)}"
                             style="
                                 width:80px;
                                 height:80px;
                                 object-fit:contain;
                                 border-radius:8px;
+                                cursor:zoom-in;
                             "
                         >
                     `
@@ -3092,8 +3107,9 @@ async function loadApprovedImages(
                 <img
                     src="${escapeHtml(imageUrl)}"
                     alt="Approved Sub Image"
-                    class="approved-sub-image"
+                    class="approved-sub-image clickable-photo"
                     data-image-url="${escapeHtml(imageUrl)}"
+                    style="cursor: zoom-in;"
                 >
 
             </div>

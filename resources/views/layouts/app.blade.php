@@ -93,6 +93,67 @@
             overflow-x: hidden;
         }
 
+        /* =========================================================
+           FLOATING HOVER IMAGE PREVIEW (ADMIN GLOBAL)
+        ========================================================= */
+        .image-hover-preview-card {
+            position: fixed;
+            z-index: 1065;
+            pointer-events: none;
+            transition: opacity 0.15s ease-out;
+            opacity: 0;
+            transform: translate(16px, -50%);
+        }
+        .image-hover-preview-card.show {
+            opacity: 1;
+        }
+        .hover-preview-inner {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 6px;
+            box-shadow: 0 16px 36px rgba(15, 23, 42, 0.28), 0 0 0 1px rgba(0, 0, 0, 0.08);
+            display: flex;
+            flex-direction: column;
+            max-width: 280px;
+            animation: hoverZoomIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes hoverZoomIn {
+            from {
+                transform: scale(0.92);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        .hover-preview-inner img {
+            width: 268px;
+            height: 268px;
+            object-fit: cover;
+            border-radius: 8px;
+            display: block;
+            background: #f8fafc;
+        }
+        .hover-preview-meta {
+            padding: 6px 4px 2px 4px;
+            text-align: center;
+        }
+        .hover-preview-title {
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #1e293b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .hover-preview-hint {
+            font-size: 10px;
+            color: #64748b;
+            margin-top: 2px;
+            font-weight: 500;
+        }
+
 
         /* =========================================================
            APP WRAPPER
@@ -1271,8 +1332,218 @@ document.addEventListener('DOMContentLoaded', function () {
 
 });
 
+// =========================================================
+// GLOBAL IMAGE HOVER PREVIEW FOR ADMIN MODAL-ZOOM IMAGES
+// =========================================================
+$(function() {
+    const hoverCard = $('#imageHoverPreviewCard');
+    const hoverImg = $('#imageHoverPreviewImg');
+    const hoverTitle = $('#imageHoverPreviewTitle');
+
+    function positionHoverCard(e) {
+        const cardWidth = 290;
+        const cardHeight = 320;
+        const winWidth = $(window).width();
+        const winHeight = $(window).height();
+
+        let x = e.clientX + 16;
+        let y = e.clientY;
+
+        if (x + cardWidth > winWidth) {
+            x = e.clientX - cardWidth - 16;
+        }
+
+        const minY = cardHeight / 2 + 10;
+        const maxY = winHeight - (cardHeight / 2) - 10;
+        if (y < minY) y = minY;
+        if (y > maxY) y = maxY;
+
+        hoverCard.css({
+            left: x + 'px',
+            top: y + 'px'
+        });
+    }
+
+    function isModalTriggerImage(el) {
+        const $el = $(el);
+        if ($el.is('#imageHoverPreviewImg') || $el.closest('#imageHoverPreviewCard').length) return false;
+        if ($el.closest('.modal').length) return false;
+
+        if ($el.is('.clickable-photo, .product-table-image, .table-thumb, .js-preview-img, .sub-img-thumb, .sub-image-pill, .gallery-sub-img, .js-stock-row-image, .edit-barcode-image, .set-item-img, .thumb-btn img, [data-preview-image], .product-thumb')) {
+            return true;
+        }
+
+        if ($el.closest('.main-img-box, .clickable-photo, .js-preview-img, [data-preview-image]').length) {
+            return true;
+        }
+
+        const onclickAttr = ($el.attr('onclick') || '') + ($el.parent().attr('onclick') || '');
+        if (/openLargeImage|zoomImage|previewImage|zoomSupplierSentImage|showImageInModal/i.test(onclickAttr)) {
+            return true;
+        }
+
+        if ($el.data('image') || $el.data('full') || $el.data('large') || $el.closest('[data-bs-target*="image" i], [data-bs-target*="zoom" i]').length) {
+            return true;
+        }
+
+        if ($el.closest('a[href$=".jpg" i], a[href$=".jpeg" i], a[href$=".png" i], a[href$=".webp" i], a[data-lightbox], a[data-fancybox]').length) {
+            return true;
+        }
+
+        if ($el.is('img') && ($el.css('cursor') === 'zoom-in' || $el.css('cursor') === 'pointer')) {
+            if ($el.closest('td, th, .gallery, .card-body').length) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function getPreviewSrc(el) {
+        const $el = $(el);
+        const parentLink = $el.closest('a[href$=".jpg" i], a[href$=".jpeg" i], a[href$=".png" i], a[href$=".webp" i]');
+        if (parentLink.length) {
+            return parentLink.attr('href');
+        }
+        return $el.data('full') || 
+               $el.data('image') || 
+               $el.data('large') || 
+               $el.data('url') || 
+               $el.attr('src') || 
+               $el.find('img').attr('src') || '';
+    }
+
+    function getPreviewTitle(el) {
+        const $el = $(el);
+        let title = $el.data('title') || $el.data('name') || $el.attr('alt') || $el.attr('title');
+        if (!title || title === 'Hover Preview') {
+            const tr = $el.closest('tr');
+            if (tr.length) {
+                title = tr.find('td:nth-child(3), td:nth-child(4)').first().find('.fw-bold, a, strong').first().text().trim();
+            }
+        }
+        return title || 'Image Preview';
+    }
+
+    $(document).on('mouseenter', 'img, .main-img-box, .clickable-photo, .table-thumb, .sub-img-thumb, .js-preview-img', function(e) {
+        if (!isModalTriggerImage(this)) return;
+
+        const src = getPreviewSrc(this);
+        if (!src || src.includes('data:image/svg+xml') || src.includes('no-image.png')) return;
+
+        const title = getPreviewTitle(this);
+
+        hoverImg.attr('src', src);
+        hoverTitle.text(title);
+        positionHoverCard(e);
+        hoverCard.removeClass('d-none').addClass('show');
+    });
+
+    $(document).on('mousemove', 'img, .main-img-box, .clickable-photo, .table-thumb, .sub-img-thumb, .js-preview-img', function(e) {
+        if (hoverCard.hasClass('show')) {
+            positionHoverCard(e);
+        }
+    });
+
+    $(document).on('mouseleave', 'img, .main-img-box, .clickable-photo, .table-thumb, .sub-img-thumb, .js-preview-img', function() {
+        hoverCard.removeClass('show').addClass('d-none');
+        hoverImg.attr('src', '');
+    });
+
+    window.showImageInModal = function(src, title, caption) {
+        if (!src) return;
+        const modalEl = document.getElementById('imagePreviewModal');
+        if (!modalEl) return;
+
+        const modalImg = document.getElementById('imagePreviewModalImg');
+        const modalTitle = document.getElementById('imagePreviewModalLabel');
+        const modalCaption = document.getElementById('imagePreviewModalCaption');
+        const newTabBtn = document.getElementById('imagePreviewModalNewTab');
+
+        if (modalImg) modalImg.src = src;
+        if (modalTitle) modalTitle.textContent = title || 'Image Preview';
+        if (modalCaption) modalCaption.textContent = caption || '';
+
+        if (newTabBtn) {
+            newTabBtn.href = src;
+            newTabBtn.target = '_blank';
+        }
+
+        const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        bsModal.show();
+    };
+
+    $(document).on('click', '.clickable-photo, .product-table-image, .table-thumb, .js-preview-img, .sub-img-thumb, td img, th img', function(e) {
+        if ($('#imagePreviewModal').is(':visible') && $(this).closest('#imagePreviewModal').length) return;
+
+        const inlineOnclick = $(this).attr('onclick') || '';
+        if (/openLargeImage|zoomImage|previewImage|zoomSupplierSentImage/i.test(inlineOnclick)) {
+            hoverCard.removeClass('show').addClass('d-none');
+            return;
+        }
+
+        const src = getPreviewSrc(this);
+        if (!src || src.includes('data:image/svg+xml') || src.includes('no-image.png')) return;
+
+        const parentLink = $(this).closest('a');
+        if (parentLink.length && !/\.(jpg|jpeg|png|webp|gif)$/i.test(parentLink.attr('href') || '') && parentLink.attr('href') !== '#' && !parentLink.attr('href')?.startsWith('javascript')) {
+            if (!$(this).hasClass('clickable-photo') && !$(this).hasClass('product-table-image') && !$(this).hasClass('table-thumb')) {
+                return;
+            }
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+        hoverCard.removeClass('show').addClass('d-none');
+
+        const title = getPreviewTitle(this);
+        const sku = $(this).data('sku') || $(this).closest('tr').find('td:nth-child(6), td:nth-child(7)').text().trim() || '';
+        showImageInModal(src, title, sku ? `SKU: ${sku}` : '');
+    });
+
+    $(document).on('show.bs.modal', function() {
+        hoverCard.removeClass('show').addClass('d-none');
+    });
+});
 </script>
 
+<!-- Global Floating Hover Image Preview -->
+<div id="imageHoverPreviewCard" class="image-hover-preview-card d-none">
+    <div class="hover-preview-inner">
+        <img id="imageHoverPreviewImg" src="" alt="Hover Preview">
+        <div class="hover-preview-meta">
+            <div id="imageHoverPreviewTitle" class="hover-preview-title"></div>
+            <div class="hover-preview-hint"><i class="bi bi-arrows-fullscreen me-1"></i> Click to view full image</div>
+        </div>
+    </div>
+</div>
+
+<!-- Global Image Preview Modal for Admin -->
+<div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-labelledby="imagePreviewModalLabel" aria-hidden="true" style="z-index: 1070;">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content shadow border-0" style="border-radius: 12px; overflow: hidden;">
+            <div class="modal-header py-2 px-3 bg-light border-bottom">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-zoom-in text-primary fs-5"></i>
+                    <h6 class="modal-title fw-bold text-dark mb-0" id="imagePreviewModalLabel">Product Image Preview</h6>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0 text-center bg-dark d-flex align-items-center justify-content-center" style="min-height: 400px; max-height: 78vh; overflow: hidden;">
+                <img id="imagePreviewModalImg" src="" alt="Full Preview" style="max-height: 76vh; max-width: 100%; object-fit: contain; display: block; margin: 0 auto;">
+            </div>
+            <div class="modal-footer py-2 px-3 bg-light d-flex justify-content-between align-items-center">
+                <span class="text-muted small fw-medium" id="imagePreviewModalCaption"></span>
+                <div class="d-flex gap-2">
+                    <a id="imagePreviewModalNewTab" href="#" target="_blank" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-box-arrow-up-right me-1"></i> Open in New Tab
+                    </a>
+                    <button type="button" class="btn btn-sm btn-primary px-3" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 @stack('scripts')
 

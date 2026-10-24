@@ -204,6 +204,65 @@
         filter: brightness(1.05);
     }
 
+    /* Floating Hover Image Preview */
+    .image-hover-preview-card {
+        position: fixed;
+        z-index: 1055;
+        pointer-events: none;
+        transition: opacity 0.15s ease-out;
+        opacity: 0;
+        transform: translate(16px, -50%);
+    }
+    .image-hover-preview-card.show {
+        opacity: 1;
+    }
+    .hover-preview-inner {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 6px;
+        box-shadow: 0 16px 36px rgba(15, 23, 42, 0.28), 0 0 0 1px rgba(0, 0, 0, 0.08);
+        display: flex;
+        flex-direction: column;
+        max-width: 270px;
+        animation: hoverZoomIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes hoverZoomIn {
+        from {
+            transform: scale(0.92);
+            opacity: 0;
+        }
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+    .hover-preview-inner img {
+        width: 258px;
+        height: 258px;
+        object-fit: cover;
+        border-radius: 8px;
+        display: block;
+        background: #f8fafc;
+    }
+    .hover-preview-meta {
+        padding: 6px 4px 2px 4px;
+        text-align: center;
+    }
+    .hover-preview-title {
+        font-size: 11.5px;
+        font-weight: 700;
+        color: #1e293b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .hover-preview-hint {
+        font-size: 10px;
+        color: #64748b;
+        margin-top: 2px;
+        font-weight: 500;
+    }
+
     .locked-master-fields .select2-container {
         pointer-events: none !important;
     }
@@ -924,17 +983,17 @@
                 
                 <div class="col-md-3 mb-3">
                     <label class="form-label fw-bold">Price</label>
-                    <input type="number" step="0.01" name="price" class="form-control" value="{{ old('price') }}" placeholder="0.00">
+                    <input type="number" step="0.01" name="price" class="form-control" value="" placeholder="0.00" autocomplete="off">
                 </div>
                 
                 <div class="col-md-3 mb-3">
                     <label class="form-label fw-bold">Sale Price</label>
-                    <input type="number" step="0.01" name="sale_price" class="form-control" value="{{ old('sale_price') }}" placeholder="0.00">
+                    <input type="number" step="0.01" name="sale_price" class="form-control" value="" placeholder="0.00" autocomplete="off">
                 </div>
 
                 <div class="col-md-3 mb-3">
                     <label class="form-label fw-bold">Minimum Price</label>
-                    <input type="number" step="0.01" name="min_price" class="form-control" value="{{ old('min_price') }}" placeholder="0.00">
+                    <input type="number" step="0.01" name="min_price" class="form-control" value="" placeholder="0.00" autocomplete="off">
                 </div>
                 
                 <div class="col-md-3 mb-3">
@@ -1281,6 +1340,17 @@
                 @endif
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Floating Hover Image Preview -->
+<div id="imageHoverPreviewCard" class="image-hover-preview-card d-none">
+    <div class="hover-preview-inner">
+        <img id="imageHoverPreviewImg" src="" alt="Hover Preview">
+        <div class="hover-preview-meta">
+            <div id="imageHoverPreviewTitle" class="hover-preview-title"></div>
+            <div class="hover-preview-hint"><i class="bi bi-arrows-fullscreen me-1"></i> Click to view full image</div>
+        </div>
     </div>
 </div>
 
@@ -1811,6 +1881,174 @@
             let loadedSpecifications = [];
             let currentSelectedSku = hiddenSkuInput.val() || '';
             let isFilterSyncing = false;
+            let shouldUpdateLevel2Options = true;
+
+            // Cache original Level 2 select options on page load for restoring
+            const originalL2Options = {};
+            filterL2Selects.each(function() {
+                const field = $(this).data('field');
+                if (field) {
+                    originalL2Options[field] = $(this).html();
+                }
+            });
+
+            // Mapping of filter fields to specification item properties
+            const filterFieldMappings = {
+                'item_type': { idKey: 'item_type', textKey: 'item_type_text' },
+                'item_name': { idKey: 'item_name', textKey: 'item_name_text' },
+                'composition': { idKey: 'composition', textKey: 'composition_text' },
+                'gender': { idKey: 'gender', textKey: 'gender_text' },
+                'collection': { idKey: 'collection', textKey: 'collection_text' },
+                'designer': { idKey: 'designer', textKey: 'designer_text' },
+                'size': { idKey: 'size', textKey: 'size_text' },
+                'colour': { idKey: 'colour', textKey: 'colour_text' },
+                'manufacture': { idKey: 'manufacture', textKey: 'manufacture_text' },
+                'manufacturing_process': { idKey: 'manufacturing_process', textKey: 'manufacturing_process_text' },
+                'craftsman': { idKey: 'craftsman', textKey: 'craftsman_text', extraKeys: ['craftsman_id', 'craftsman_sno'] }
+            };
+
+            // Restore all Level 2 dropdowns to full master options
+            function restoreAllLevel2Options() {
+                isFilterSyncing = true;
+                try {
+                    filterL2Selects.each(function() {
+                        const l2Select = $(this);
+                        const field = l2Select.data('field');
+                        if (field && originalL2Options[field]) {
+                            const curVal = l2Select.val();
+                            if (l2Select.hasClass('select2-hidden-accessible')) {
+                                l2Select.select2('destroy');
+                            }
+                            l2Select.html(originalL2Options[field]);
+                            if (curVal && l2Select.find(`option[value="${curVal}"]`).length) {
+                                l2Select.val(curVal);
+                            } else {
+                                l2Select.val('');
+                            }
+                            l2Select.select2({ width: '100%' });
+                        }
+                    });
+                } finally {
+                    isFilterSyncing = false;
+                }
+            }
+
+            // Dynamically narrow Level 2 dropdown options based on Level 1 matching specifications
+            function updateLevel2DropdownOptions(specs) {
+                // Find currently active Level 1 filter
+                let activeL1Field = null;
+                let activeL1Val = null;
+                filterL1Selects.each(function() {
+                    const v = $(this).val();
+                    if (v) {
+                        activeL1Field = $(this).data('field');
+                        activeL1Val = v;
+                    }
+                });
+
+                // If Level 1 is not selected, restore full master options
+                if (!activeL1Field || !activeL1Val) {
+                    restoreAllLevel2Options();
+                    return;
+                }
+
+                // Collect valid values & texts for each field from specs
+                const validValuesByField = {};
+                const validTextsByField = {};
+
+                Object.keys(filterFieldMappings).forEach(f => {
+                    validValuesByField[f] = new Set();
+                    validTextsByField[f] = new Set();
+                });
+
+                (specs || []).forEach(item => {
+                    Object.keys(filterFieldMappings).forEach(f => {
+                        const mapping = filterFieldMappings[f];
+                        const val = item[mapping.idKey];
+                        const text = item[mapping.textKey];
+
+                        if (val !== undefined && val !== null && val !== '') {
+                            validValuesByField[f].add(String(val).trim().toLowerCase());
+                        }
+
+                        if (mapping.extraKeys && Array.isArray(mapping.extraKeys)) {
+                            mapping.extraKeys.forEach(k => {
+                                const extraVal = item[k];
+                                if (extraVal !== undefined && extraVal !== null && extraVal !== '') {
+                                    validValuesByField[f].add(String(extraVal).trim().toLowerCase());
+                                }
+                            });
+                        }
+
+                        if (text && typeof text === 'string') {
+                            const trimmedText = text.trim().toLowerCase();
+                            if (trimmedText) {
+                                validTextsByField[f].add(trimmedText);
+                            }
+                        }
+                    });
+                });
+
+                isFilterSyncing = true;
+                try {
+                    filterL2Selects.each(function() {
+                        const l2Select = $(this);
+                        const field = l2Select.data('field');
+                        // Never alter the stock quantity bucket filter in Level 2
+                        if (!field || field === 'stock_qty' || !originalL2Options[field]) return;
+
+                        // Skip the locked filter (it is already set by Level 1)
+                        if (field === activeL1Field) return;
+
+                        const curVal = l2Select.val();
+                        const validSet = validValuesByField[field] || new Set();
+                        const textSet = validTextsByField[field] || new Set();
+
+                        const $orig = $('<div>').html(originalL2Options[field]);
+                        const newOptions = [];
+                        let curValStillValid = false;
+
+                        // Include "All" option without hardcoded selected attribute
+                        const firstOpt = $orig.find('option[value=""], option:not([value])').first();
+                        const firstText = firstOpt.length ? firstOpt.text() : 'All';
+                        newOptions.push(`<option value="">${escapeHtml(firstText)}</option>`);
+
+                        // Filter original options against validSet & textSet
+                        $orig.find('option').each(function() {
+                            const optVal = $(this).attr('value');
+                            if (!optVal) return;
+
+                            const strVal = String(optVal).trim().toLowerCase();
+                            const optText = $(this).text().trim().toLowerCase();
+
+                            const isMatch = validSet.has(strVal) || textSet.has(optText);
+                            if (isMatch) {
+                                if (String(curVal) === String(optVal)) {
+                                    curValStillValid = true;
+                                }
+                                newOptions.push(`<option value="${escapeHtml(optVal)}">${escapeHtml($(this).text())}</option>`);
+                            }
+                        });
+
+                        // Recreate Select2 with clean live DOM options
+                        if (l2Select.hasClass('select2-hidden-accessible')) {
+                            l2Select.select2('destroy');
+                        }
+
+                        l2Select.html(newOptions.join(''));
+
+                        if (curVal && curValStillValid) {
+                            l2Select.val(curVal);
+                        } else {
+                            l2Select.val('');
+                        }
+
+                        l2Select.select2({ width: '100%' });
+                    });
+                } finally {
+                    isFilterSyncing = false;
+                }
+            }
 
             // Helper to blank/reset photo and media details completely
             function clearPhotoDetails() {
@@ -2242,6 +2480,11 @@
                     success: function(response) {
                         loadedSpecifications = Array.isArray(response) ? response : (response.data || []);
                         renderSpecificationTable(loadedSpecifications);
+
+                        if (shouldUpdateLevel2Options) {
+                            updateLevel2DropdownOptions(loadedSpecifications);
+                            shouldUpdateLevel2Options = false;
+                        }
                     },
                     error: function(err) {
                         if (err && err.statusText === 'abort') return;
@@ -2322,10 +2565,8 @@
                 // Ensure product name is preserved as item name
                 $('#product_name_input').val(itemName);
 
-                // Auto-fill Prices & Stock (only prices, image, sub-images, description can be changed; stock capped at availStock)
-                $('input[name="price"]').val(spec.price || '');
-                $('input[name="sale_price"]').val(spec.sale_price || '');
-                $('input[name="min_price"]').val(spec.min_price || '');
+                // Clean/Reset prices: No price auto-fill. Always keep price inputs clean and empty when selecting or switching products.
+                $('input[name="price"], input[name="sale_price"], input[name="min_price"]').val('');
 
                 const maxStock = availStock > 0 ? availStock : 1;
                 $('#total_available_stock_count').text(availStock);
@@ -2590,14 +2831,85 @@
                 }
             });
 
-            // Click on specification table row image to preview big photo
-            tableBody.on('click', '.product-table-image', function(e) {
+            // Floating Hover Image Preview & Click Modal handlers
+            const hoverCard = $('#imageHoverPreviewCard');
+            const hoverImg = $('#imageHoverPreviewImg');
+            const hoverTitle = $('#imageHoverPreviewTitle');
+
+            function positionHoverCard(e) {
+                const cardWidth = 280;
+                const cardHeight = 310;
+                const winWidth = $(window).width();
+                const winHeight = $(window).height();
+
+                let x = e.clientX + 16;
+                let y = e.clientY;
+
+                if (x + cardWidth > winWidth) {
+                    x = e.clientX - cardWidth - 16;
+                }
+
+                const minY = cardHeight / 2 + 10;
+                const maxY = winHeight - (cardHeight / 2) - 10;
+                if (y < minY) y = minY;
+                if (y > maxY) y = maxY;
+
+                hoverCard.css({
+                    left: x + 'px',
+                    top: y + 'px'
+                });
+            }
+
+            // Hover over product image to show enlarged floating preview
+            $(document).on('mouseenter', '.product-table-image, .clickable-photo', function(e) {
+                const src = $(this).attr('src');
+                if (!src || src.includes('data:image/svg+xml')) return;
+
+                const tr = $(this).closest('tr');
+                let itemName = '';
+                let itemSku = '';
+
+                if (tr.length) {
+                    itemName = tr.find('td:nth-child(5) div.fw-bold').text().trim() || '';
+                    itemSku = tr.find('td:nth-child(5) span.badge').text().trim() || tr.find('td:nth-child(5) div.small').text().trim();
+                } else {
+                    itemName = $(this).attr('alt') || $(this).attr('title') || 'Product Image';
+                }
+
+                hoverImg.attr('src', src);
+                hoverTitle.text(itemName ? (itemName + (itemSku ? ` (${itemSku})` : '')) : 'Product Image Preview');
+                positionHoverCard(e);
+                hoverCard.removeClass('d-none').addClass('show');
+            });
+
+            // Smooth position update as mouse moves
+            $(document).on('mousemove', '.product-table-image, .clickable-photo', function(e) {
+                positionHoverCard(e);
+            });
+
+            // Hide floating preview when mouse leaves
+            $(document).on('mouseleave', '.product-table-image, .clickable-photo', function() {
+                hoverCard.removeClass('show').addClass('d-none');
+                hoverImg.attr('src', '');
+            });
+
+            // Click to open full modal and immediately hide the hover card
+            $(document).on('click', '.product-table-image, .clickable-photo', function(e) {
                 e.stopPropagation();
+                hoverCard.removeClass('show').addClass('d-none');
                 const src = $(this).attr('src');
                 const tr = $(this).closest('tr');
-                const itemName = tr.find('td:nth-child(5) div.fw-bold').text().trim() || 'Specification Product Image';
-                const itemSku = tr.find('td:nth-child(5) div.small').text().trim();
-                if (src) {
+                let itemName = '';
+                let itemSku = '';
+
+                if (tr.length) {
+                    itemName = tr.find('td:nth-child(5) div.fw-bold').text().trim() || 'Specification Product Image';
+                    itemSku = tr.find('td:nth-child(5) span.badge').text().trim() || tr.find('td:nth-child(5) div.small').text().trim();
+                } else {
+                    itemName = $(this).attr('alt') || $(this).attr('title') || 'Product Image';
+                }
+
+                if (src && !src.includes('data:image/svg+xml')) {
                     showImageInModal(src, 'Specification Product Image', itemName + (itemSku ? ` (${itemSku})` : ''));
                 }
             });
@@ -2661,6 +2973,9 @@
                             matchedLabel.append(' <span class="badge bg-secondary-subtle text-secondary border px-1 py-0 ms-1 filter-lock-badge" title="Locked by Level 1 filter"><i class="bi bi-lock-fill"></i> Locked</span>');
                         }
                     }
+                } else {
+                    // Level 1 cleared or reset -> restore all master options in Level 2
+                    restoreAllLevel2Options();
                 }
 
                 updateLevel1Badge();
@@ -2671,6 +2986,7 @@
             filterL1Selects.on('change', function(e, isInternal) {
                 if (isFilterSyncing || isInternal) return;
                 isFilterSyncing = true;
+                shouldUpdateLevel2Options = true;
 
                 try {
                     handleLevel1Selection($(this));
@@ -2684,6 +3000,7 @@
             // Reset Level 1 button: clears Level 1 and unlocks all Level 2 filters
             btnClearLevel1.on('click', function() {
                 isFilterSyncing = true;
+                shouldUpdateLevel2Options = true;
                 try {
                     handleLevel1Selection(null);
                 } finally {
@@ -2744,6 +3061,9 @@
 
             // Initial load of specifications
             fetchSpecifications();
+
+            // Ensure price fields are always clean and empty on page load / reload / save & next
+            $('input[name="price"], input[name="sale_price"], input[name="min_price"]').val('');
 
             // Set initial state
             updateMode('integrated');

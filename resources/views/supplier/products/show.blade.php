@@ -14,6 +14,64 @@
         box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18) !important;
         filter: brightness(1.03);
     }
+    /* Floating Hover Image Preview */
+    .image-hover-preview-card {
+        position: fixed;
+        z-index: 1055;
+        pointer-events: none;
+        transition: opacity 0.15s ease-out;
+        opacity: 0;
+        transform: translate(16px, -50%);
+    }
+    .image-hover-preview-card.show {
+        opacity: 1;
+    }
+    .hover-preview-inner {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 6px;
+        box-shadow: 0 16px 36px rgba(15, 23, 42, 0.28), 0 0 0 1px rgba(0, 0, 0, 0.08);
+        display: flex;
+        flex-direction: column;
+        max-width: 270px;
+        animation: hoverZoomIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes hoverZoomIn {
+        from {
+            transform: scale(0.92);
+            opacity: 0;
+        }
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+    .hover-preview-inner img {
+        width: 258px;
+        height: 258px;
+        object-fit: cover;
+        border-radius: 8px;
+        display: block;
+        background: #f8fafc;
+    }
+    .hover-preview-meta {
+        padding: 6px 4px 2px 4px;
+        text-align: center;
+    }
+    .hover-preview-title {
+        font-size: 11.5px;
+        font-weight: 700;
+        color: #1e293b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .hover-preview-hint {
+        font-size: 10px;
+        color: #64748b;
+        margin-top: 2px;
+        font-weight: 500;
+    }
     .thumb-item {
         width: 72px;
         height: 72px;
@@ -224,7 +282,12 @@
                                 <td>{{ $idx + 1 }}</td>
                                 <td class="text-center">
                                     @if(!empty($cItem['image_url']))
-                                        <img src="{{ $cItem['image_url'] }}" style="width: 44px; height: 44px; object-fit: cover; border-radius: 6px;" class="border">
+                                        <img src="{{ $cItem['image_url'] }}" 
+                                             alt="{{ $cItem['name'] ?? 'Component Item' }}"
+                                             style="width: 44px; height: 44px; object-fit: cover; border-radius: 6px;" 
+                                             class="border clickable-photo set-item-img"
+                                             data-name="{{ $cItem['name'] ?? '' }}"
+                                             data-sku="{{ $cItem['sku'] ?? '' }}">
                                     @else
                                         <div class="bg-light border rounded d-flex align-items-center justify-content-center text-muted" style="width: 44px; height: 44px;">
                                             <i class="bi bi-image"></i>
@@ -434,6 +497,17 @@
         </div>
     </div>
 </div>
+
+<!-- Floating Hover Image Preview -->
+<div id="imageHoverPreviewCard" class="image-hover-preview-card d-none">
+    <div class="hover-preview-inner">
+        <img id="imageHoverPreviewImg" src="" alt="Hover Preview">
+        <div class="hover-preview-meta">
+            <div id="imageHoverPreviewTitle" class="hover-preview-title"></div>
+            <div class="hover-preview-hint"><i class="bi bi-arrows-fullscreen me-1"></i> Click to view full image</div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -491,6 +565,72 @@
                     activeMainPreview.src = src;
                 }
             });
+        });
+
+        // Set item component images click
+        document.querySelectorAll('.set-item-img').forEach(img => {
+            img.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const src = this.src;
+                const name = this.getAttribute('data-name') || 'Component Item';
+                const sku = this.getAttribute('data-sku') || '';
+                showImageInModal(src, 'Set Component Image', name + (sku ? ` (${sku})` : ''));
+            });
+        });
+
+        // Floating Hover Image Preview handlers
+        const hoverCard = $('#imageHoverPreviewCard');
+        const hoverImg = $('#imageHoverPreviewImg');
+        const hoverTitle = $('#imageHoverPreviewTitle');
+
+        function positionHoverCard(e) {
+            const cardWidth = 280;
+            const cardHeight = 310;
+            const winWidth = $(window).width();
+            const winHeight = $(window).height();
+
+            let x = e.clientX + 16;
+            let y = e.clientY;
+
+            if (x + cardWidth > winWidth) {
+                x = e.clientX - cardWidth - 16;
+            }
+
+            const minY = cardHeight / 2 + 10;
+            const maxY = winHeight - (cardHeight / 2) - 10;
+            if (y < minY) y = minY;
+            if (y > maxY) y = maxY;
+
+            hoverCard.css({
+                left: x + 'px',
+                top: y + 'px'
+            });
+        }
+
+        $(document).on('mouseenter', '.thumb-item img, .set-item-img, .clickable-photo', function(e) {
+            const src = $(this).attr('src');
+            if (!src || src.includes('data:image/svg+xml')) return;
+
+            const name = $(this).attr('data-name') || $(this).attr('alt') || $(this).closest('.thumb-item').attr('title') || productName;
+            const sku = $(this).attr('data-sku') || '';
+
+            hoverImg.attr('src', src);
+            hoverTitle.text(name + (sku ? ` (${sku})` : ''));
+            positionHoverCard(e);
+            hoverCard.removeClass('d-none').addClass('show');
+        });
+
+        $(document).on('mousemove', '.thumb-item img, .set-item-img, .clickable-photo', function(e) {
+            positionHoverCard(e);
+        });
+
+        $(document).on('mouseleave', '.thumb-item img, .set-item-img, .clickable-photo', function() {
+            hoverCard.removeClass('show').addClass('d-none');
+            hoverImg.attr('src', '');
+        });
+
+        $(document).on('click', '.thumb-item img, .set-item-img, .clickable-photo', function() {
+            hoverCard.removeClass('show').addClass('d-none');
         });
 
         // Send to Photo Section with SweetAlert2

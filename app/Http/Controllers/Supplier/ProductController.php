@@ -541,6 +541,8 @@ class ProductController extends Controller
                 'spec.manufacturing_process',
                 'iprocess.manufacturing_process as manufacturing_process_text',
                 'spec.craftsman',
+                'icraftsman.id as craftsman_id',
+                'icraftsman.sno as craftsman_sno',
                 'icraftsman.name as craftsman_text',
                 'spec.manufecture as manufacture',
                 'imanuf.name as manufacture_text',
@@ -557,37 +559,37 @@ class ProductController extends Controller
                 \Illuminate\Support\Facades\DB::raw('COALESCE(NULLIF(vs_bar.available_stock, 0), vs_item.available_stock, 0) as available_stock')
             );
 
-        if (!empty($itemType)) {
+        if ($itemType !== null && $itemType !== '') {
             $query->where('spec.item_type', $itemType);
         }
-        if (!empty($itemName)) {
+        if ($itemName !== null && $itemName !== '') {
             $query->where('spec.item_name', $itemName);
         }
-        if (!empty($composition)) {
+        if ($composition !== null && $composition !== '') {
             $query->where('spec.composition', $composition);
         }
-        if (!empty($gender)) {
+        if ($gender !== null && $gender !== '') {
             $query->where('spec.gender', $gender);
         }
-        if (!empty($collection)) {
+        if ($collection !== null && $collection !== '') {
             $query->where('spec.client', $collection);
         }
-        if (!empty($designer)) {
+        if ($designer !== null && $designer !== '') {
             $query->where('spec.designer_name', $designer);
         }
-        if (!empty($size)) {
+        if ($size !== null && $size !== '') {
             $query->where('spec.sizes', $size);
         }
-        if (!empty($colour)) {
+        if ($colour !== null && $colour !== '') {
             $query->where('spec.colour', $colour);
         }
-        if (!empty($manufacture)) {
+        if ($manufacture !== null && $manufacture !== '') {
             $query->where('spec.manufecture', $manufacture);
         }
-        if (!empty($manufacturingProcess)) {
+        if ($manufacturingProcess !== null && $manufacturingProcess !== '') {
             $query->where('spec.manufacturing_process', $manufacturingProcess);
         }
-        if (!empty($craftsman)) {
+        if ($craftsman !== null && $craftsman !== '') {
             $query->where(function ($w) use ($craftsman) {
                 $w->where('spec.craftsman', $craftsman)
                   ->orWhere('icraftsman.id', $craftsman)
