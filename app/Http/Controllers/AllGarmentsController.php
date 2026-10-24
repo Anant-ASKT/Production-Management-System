@@ -1697,6 +1697,7 @@ public function aiDescriptionData(Request $request)
         'dsm.barcode',
         'dsm.status as dsm_status',
         'dsm.supplier_product_id',
+        DB::raw('(SELECT sp.description FROM supplier_products as sp WHERE sp.sno = dsm.supplier_product_id LIMIT 1) as supplier_description'),
 
 
         /*

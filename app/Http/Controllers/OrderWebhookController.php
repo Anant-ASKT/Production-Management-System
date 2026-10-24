@@ -477,17 +477,27 @@ class OrderWebhookController extends Controller
             $specRows = !empty($skus) ? DB::table('auto_designer_specification_master')
                 ->whereIn('sku', $skus)
                 ->orWhereIn('sku_supplier', $skus)
-                ->get()
-                ->keyBy('sku') : collect();
+                ->get() : collect();
 
             foreach ($lineItems as $item) {
                 $sku = trim($item['sku'] ?? '');
-                $spec = $specRows[$sku] ?? null;
+                $spec = $specRows->first(function ($s) use ($sku) {
+                    return (!empty($s->sku) && strcasecmp($s->sku, $sku) === 0)
+                        || (!empty($s->sku_supplier) && strcasecmp($s->sku_supplier, $sku) === 0);
+                });
+
+                $setItems = null;
+                if (!empty($spec->set_items)) {
+                    $setItems = is_string($spec->set_items) ? json_decode($spec->set_items, true) : (array) $spec->set_items;
+                }
+
                 $enrichedLineItems[] = array_merge($item, [
                     'resolved_sku' => !empty($sku) ? $sku : ($spec->sku ?? '—'),
                     'spec_id' => $spec->sno ?? null,
                     'colour' => $spec->colour ?? null,
                     'size' => $spec->sizes ?? null,
+                    'is_set' => (bool) ($spec->is_set ?? false),
+                    'set_items' => $setItems,
                 ]);
             }
 

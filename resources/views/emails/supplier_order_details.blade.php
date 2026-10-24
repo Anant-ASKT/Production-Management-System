@@ -260,6 +260,9 @@
                             <td>
                                 <strong style="color: #1e293b;">{{ $item['name'] }}</strong>
                                 <div style="margin-top: 2px;">
+                                    @if(!empty($item['is_set']))
+                                        <span class="badge" style="background-color: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe;">Combo Set</span>
+                                    @endif
                                     @if(!empty($item['resolved_sku']) && $item['resolved_sku'] !== '—')
                                         <span class="badge">SKU: {{ $item['resolved_sku'] }}</span>
                                     @endif
@@ -273,6 +276,30 @@
                                         <span class="badge">{{ $item['size'] }}</span>
                                     @endif
                                 </div>
+
+                                {{-- Unpacked Set Items for Picker --}}
+                                @if(!empty($item['is_set']) && !empty($item['set_items']) && is_array($item['set_items']))
+                                    <div style="margin-top: 8px; padding: 8px 10px; background-color: #fdf4ff; border: 1px solid #f0abfc; border-radius: 4px;">
+                                        <div style="font-size: 11px; font-weight: 700; color: #86198f; text-transform: uppercase; margin-bottom: 4px;">
+                                            📦 Set Components to Dispatch ({{ count($item['set_items']) }} items):
+                                        </div>
+                                        <table style="width: 100%; border-collapse: collapse; font-size: 11px; background: #ffffff;">
+                                            @foreach($item['set_items'] as $cIdx => $cItem)
+                                                <tr style="border-bottom: 1px solid #f1f5f9;">
+                                                    <td style="padding: 4px 6px; font-weight: 600; color: #1e293b;">
+                                                        {{ $cIdx + 1 }}. {{ $cItem['name'] ?? 'Item' }}
+                                                    </td>
+                                                    <td style="padding: 4px 6px; font-family: monospace; color: #64748b;">
+                                                        SKU: {{ $cItem['sku'] ?? '—' }}
+                                                    </td>
+                                                    <td style="padding: 4px 6px; font-family: monospace; color: #2563eb; font-weight: 700;">
+                                                        Barcode: {{ $cItem['barcode'] ?? '—' }}
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </table>
+                                    </div>
+                                @endif
                             </td>
                             <td class="text-center">
                                 {{ $orderData['currency_symbol'] }}{{ number_format($item['price'] ?? 0, 2) }}

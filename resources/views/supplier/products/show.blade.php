@@ -196,6 +196,57 @@
 
     {{-- RIGHT: PRODUCT SPECIFICATIONS & DETAILS --}}
     <div class="col-lg-7 col-xl-8">
+        @if(!empty($product->is_set) && !empty($product->set_items))
+        @php
+            $itemsInSet = is_array($product->set_items) ? $product->set_items : json_decode($product->set_items, true);
+        @endphp
+        <div class="card shadow-sm border-0 mb-4" style="border: 2px solid #8b5cf6 !important; border-radius: 12px; overflow: hidden;">
+            <div class="card-header py-3 px-4 d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%); color: #fff;">
+                <strong class="fs-6 d-flex align-items-center gap-2">
+                    <i class="bi bi-collection-fill text-warning"></i> Component Products in this Set ({{ count($itemsInSet ?? []) }})
+                </strong>
+            </div>
+            <div class="card-body p-3">
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th style="width: 70px;">Image</th>
+                                <th>Item Name</th>
+                                <th>Component SKU</th>
+                                <th class="text-end">Available Stock</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($itemsInSet as $idx => $cItem)
+                            <tr>
+                                <td>{{ $idx + 1 }}</td>
+                                <td class="text-center">
+                                    @if(!empty($cItem['image_url']))
+                                        <img src="{{ $cItem['image_url'] }}" style="width: 44px; height: 44px; object-fit: cover; border-radius: 6px;" class="border">
+                                    @else
+                                        <div class="bg-light border rounded d-flex align-items-center justify-content-center text-muted" style="width: 44px; height: 44px;">
+                                            <i class="bi bi-image"></i>
+                                        </div>
+                                    @endif
+                                </td>
+                                <td><strong class="text-dark">{{ $cItem['name'] ?? '-' }}</strong></td>
+                                <td><span class="badge bg-light text-dark border font-monospace">{{ $cItem['sku'] ?? '-' }}</span></td>
+                                <td class="text-end">
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                        {{ $cItem['available_stock'] ?? '-' }}
+                                    </span>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        @endif
+
         {{-- PRICE & STOCK CARDS --}}
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-header bg-white border-bottom py-3">

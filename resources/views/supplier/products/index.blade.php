@@ -150,7 +150,11 @@
                                 </td>
                                 <td>{{ $product->item_type_name ?? '-' }}</td>
                                 <td>
-                                    @if($product->is_integrated)
+                                    @if(!empty($product->is_set))
+                                        <span class="badge text-white px-2 py-1" style="background-color: #7c3aed !important;">
+                                            <i class="bi bi-collection-fill me-1"></i> Product Set
+                                        </span>
+                                    @elseif($product->is_integrated)
                                         <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
                                             <i class="bi bi-link-45deg me-1"></i> Ready List
                                         </span>

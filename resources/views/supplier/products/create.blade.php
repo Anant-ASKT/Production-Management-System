@@ -258,6 +258,53 @@
         background: #e7f1ff;
         color: #0a58ca;
     }
+    .btn-purple {
+        background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%) !important;
+        border-color: #6d28d9 !important;
+        color: #ffffff !important;
+    }
+    .btn-purple:hover {
+        background: linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%) !important;
+        color: #ffffff !important;
+    }
+    .btn-outline-purple {
+        border-color: #7c3aed !important;
+        color: #7c3aed !important;
+    }
+    .btn-outline-purple:hover, .btn-check:checked + .btn-outline-purple {
+        background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%) !important;
+        border-color: #6d28d9 !important;
+        color: #ffffff !important;
+        box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3) !important;
+    }
+    .spec-row-in-set {
+        background: linear-gradient(90deg, #f5f3ff 0%, #ede9fe 100%) !important;
+        border-left: 5px solid #7c3aed !important;
+    }
+    .text-purple {
+        color: #7c3aed !important;
+    }
+    .border-purple {
+        border-color: #8b5cf6 !important;
+    }
+    .bg-purple-subtle {
+        background-color: #f3e8ff !important;
+    }
+    .set-item-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #ffffff;
+        border: 1.5px solid #c4b5fd;
+        border-radius: 8px;
+        padding: 6px 12px;
+        box-shadow: 0 1px 4px rgba(109, 40, 217, 0.08);
+        transition: all .2s ease;
+    }
+    .set-item-chip:hover {
+        border-color: #7c3aed;
+        box-shadow: 0 2px 8px rgba(109, 40, 217, 0.15);
+    }
 </style>
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
@@ -325,6 +372,66 @@
             <input type="hidden" name="catalog_mode" id="catalog_mode_input" value="{{ !empty($isIntegrated) ? 'integrated' : 'manual' }}">
             
             @if(!empty($isIntegrated))
+            {{-- PRODUCT OPTION: INDIVIDUAL OR SET --}}
+            <div class="card shadow-sm border mb-4" style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-radius: 12px;">
+                <div class="card-body p-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-diagram-3-fill fs-4 text-primary"></i>
+                            <div>
+                                <div class="fw-bold text-dark fs-6">Product Option</div>
+                                <small class="text-muted">Choose single garment or a multi-product combo/set</small>
+                            </div>
+                        </div>
+                        <div class="btn-group shadow-sm ms-2" role="group" aria-label="Product Structure">
+                            <input type="radio" class="btn-check" name="product_structure_type" id="structIndividual" value="individual" autocomplete="off" checked>
+                            <label class="btn btn-outline-primary px-3 py-2 fw-bold d-flex align-items-center gap-2" for="structIndividual" style="border-width: 2px;">
+                                <i class="bi bi-box-seam"></i>
+                                <span>Individual Product</span>
+                            </label>
+
+                            <input type="radio" class="btn-check" name="product_structure_type" id="structSet" value="set" autocomplete="off">
+                            <label class="btn btn-outline-purple px-3 py-2 fw-bold d-flex align-items-center gap-2" for="structSet" style="border-width: 2px;">
+                                <i class="bi bi-collection-fill"></i>
+                                <span>Product Set</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="badge bg-white text-secondary border px-3 py-2 shadow-sm fs-7 fw-normal" id="structureHelpBadge">
+                        <i class="bi bi-info-circle text-primary me-1"></i>
+                        <span id="structureHelpText">Individual Mode: Select 1 product from the list below.</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hidden inputs for Set structure -->
+            <input type="hidden" name="is_set" id="input_is_set" value="0">
+            <input type="hidden" name="set_items" id="input_set_items" value="">
+
+            {{-- SELECTED SET ITEMS CONTAINER (Visible only in Set mode) --}}
+            <div id="setItemsContainer" class="card shadow-sm mb-4 d-none" style="border: 2px solid #8b5cf6 !important; border-radius: 12px; background: #faf5ff;">
+                <div class="card-header py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2" style="background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%); color: #fff;">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-collection-fill fs-5 text-warning"></i>
+                        <strong class="fs-6">Selected Products for this Set</strong>
+                        <span id="setItemsCountBadge" class="badge bg-white text-dark fw-bold ms-1">0 items</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 small">
+                        <span>Max Available Set Stock: <strong id="setCalculatedStockBadge" class="badge bg-warning text-dark fs-6">0</strong></span>
+                        <button type="button" class="btn btn-sm btn-light py-0 px-2 text-danger fw-semibold" id="btnClearSetItems">
+                            <i class="bi bi-x-circle me-1"></i> Clear Set
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-3">
+                    <div id="selectedSetItemsList" class="d-flex flex-wrap gap-2">
+                        <div class="text-muted small py-2 w-100 text-center" id="emptySetNotice">
+                            <i class="bi bi-arrow-down-circle me-1 text-purple"></i> Please choose at least 2 products from the table below by clicking <strong>"Add to Set"</strong>.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {{-- CHOOSE SKU / SPECIFICATION AUTO-FILL & FILTERS --}}
             <div id="chooseSkuTopCard" class="mb-4">
                 <!-- Hidden inputs to store chosen SKU, action type and filters for submission/retention -->
@@ -773,10 +880,11 @@
                 </div>
                 
                 @if(!empty($isIntegrated))
-                <div class="col-md-6 mb-3">
+                <div class="col-md-6 mb-3" id="product_item_name_container">
                     <label class="form-label fw-bold">
                         Item Name *
                         <span class="badge bg-secondary-subtle text-secondary border ms-1 d-none" id="product_name_locked_badge"><i class="bi bi-lock-fill me-1"></i>From Specification</span>
+                        <span class="badge text-white border ms-1 d-none" id="set_name_badge" style="background-color: #7c3aed !important;"><i class="bi bi-collection-fill me-1"></i>Set Name</span>
                     </label>
                     <div class="input-with-add">
                         <select name="item_name" id="supplier_item_name_select" class="form-select select2-master" required>
@@ -792,10 +900,10 @@
                         </button>
                     </div>
                     <input type="hidden" name="name" id="product_name_input" value="{{ old('name') }}">
-                    <small class="text-muted">Select an item name or click + to add a new one.</small>
+                    <small class="text-muted" id="item_name_help_text">Select an item name or click + to add a new one.</small>
                 </div>
 
-                <div class="col-md-6 mb-3">
+                <div class="col-md-6 mb-3" id="product_sku_container">
                     <label class="form-label fw-bold">
                         Product SKU
                         <span class="badge bg-success-subtle text-success border ms-1" id="product_sku_badge"><i class="bi bi-magic me-1"></i>Auto Generated</span>
@@ -1913,6 +2021,8 @@
             let currentRenderedCount = 0;
             const PAGE_SIZE = 50;
             let filteredItems = [];
+            let currentProductStructure = 'individual';
+            let selectedSetItems = [];
 
             function renderSpecificationTable(items, isAppend = false) {
                 if (!isAppend) {
@@ -1963,6 +2073,7 @@
                 nextBatch.forEach((item, batchIdx) => {
                     const index = currentRenderedCount + batchIdx;
                     const isSelected = currentSelectedSku && item.sku === currentSelectedSku;
+                    const inSet = selectedSetItems.some(si => String(si.spec_id) === String(item.spec_id) || (item.sku && si.sku === item.sku));
                     const availStock = (item.available_stock !== undefined && item.available_stock !== null)
                         ? parseInt(item.available_stock, 10)
                         : (parseInt(item.total_stock, 10) || 0);
@@ -1986,13 +2097,28 @@
                         `;
                     }
 
-                    const actionHtml = isSelected
-                        ? `<button type="button" class="btn btn-sm btn-success fw-bold shadow-sm px-3 disabled" style="background: linear-gradient(135deg, #10b981, #059669); border: none;">
-                               <i class="bi bi-check-circle-fill me-1"></i> Selected
-                           </button>`
-                        : `<button type="button" class="btn btn-sm btn-primary fw-bold shadow-sm px-3 js-choose-spec" data-index="${index}" style="background: linear-gradient(135deg, #4f46e5, #3b82f6); border: none;">
-                               <i class="bi bi-hand-index-thumb me-1"></i> Choose
-                           </button>`;
+                    let actionHtml = '';
+                    if (currentProductStructure === 'set') {
+                        actionHtml = inSet
+                            ? `<button type="button" class="btn btn-sm btn-purple fw-bold shadow-sm px-2 js-toggle-set-spec" data-index="${index}">
+                                   <i class="bi bi-check-circle-fill me-1"></i> In Set
+                               </button>`
+                            : `<button type="button" class="btn btn-sm btn-outline-purple fw-bold shadow-sm px-2 js-toggle-set-spec" data-index="${index}">
+                                   <i class="bi bi-plus-circle me-1"></i> Add to Set
+                               </button>`;
+                    } else {
+                        actionHtml = isSelected
+                            ? `<button type="button" class="btn btn-sm btn-success fw-bold shadow-sm px-3 disabled" style="background: linear-gradient(135deg, #10b981, #059669); border: none;">
+                                   <i class="bi bi-check-circle-fill me-1"></i> Selected
+                               </button>`
+                            : `<button type="button" class="btn btn-sm btn-primary fw-bold shadow-sm px-3 js-choose-spec" data-index="${index}" style="background: linear-gradient(135deg, #4f46e5, #3b82f6); border: none;">
+                                   <i class="bi bi-hand-index-thumb me-1"></i> Choose
+                               </button>`;
+                    }
+
+                    const rowClasses = [];
+                    if (isSelected) rowClasses.push('spec-row-selected');
+                    if (currentProductStructure === 'set' && inSet) rowClasses.push('spec-row-in-set');
 
                     const genderBadge = item.gender_text
                         ? (String(item.gender_text).toLowerCase().includes('women')
@@ -2028,7 +2154,7 @@
                         : '<span class="text-muted">-</span>';
 
                     rowsHtml.push(`
-                        <tr class="${isSelected ? 'spec-row-selected' : ''}" data-spec-id="${item.spec_id}">
+                        <tr class="${rowClasses.join(' ')}" data-spec-id="${item.spec_id}">
                             <td class="text-center fw-bold text-muted">${index + 1}</td>
                             <td class="product-image-cell text-center">${imageHtml}</td>
                             <td class="text-center">${actionHtml}</td>
@@ -2249,6 +2375,154 @@
                 }
             });
 
+            // Toggle Product Structure: Individual vs Set
+            $('input[name="product_structure_type"]').on('change', function() {
+                currentProductStructure = $(this).val();
+                $('#input_is_set').val(currentProductStructure === 'set' ? '1' : '0');
+
+                if (currentProductStructure === 'set') {
+                    $('#structureHelpText').html('<strong>Set Mode Active:</strong> Choose at least 2 products below to bundle into a set. SKU will be auto-generated in backend.');
+                    $('#structureHelpBadge').removeClass('text-secondary').addClass('text-purple border-purple');
+                    $('#setItemsContainer').removeClass('d-none');
+
+                    // Hide Product SKU container (auto-generated in backend for sets)
+                    $('#product_sku_container').addClass('d-none');
+                    $('#product_item_name_container').removeClass('col-md-6').addClass('col-md-12');
+                    $('#set_name_badge').removeClass('d-none');
+                    $('#product_sku_locked_badge').addClass('d-none');
+
+                    // Enable Item Name selector so supplier can choose/add Set Item Name
+                    $('#supplier_item_name_select').next('.select2-container').css('pointer-events', 'auto').find('.select2-selection').removeClass('bg-light');
+                    $('#btnSupplierAddItemName').removeClass('d-none');
+                    $('#product_name_locked_badge').addClass('d-none');
+
+                    // Hide Master Attributes in Set mode
+                    $('#integratedAttributesSection').addClass('d-none');
+
+                    // Clear individual single-product locks
+                    currentSelectedSku = '';
+                    hiddenSkuInput.val('');
+                    $('#selected_spec_id').val('');
+                    $('#product_name_input').prop('readonly', false).removeClass('bg-light');
+                    $('#product_sku_input').prop('readonly', false).removeClass('bg-light').val('');
+
+                    updateSetSummary();
+                } else {
+                    $('#structureHelpText').text('Individual Mode: Select 1 product from the list below.');
+                    $('#structureHelpBadge').removeClass('text-purple border-purple').addClass('text-secondary');
+                    $('#setItemsContainer').addClass('d-none');
+
+                    // Show Product SKU container
+                    $('#product_sku_container').removeClass('d-none');
+                    $('#product_item_name_container').removeClass('col-md-12').addClass('col-md-6');
+                    $('#set_name_badge').addClass('d-none');
+
+                    // Show Master Attributes in Individual mode
+                    $('#integratedAttributesSection').removeClass('d-none');
+                }
+
+                renderSpecificationTable(loadedSpecifications);
+            });
+
+            function updateSetSummary() {
+                $('#input_set_items').val(JSON.stringify(selectedSetItems));
+                $('#setItemsCountBadge').text(selectedSetItems.length + (selectedSetItems.length === 1 ? ' item' : ' items'));
+
+                if (selectedSetItems.length === 0) {
+                    $('#emptySetNotice').removeClass('d-none');
+                    $('#selectedSetItemsList').find('.set-item-chip').remove();
+                    $('#setCalculatedStockBadge').text('0');
+                    $('#total_available_stock_count').text('0');
+                    $('#stock_max_val').text('0');
+                    $('#stock_input').attr('max', 1).val(1);
+                    return;
+                }
+
+                $('#emptySetNotice').addClass('d-none');
+                $('#selectedSetItemsList').find('.set-item-chip').remove();
+
+                let minStock = null;
+
+                selectedSetItems.forEach((si, idx) => {
+                    const stock = parseInt(si.available_stock, 10) || 0;
+                    if (minStock === null || stock < minStock) {
+                        minStock = stock;
+                    }
+
+                    const thumb = si.image_url
+                        ? `<img src="${escapeHtml(si.image_url)}" style="width: 32px; height: 32px; object-fit: cover; border-radius: 4px;">`
+                        : `<i class="bi bi-box text-muted fs-5"></i>`;
+
+                    const chipHtml = `
+                        <div class="set-item-chip">
+                            ${thumb}
+                            <div>
+                                <div class="fw-bold text-dark small" style="line-height: 1.1;">${escapeHtml(si.name)}</div>
+                                <span class="badge bg-light text-muted border font-monospace" style="font-size: 10px;">${escapeHtml(si.sku)}</span>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 10px;">Stock: ${stock}</span>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-1 js-remove-set-item" data-index="${idx}" title="Remove from Set">
+                                <i class="bi bi-x-circle-fill"></i>
+                            </button>
+                        </div>
+                    `;
+                    $('#selectedSetItemsList').append(chipHtml);
+                });
+
+                const maxStock = (minStock !== null && minStock > 0) ? minStock : 1;
+                $('#setCalculatedStockBadge').text(minStock !== null ? minStock : 0);
+                $('#total_available_stock_count').text(minStock !== null ? minStock : 0);
+                $('#stock_max_val').text(maxStock);
+                $('#stock_input').attr('max', maxStock).attr('min', 1).val(maxStock);
+            }
+
+            // Click Add to Set / In Set button
+            tableBody.on('click', '.js-toggle-set-spec', function(e) {
+                e.preventDefault();
+                const idx = parseInt($(this).data('index'), 10);
+                const item = (filteredItems && filteredItems[idx]) ? filteredItems[idx] : loadedSpecifications[idx];
+                if (!item) return;
+
+                const existingIdx = selectedSetItems.findIndex(si => String(si.spec_id) === String(item.spec_id) || (item.sku && si.sku === item.sku));
+                if (existingIdx >= 0) {
+                    selectedSetItems.splice(existingIdx, 1);
+                } else {
+                    const availStock = (item.available_stock !== undefined && item.available_stock !== null)
+                        ? parseInt(item.available_stock, 10)
+                        : (parseInt(item.total_stock, 10) || 0);
+
+                    selectedSetItems.push({
+                        spec_id: item.spec_id || item.id,
+                        sku: item.sku || '',
+                        name: item.item_name_text || item.sku || 'Item',
+                        image_url: item.image_url || '',
+                        available_stock: availStock
+                    });
+                }
+
+                updateSetSummary();
+                renderSpecificationTable(loadedSpecifications);
+            });
+
+            // Click remove button on a set item chip
+            $(document).on('click', '.js-remove-set-item', function(e) {
+                e.preventDefault();
+                const idx = parseInt($(this).data('index'), 10);
+                if (idx >= 0 && idx < selectedSetItems.length) {
+                    selectedSetItems.splice(idx, 1);
+                    updateSetSummary();
+                    renderSpecificationTable(loadedSpecifications);
+                }
+            });
+
+            // Click Clear Set button
+            $('#btnClearSetItems').on('click', function(e) {
+                e.preventDefault();
+                selectedSetItems = [];
+                updateSetSummary();
+                renderSpecificationTable(loadedSpecifications);
+            });
+
             // Handle clicking any submit action button (Save & Next, Save & Exit, etc.)
             $(document).on('click', '.btn-submit-action', function() {
                 const action = $(this).val() || $(this).data('action') || 'save_next';
@@ -2261,12 +2535,28 @@
                 syncFilterHiddenInputs();
 
                 const mode = $('#catalog_mode_input').val();
-                if (mode === 'integrated' && !currentSelectedSku) {
-                    e.preventDefault();
-                    alert('Please choose a product from the Ready Products List first.');
-                    const card = document.getElementById('specTableCard');
-                    if (card) card.scrollIntoView({ behavior: 'smooth' });
-                    return false;
+                if (mode === 'integrated') {
+                    if (currentProductStructure === 'set') {
+                        if (!selectedSetItems || selectedSetItems.length < 2) {
+                            e.preventDefault();
+                            alert('Please select at least 2 component products to create a Set.');
+                            const card = document.getElementById('setItemsContainer');
+                            if (card) card.scrollIntoView({ behavior: 'smooth' });
+                            return false;
+                        }
+                        if (!$('#supplier_item_name_select').val()) {
+                            e.preventDefault();
+                            alert('Please choose or enter an Item Name for the Set.');
+                            $('#supplier_item_name_select').focus();
+                            return false;
+                        }
+                    } else if (!currentSelectedSku) {
+                        e.preventDefault();
+                        alert('Please choose a product from the Ready Products List first.');
+                        const card = document.getElementById('specTableCard');
+                        if (card) card.scrollIntoView({ behavior: 'smooth' });
+                        return false;
+                    }
                 }
 
                 const max = parseInt($('#stock_input').attr('max'), 10);

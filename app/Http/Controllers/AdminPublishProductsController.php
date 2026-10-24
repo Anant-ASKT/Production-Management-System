@@ -522,6 +522,40 @@ class AdminPublishProductsController extends Controller
             $product->stock_qty = isset($supplierProduct->stock) ? (int) $supplierProduct->stock : 25;
         }
 
+        // For a Set product, calculate the live stock as the minimum available stock of all component items
+        $specRow = DB::table('auto_designer_specification_master')->where('sno', $specificationId)->first();
+        if ($specRow && !empty($specRow->is_set) && !empty($specRow->set_items)) {
+            $setItems = is_array($specRow->set_items) ? $specRow->set_items : json_decode($specRow->set_items, true);
+            if (is_array($setItems) && !empty($setItems)) {
+                $minStock = null;
+                foreach ($setItems as $cItem) {
+                    $cSku = $cItem['sku'] ?? '';
+                    $cSpecId = $cItem['spec_id'] ?? ($cItem['id'] ?? null);
+                    $cStock = 0;
+                    if (!empty($cSku) || !empty($cSpecId)) {
+                        $cStock = (int) DB::table('vendor_stock_web')
+                            ->where(function($q) use ($cSku, $cSpecId) {
+                                if ($cSpecId) $q->where('item_id', $cSpecId);
+                                if ($cSku) $q->orWhere('batch_no', $cSku)->orWhere('barcode', $cSku);
+                            })
+                            ->where(function($q) {
+                                $q->where('send_qty', 0)->orWhereNull('send_qty');
+                            })
+                            ->where(function($q) {
+                                $q->where('avilable_qty', '>', 0)->orWhereNull('avilable_qty');
+                            })
+                            ->count();
+                    }
+                    if ($minStock === null || $cStock < $minStock) {
+                        $minStock = $cStock;
+                    }
+                }
+                if ($minStock !== null) {
+                    $product->stock_qty = $minStock;
+                }
+            }
+        }
+
         return $uploadSupplierId;
     }
 

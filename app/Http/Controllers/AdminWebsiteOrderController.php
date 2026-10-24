@@ -561,6 +561,8 @@ class AdminWebsiteOrderController extends Controller
                 'spec_price' => $specData['price'] ?? null,
                 'spec_sale_price' => $specData['sale_price'] ?? null,
                 'spec_min_price' => $specData['min_price'] ?? null,
+                'is_set' => !empty($specData['is_set']),
+                'set_items' => $specData['set_items'] ?? [],
             ]);
         }
 
@@ -778,6 +780,8 @@ class AdminWebsiteOrderController extends Controller
                     'size.size as size_name',
                     'designer.designername as designer_name',
                     'craftsman.name as craftsman_name',
+                    'dsm.is_set',
+                    'dsm.set_items',
                 ])
                 ->get();
 
@@ -828,6 +832,8 @@ class AdminWebsiteOrderController extends Controller
                     'sale_price' => !empty($r->sale_price) ? (float) $r->sale_price : null,
                     'min_price' => !empty($r->min_price) ? (float) $r->min_price : null,
                     'enhanced_image' => $imgPath ? ('/' . ltrim($imgPath, '/')) : null,
+                    'is_set' => !empty($r->is_set),
+                    'set_items' => !empty($r->set_items) ? (is_array($r->set_items) ? $r->set_items : json_decode($r->set_items, true)) : [],
                 ];
 
                 if (!empty($r->sku)) {
@@ -879,6 +885,8 @@ class AdminWebsiteOrderController extends Controller
                     'size.size as size_name',
                     'designer.designername as designer_name',
                     'craftsman.name as craftsman_name',
+                    'dsm.is_set',
+                    'dsm.set_items',
                 ])
                 ->get();
 
@@ -915,6 +923,8 @@ class AdminWebsiteOrderController extends Controller
                     'sale_price' => !empty($r->sale_price) ? (float) $r->sale_price : null,
                     'min_price' => !empty($r->min_price) ? (float) $r->min_price : null,
                     'enhanced_image' => $imgPath ? ('/' . ltrim($imgPath, '/')) : null,
+                    'is_set' => !empty($r->is_set),
+                    'set_items' => !empty($r->set_items) ? (is_array($r->set_items) ? $r->set_items : json_decode($r->set_items, true)) : [],
                 ];
 
                 $byWcId[(int) $r->woocommerce_product_id] = $data;

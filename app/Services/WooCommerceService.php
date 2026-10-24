@@ -513,24 +513,42 @@ class WooCommerceService
             if (!$directUrl) {
                 $fileContent = file_get_contents($localFullPath);
 
-                // Option A: FreeImage Host (official API with multipart attachment, returns direct image CDN URL)
+                // Option A: Uguu CDN (fast, direct raw image URL that WordPress/WooCommerce accepts without Cloudflare blocks)
                 try {
-                    $freeRes = Http::timeout(25)
-                        ->attach('source', $fileContent, $fileName)
-                        ->post('https://freeimage.host/api/1/upload', [
-                            'key' => '6d207e02198a847aa98d0a2a901485a5',
-                            'action' => 'upload',
-                            'format' => 'json'
-                        ]);
-                    if ($freeRes->successful()) {
-                        $freeJson = $freeRes->json();
-                        $candUrl = $freeJson['image']['url'] ?? ($freeJson['image']['display_url'] ?? null);
+                    $uguuRes = Http::timeout(20)
+                        ->attach('files[]', $fileContent, $fileName)
+                        ->post('https://uguu.se/upload');
+                    if ($uguuRes->successful()) {
+                        $uguuJson = $uguuRes->json();
+                        $candUrl = $uguuJson['files'][0]['url'] ?? null;
                         if (!empty($candUrl) && filter_var($candUrl, FILTER_VALIDATE_URL)) {
                             $directUrl = $candUrl;
                         }
                     }
                 } catch (\Exception $e) {
-                    Log::warning('FreeImage upload failed: ' . $e->getMessage());
+                    Log::warning('Uguu upload failed: ' . $e->getMessage());
+                }
+
+                // Option B: FreeImage Host (fallback)
+                if (!$directUrl) {
+                    try {
+                        $freeRes = Http::timeout(25)
+                            ->attach('source', $fileContent, $fileName)
+                            ->post('https://freeimage.host/api/1/upload', [
+                                'key' => '6d207e02198a847aa98d0a2a901485a5',
+                                'action' => 'upload',
+                                'format' => 'json'
+                            ]);
+                        if ($freeRes->successful()) {
+                            $freeJson = $freeRes->json();
+                            $candUrl = $freeJson['image']['url'] ?? ($freeJson['image']['display_url'] ?? null);
+                            if (!empty($candUrl) && filter_var($candUrl, FILTER_VALIDATE_URL)) {
+                                $directUrl = $candUrl;
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning('FreeImage upload failed: ' . $e->getMessage());
+                    }
                 }
 
                 // Option B: Catbox (fallback)

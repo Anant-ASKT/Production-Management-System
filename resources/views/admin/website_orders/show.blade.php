@@ -362,9 +362,65 @@
                                     @if(count($attrs) > 0)
                                         <div class="text-muted" style="font-size: 0.75rem;">{{ implode(' • ', $attrs) }}</div>
                                     @endif
+
+                                    {{-- If this is a Set / Bundle, show the unpacked warehouse items to pick --}}
+                                    @if(!empty($item['is_set']) && !empty($item['set_items']) && is_array($item['set_items']))
+                                        <div class="mt-2 p-2.5 rounded-3 border" style="background-color: #fdf4ff; border-color: #f0abfc !important;">
+                                            <div class="d-flex align-items-center gap-1.5 fw-bold mb-2" style="color: #86198f; font-size: 0.75rem;">
+                                                <i class="bi bi-collection-fill"></i>
+                                                <span>COMBO SET / BUNDLE ({{ count($item['set_items']) }} Warehouse Items to Pick & Pack):</span>
+                                            </div>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm table-bordered bg-white mb-0" style="font-size: 0.74rem;">
+                                                    <thead class="table-light text-secondary">
+                                                        <tr>
+                                                            <th style="width: 32px;" class="text-center">#</th>
+                                                            <th>Item Name</th>
+                                                            <th>Item SKU</th>
+                                                            <th>Warehouse Barcode</th>
+                                                            <th class="text-center" style="width: 60px;">Stock</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @foreach($item['set_items'] as $cIdx => $cItem)
+                                                            <tr>
+                                                                <td class="text-center text-muted">{{ $cIdx + 1 }}</td>
+                                                                <td>
+                                                                    <div class="d-flex align-items-center gap-2">
+                                                                        @if(!empty($cItem['image']))
+                                                                            <img src="{{ asset($cItem['image']) }}" style="width: 24px; height: 24px; object-fit: cover; border-radius: 4px;" alt="">
+                                                                        @endif
+                                                                        <span class="fw-semibold text-dark">{{ $cItem['name'] ?? 'Component Product' }}</span>
+                                                                    </div>
+                                                                </td>
+                                                                <td>
+                                                                    <span class="font-monospace text-secondary fw-semibold">{{ $cItem['sku'] ?? '—' }}</span>
+                                                                </td>
+                                                                <td>
+                                                                    <span class="font-monospace text-primary fw-bold">
+                                                                        <i class="bi bi-upc-scan me-1 text-secondary"></i>{{ $cItem['barcode'] ?? '—' }}
+                                                                    </span>
+                                                                </td>
+                                                                <td class="text-center">
+                                                                    <span class="badge bg-light text-dark border">{{ $cItem['stock'] ?? 0 }}</span>
+                                                                </td>
+                                                            </tr>
+                                                        @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    @endif
                                 </td>
                                 <td>
                                     <span class="font-monospace text-dark fw-semibold">{{ $item['resolved_sku'] ?: ($item['sku'] ?: '—') }}</span>
+                                    @if(!empty($item['is_set']))
+                                        <div class="mt-1">
+                                            <span class="badge px-1.5 py-0.5 rounded-pill" style="font-size: 0.68rem; background-color: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe;">
+                                                <i class="bi bi-collection me-1"></i>Product Set
+                                            </span>
+                                        </div>
+                                    @endif
                                     @if(!empty($item['barcode']))
                                         <div class="small text-muted font-monospace mt-1" style="font-size: 0.72rem;" title="Item Barcode">
                                             <i class="bi bi-upc-scan me-1 text-secondary"></i>{{ $item['barcode'] }}

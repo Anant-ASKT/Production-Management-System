@@ -18,11 +18,13 @@ class SupplierProduct extends Model
         'design_names', 'compositions', 'mfg_processes', 'craftsmen', 'designers', 'variations',
         'item_type', 'designer', 'gender', 'composition', 'colour', 'yarn', 'size', 'embellishment',
         'manufacturing_process', 'craftsman', 'manufacture', 'collection', 'item_name',
-        'is_integrated', 'product_sku', 'status_done'
+        'is_integrated', 'product_sku', 'status_done', 'is_set', 'set_items'
     ];
 
     protected $casts = [
         'is_integrated' => 'boolean',
+        'is_set' => 'boolean',
+        'set_items' => 'array',
     ];
 
     protected $appends = [

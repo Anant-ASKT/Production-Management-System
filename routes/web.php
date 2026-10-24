@@ -1134,12 +1134,14 @@ Route::get('/ItemsDesigner_Masterwithbarcode/{path}', function ($path) {
     // If requesting a specific image file, try fetching from remote live server
     $ext = strtolower(pathinfo($cleanPath, PATHINFO_EXTENSION));
     if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) {
-        $remoteUrl = 'https://idi.amanaccounting.in/ItemsDesigner_Masterwithbarcode/' . $cleanPath;
+        $remoteUrl = 'https://fashion.handknitindia.com/ItemsDesigner_Masterwithbarcode/' . $cleanPath;
         try {
             $context = stream_context_create([
                 'http' => [
-                    'timeout' => 5,
+                    'timeout' => 8,
                     'ignore_errors' => true,
+                    'follow_location' => 1,
+                    'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 ],
                 'ssl' => [
                     'verify_peer' => false,
@@ -1147,7 +1149,7 @@ Route::get('/ItemsDesigner_Masterwithbarcode/{path}', function ($path) {
                 ]
             ]);
             $content = @file_get_contents($remoteUrl, false, $context);
-            if ($content !== false && !empty($content) && (isset($http_response_header[0]) && str_contains($http_response_header[0], '200'))) {
+            if ($content !== false && !empty($content)) {
                 $dir = dirname($localFile);
                 if (!is_dir($dir)) {
                     @mkdir($dir, 0755, true);
