@@ -18,7 +18,7 @@ class WooCommerceService
      * @param int|null $categoryId
      * @return array
      */
-    public function publishProduct($specificationId, $targetSupplierId = null, $categoryId = null)
+    public function publishProduct($specificationId, $targetSupplierId = null, $categoryId = null, array $customPricing = [])
     {
         // 1. Fetch specification details with master attributes & AI content
         $product = DB::table('auto_designer_specification_master as dsm')
@@ -354,6 +354,18 @@ class WooCommerceService
             $metaData[] = ['key' => '_min_price', 'value' => (string) $minPrice];
         }
 
+        // Override with custom pricing if provided by admin
+        if (!empty($customPricing)) {
+            if (isset($customPricing['regular_price']) && $customPricing['regular_price'] !== '' && $customPricing['regular_price'] !== null) {
+                $regularPrice = (string) $customPricing['regular_price'];
+            }
+            if (array_key_exists('sale_price', $customPricing)) {
+                $salePrice = ($customPricing['sale_price'] !== '' && $customPricing['sale_price'] !== null)
+                    ? (string) $customPricing['sale_price']
+                    : '';
+            }
+        }
+
         // 12. Check if already published to this target supplier
         $publishedRecord = DB::table('published_products')
             ->where('specification_id', $specificationId)
@@ -383,8 +395,10 @@ class WooCommerceService
             'stock_status' => 'instock'
         ];
 
-        if (!empty($salePrice)) {
+        if ($salePrice !== '') {
             $payload['sale_price'] = $salePrice;
+        } else {
+            $payload['sale_price'] = '';
         }
 
         if (!empty($wcImages)) {
@@ -444,12 +458,19 @@ class WooCommerceService
                 );
 
                 // Update specification master
+                $specMasterUpdate = [
+                    'oc_product_id' => $wcProductId,
+                    'status' => 'Published'
+                ];
+                if (!empty($regularPrice)) {
+                    $specMasterUpdate['price'] = $regularPrice;
+                }
+                if ($salePrice !== '') {
+                    $specMasterUpdate['sale_price'] = $salePrice;
+                }
                 DB::table('auto_designer_specification_master')
                     ->where('sno', $specificationId)
-                    ->update([
-                        'oc_product_id' => $wcProductId,
-                        'status' => 'Published'
-                    ]);
+                    ->update($specMasterUpdate);
 
                 return [
                     'success' => true,

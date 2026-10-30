@@ -589,12 +589,34 @@ class AdminPublishProductsController extends Controller
         $request->validate([
             'target_supplier_id' => 'required|exists:suppliers,sno',
             'category_id' => 'required|exists:categories,sno',
+            'regular_price' => 'nullable|numeric|min:0',
+            'sale_price' => 'nullable|numeric|min:0',
         ]);
 
         $targetSupplierId = (int) $request->input('target_supplier_id');
         $categoryId = $request->filled('category_id') ? (int) $request->input('category_id') : null;
 
-        $result = $wcService->publishProduct((int) $id, $targetSupplierId, $categoryId);
+        $regularPrice = $request->input('regular_price');
+        $salePrice = $request->input('sale_price');
+
+        if ($regularPrice !== null && $regularPrice !== '' && $salePrice !== null && $salePrice !== '') {
+            if ((float) $salePrice > (float) $regularPrice) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sale price cannot be greater than regular price.'
+                ], 422);
+            }
+        }
+
+        $customPricing = [];
+        if ($request->filled('regular_price')) {
+            $customPricing['regular_price'] = (string) $regularPrice;
+        }
+        if ($request->has('sale_price')) {
+            $customPricing['sale_price'] = ($salePrice !== null && $salePrice !== '') ? (string) $salePrice : '';
+        }
+
+        $result = $wcService->publishProduct((int) $id, $targetSupplierId, $categoryId, $customPricing);
 
         return response()->json($result);
     }

@@ -428,6 +428,44 @@
                     <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Please select a store category or subcategory. Subcategories are automatically linked under their parent on WooCommerce.</small>
                 </div>
 
+                {{-- Pricing Controls (Price & Sale Price) --}}
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small text-dark mb-1">
+                            Price / Regular Price <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white text-muted">₹</span>
+                            <input type="number" 
+                                   step="0.01" 
+                                   min="0" 
+                                   id="modalRegularPrice" 
+                                   class="form-control rounded-end-3" 
+                                   value="{{ $product->regular_price ?? $product->price ?? '' }}" 
+                                   placeholder="0.00" 
+                                   required>
+                        </div>
+                        <small class="text-muted d-block mt-0.5" style="font-size: 0.72rem;">Regular selling price for this website.</small>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small text-dark mb-1">
+                            Sale Price <span class="text-muted fw-normal">(Optional)</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white text-muted">₹</span>
+                            <input type="number" 
+                                   step="0.01" 
+                                   min="0" 
+                                   id="modalSalePrice" 
+                                   class="form-control rounded-end-3" 
+                                   value="{{ $product->sale_price ?? '' }}" 
+                                   placeholder="0.00">
+                        </div>
+                        <small class="text-muted d-block mt-0.5" style="font-size: 0.72rem;">Discounted offer price (must be &le; Price).</small>
+                    </div>
+                </div>
+
                 <div class="p-3 bg-primary-subtle bg-opacity-25 rounded-3 border border-primary-subtle text-secondary" style="font-size: 0.78rem;">
                     <i class="bi bi-info-circle text-primary me-1"></i>
                     Publishing will sync the AI-generated title, description, SEO meta tags, product attributes, pricing, stock, category hierarchy, and approved AI images directly to WooCommerce.
@@ -617,9 +655,13 @@ function executePublishFromModal() {
     const btn = document.getElementById('btnModalConfirmPublish');
     const supplierSelect = document.getElementById('modalTargetSupplierSelect');
     const categorySelect = document.getElementById('modalTargetCategorySelect');
+    const regularPriceInput = document.getElementById('modalRegularPrice');
+    const salePriceInput = document.getElementById('modalSalePrice');
 
     const targetSupplierId = supplierSelect.value;
     const categoryId = categorySelect.value;
+    const regularPrice = regularPriceInput ? regularPriceInput.value.trim() : '';
+    const salePrice = salePriceInput ? salePriceInput.value.trim() : '';
 
     if (!targetSupplierId) {
         alert('Please select a Target Supplier / Store.');
@@ -630,6 +672,20 @@ function executePublishFromModal() {
         alert('Please select a Store Category from the dropdown.');
         categorySelect.focus();
         return;
+    }
+
+    if (!regularPrice || isNaN(parseFloat(regularPrice)) || parseFloat(regularPrice) < 0) {
+        alert('Please enter a valid Price / Regular Price.');
+        if (regularPriceInput) regularPriceInput.focus();
+        return;
+    }
+
+    if (salePrice !== '' && !isNaN(parseFloat(salePrice))) {
+        if (parseFloat(salePrice) > parseFloat(regularPrice)) {
+            alert('Sale price cannot be greater than the regular price.');
+            if (salePriceInput) salePriceInput.focus();
+            return;
+        }
     }
 
     const selectedOpt = supplierSelect.options[supplierSelect.selectedIndex];
@@ -656,7 +712,9 @@ function executePublishFromModal() {
         },
         body: JSON.stringify({
             target_supplier_id: targetSupplierId,
-            category_id: categoryId || null
+            category_id: categoryId || null,
+            regular_price: regularPrice,
+            sale_price: salePrice
         })
     })
     .then(response => response.json())
