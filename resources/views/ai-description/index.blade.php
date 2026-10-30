@@ -152,8 +152,8 @@
                             AI Approved Image
                         </th>
 
-                        <th style="width:110px;">
-                            Select
+                        <th style="width:170px;">
+                            Action
                         </th>
 
                         <th>
@@ -182,7 +182,7 @@
                         <tr>
 
                             <td
-                                colspan="6"
+                                colspan="7"
                                 class="text-center py-5 text-muted"
                             >
 
@@ -899,7 +899,17 @@
 
             {{-- ACTION --}}
 
-            <div class="ai-description-action d-flex justify-content-end gap-2">
+            <div class="ai-description-action d-flex justify-content-end gap-2 flex-wrap">
+
+                <a
+                    href="#"
+                    id="btnPublishFromModal"
+                    class="btn btn-dark"
+                    style="display:none;"
+                >
+                    <i class="bi bi-cloud-upload me-2"></i>
+                    Publish Product
+                </a>
 
                 <button
                     type="button"
@@ -1865,7 +1875,7 @@ document.addEventListener(
             <tr>
 
                 <td
-                    colspan="6"
+                    colspan="7"
                     class="text-center text-muted py-5"
                 >
 
@@ -1976,41 +1986,49 @@ if (aiImage) {
     if (hasAiDescription) {
 
         selectButton = `
+            <div class="d-flex align-items-center gap-1 flex-wrap">
+                <button
+                    type="button"
+                    class="btn btn-sm btn-success btn-select-ai-product"
+                    data-specification-id="${escapeHtml(
+                        product.sno
+                    )}"
+                    title="View AI Approved Product (Saved)"
+                >
+                    <i class="bi bi-eye me-1"></i>
+                    View
+                    <span class="badge bg-white text-success ms-1" style="font-size:0.65rem;">Saved</span>
+                </button>
 
-            <button
-                type="button"
-                class="btn btn-sm btn-success btn-select-ai-product"
-                data-specification-id="${escapeHtml(
-                    product.sno
-                )}"
-            >
-
-                <i class="bi bi-check-circle me-1"></i>
-
-                AI Description Saved
-
-            </button>
-
+                <a
+                    href="/admin/publish-products/${encodeURIComponent(
+                        product.sno
+                    )}"
+                    class="btn btn-sm btn-dark btn-publish-product"
+                    title="Publish Product"
+                >
+                    <i class="bi bi-cloud-upload me-1"></i>
+                    Publish
+                </a>
+            </div>
         `;
 
     } else {
 
         selectButton = `
-
-            <button
-                type="button"
-                class="btn btn-sm btn-primary btn-select-ai-product"
-                data-specification-id="${escapeHtml(
-                    product.sno
-                )}"
-            >
-
-                <i class="bi bi-stars me-1"></i>
-
-                Select
-
-            </button>
-
+            <div class="d-flex align-items-center gap-1 flex-wrap">
+                <button
+                    type="button"
+                    class="btn btn-sm btn-primary btn-select-ai-product"
+                    data-specification-id="${escapeHtml(
+                        product.sno
+                    )}"
+                    title="View AI Approved Product"
+                >
+                    <i class="bi bi-eye me-1"></i>
+                    View
+                </button>
+            </div>
         `;
 
     }
@@ -2777,6 +2795,12 @@ async function loadApprovedImages(
         window.clearAiDescriptionFields();
     }
 
+    const modalPublishBtn = document.getElementById('btnPublishFromModal');
+    if (modalPublishBtn) {
+        modalPublishBtn.style.display = 'none';
+        modalPublishBtn.href = '#';
+    }
+
 
     /*
     |--------------------------------------------------------------------------
@@ -3195,7 +3219,10 @@ async function loadApprovedImages(
             'block';
 
         const savedAi = data.ai_description || null;
+        let isDescriptionSaved = false;
+
         if (savedAi && savedAi.AI_product_description && String(savedAi.AI_product_description).trim() !== '') {
+            isDescriptionSaved = true;
             const setVal = (id, val) => {
                 const el = document.getElementById(id);
                 if (el) el.value = val || '';
@@ -3219,6 +3246,7 @@ async function loadApprovedImages(
                 product.AI_Imagealttext = savedAi.AI_Imagealttext;
             }
         } else if (product && product.AI_product_description && String(product.AI_product_description).trim() !== '') {
+            isDescriptionSaved = true;
             const setVal = (id, val) => {
                 const el = document.getElementById(id);
                 if (el) el.value = val || '';
@@ -3230,6 +3258,17 @@ async function loadApprovedImages(
             setVal('txt_metaDescription', product.AI_Metadescription || '');
             setVal('txt_productTags', product.AI_Producttag || '');
             setVal('txt_image_alt_text', product.AI_Imagealttext || '');
+        }
+
+        const modalPublishBtn = document.getElementById('btnPublishFromModal');
+        if (modalPublishBtn) {
+            if (isDescriptionSaved) {
+                modalPublishBtn.href = `/admin/publish-products/${encodeURIComponent(specificationId)}`;
+                modalPublishBtn.style.display = 'inline-flex';
+            } else {
+                modalPublishBtn.style.display = 'none';
+                modalPublishBtn.href = '#';
+            }
         }
 
 
@@ -3980,12 +4019,26 @@ document.addEventListener(
                 button.innerHTML = `
 
                     <i
-                        class="bi bi-check-circle me-1"
+                        class="bi bi-eye me-1"
                     ></i>
 
-                    AI Description Saved
+                    View
+
+                    <span class="badge bg-white text-success ms-1" style="font-size:0.65rem;">Saved</span>
 
                 `;
+                button.title = 'View AI Approved Product (Saved)';
+
+                // Ensure Publish button exists next to View button
+                const btnContainer = button.parentElement;
+                if (btnContainer && !btnContainer.querySelector('.btn-publish-product')) {
+                    const publishLink = document.createElement('a');
+                    publishLink.href = `/admin/publish-products/${encodeURIComponent(specificationId)}`;
+                    publishLink.className = 'btn btn-sm btn-dark btn-publish-product';
+                    publishLink.title = 'Publish Product';
+                    publishLink.innerHTML = '<i class="bi bi-cloud-upload me-1"></i> Publish';
+                    btnContainer.appendChild(publishLink);
+                }
 
             }
 
@@ -4451,14 +4504,20 @@ document.addEventListener(
                         product.sno
                     );
 
+                    const modalPublishBtn = document.getElementById('btnPublishFromModal');
+                    if (modalPublishBtn) {
+                        modalPublishBtn.href = `/admin/publish-products/${encodeURIComponent(product.sno)}`;
+                        modalPublishBtn.style.display = 'inline-flex';
+                    }
+
 
                     /*
                     |--------------------------------------------------------------------------
-                    | SUCCESS ALERT
+                    | SUCCESS ALERT WITH OPTIONAL REDIRECT TO PUBLISH PAGE
                     |--------------------------------------------------------------------------
                     */
 
-                    await Swal.fire({
+                    const swalResult = await Swal.fire({
 
                         icon:
                             'success',
@@ -4473,13 +4532,27 @@ document.addEventListener(
                             result.message ||
                             'AI description saved successfully.',
 
+                        showCancelButton:
+                            true,
+
                         confirmButtonText:
-                            'OK',
+                            '<i class="bi bi-cloud-upload me-1"></i> Publish Now',
+
+                        cancelButtonText:
+                            'Stay on Page',
 
                         confirmButtonColor:
-                            '#198754'
+                            '#212529',
+
+                        cancelButtonColor:
+                            '#6c757d'
 
                     });
+
+                    if (swalResult.isConfirmed) {
+                        window.location.href = `/admin/publish-products/${encodeURIComponent(product.sno)}`;
+                        return;
+                    }
 
 
                     /*
