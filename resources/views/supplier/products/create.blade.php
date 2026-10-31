@@ -497,6 +497,7 @@
                 <input type="hidden" name="selected_vendor_sku" id="select_vendor_sku" value="{{ old('product_sku') }}">
                 <input type="hidden" name="action_type" id="form_action_type" value="save_next">
                 <input type="hidden" name="selected_spec_id" id="selected_spec_id" value="{{ old('selected_spec_id', request('selected_spec_id')) }}">
+                <input type="hidden" name="spec_available_stock" id="spec_available_stock" value="{{ old('spec_available_stock') }}">
                 <input type="hidden" name="filter_item_type" id="hidden_filter_item_type" value="{{ request('item_type', request('filter_item_type')) }}">
                 <input type="hidden" name="filter_item_name" id="hidden_filter_item_name" value="{{ request('item_name', request('filter_item_name')) }}">
                 <input type="hidden" name="filter_composition" id="hidden_filter_composition" value="{{ request('composition', request('filter_composition')) }}">
@@ -1000,12 +1001,12 @@
                     <label class="form-label fw-bold">
                         Stock
                         @if(!empty($isIntegrated))
-                            <span class="badge bg-success-subtle text-success border border-success-subtle ms-1" id="total_available_stock_badge">Total Available: <span id="total_available_stock_count">0</span></span>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle ms-1" id="total_available_stock_badge">Total Available: <span id="total_available_stock_count">{{ old('spec_available_stock', 0) }}</span></span>
                         @endif
                     </label>
-                    <input type="number" name="stock" id="stock_input" class="form-control" value="{{ old('stock', 1) }}" min="1">
+                    <input type="number" name="stock" id="stock_input" class="form-control" value="{{ old('stock', 1) }}" min="1" @if(old('spec_available_stock')) max="{{ old('spec_available_stock') }}" @endif>
                     @if(!empty($isIntegrated))
-                        <small class="text-danger d-none" id="stock_max_warning"><i class="bi bi-exclamation-triangle-fill me-1"></i>Cannot add more than actual stock (<span id="stock_max_val">0</span>)</small>
+                        <small class="text-danger d-none" id="stock_max_warning"><i class="bi bi-exclamation-triangle-fill me-1"></i>Cannot add more than actual stock (<span id="stock_max_val">{{ old('spec_available_stock', 0) }}</span>)</small>
                     @endif
                 </div>
                 
@@ -2073,6 +2074,7 @@
                 currentSelectedSku = '';
                 hiddenSkuInput.val('');
                 $('#selected_spec_id').val('');
+                $('#spec_available_stock').val('');
 
                 // Clear Product Name & SKU
                 userTypedName = false;
@@ -2582,6 +2584,7 @@
                 $('#total_available_stock_count').text(availStock);
                 $('#stock_max_val').text(maxStock);
                 $('#stock_input').attr('max', maxStock).attr('min', 1).val(maxStock);
+                $('#spec_available_stock').val(availStock);
                 $('#stock_max_warning').addClass('d-none');
 
                 // Auto-fill Image for this specific product
@@ -2654,6 +2657,7 @@
                     currentSelectedSku = '';
                     hiddenSkuInput.val('');
                     $('#selected_spec_id').val('');
+                $('#spec_available_stock').val('');
                     $('#product_name_input').prop('readonly', false).removeClass('bg-light');
                     $('#product_sku_input').prop('readonly', false).removeClass('bg-light').val('');
 

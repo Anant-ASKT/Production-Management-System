@@ -182,7 +182,8 @@ class ProductController extends Controller
             'main_image', 'sub_images', '_token', 'catalog_mode', 'catalog_mode_switch',
             'existing_spec_image', 'existing_spec_sub_images', 'action_type',
             'filter_item_type', 'filter_item_name', 'filter_composition', 'filter_gender',
-            'filter_stock_qty', 'selected_spec_id', 'product_structure_type'
+            'filter_stock_qty', 'selected_spec_id', 'product_structure_type',
+            'spec_available_stock'
         ]);
         $data['is_integrated'] = $isProductIntegrated ? 1 : 0;
         $data['is_set'] = $isSet ? 1 : 0;
@@ -218,22 +219,8 @@ class ProductController extends Controller
                 foreach ($setItems as $sItem) {
                     $sSku = $sItem['sku'] ?? '';
                     $sSpecId = $sItem['spec_id'] ?? ($sItem['id'] ?? null);
-                    $sStock = 0;
-                    if (!empty($sSku)) {
-                        $stockByBarcode = (int) \Illuminate\Support\Facades\DB::table('vendor_stock')
-                            ->where('barcode', $sSku)
-                            ->sum(\Illuminate\Support\Facades\DB::raw('case when avilable_qty > 0 then avilable_qty else 0 end'));
-                        $stockByItemId = 0;
-                        if (!empty($sSpecId)) {
-                            $stockByItemId = (int) \Illuminate\Support\Facades\DB::table('vendor_stock')
-                                ->where('item_id', $sSpecId)
-                                ->sum(\Illuminate\Support\Facades\DB::raw('case when avilable_qty > 0 then avilable_qty else 0 end'));
-                        }
-                        $sStock = max($stockByBarcode, $stockByItemId);
-                    }
-                    if ($sStock <= 0 && isset($sItem['available_stock'])) {
-                        $sStock = (int) $sItem['available_stock'];
-                    }
+                    $sFallback = $sItem['available_stock'] ?? null;
+                    $sStock = $this->resolveSpecificationAvailableStock($sSpecId, $sSku, $sFallback);
 
                     if ($minSetStock === null || $sStock < $minSetStock) {
                         $minSetStock = $sStock;
@@ -249,22 +236,13 @@ class ProductController extends Controller
                 $data['set_items'] = null;
 
                 // Stock cannot be more than actual available stock for individual product
-                if ($request->filled('product_sku')) {
-                    $sku = $request->product_sku;
-                    $stockByBarcode = (int) \Illuminate\Support\Facades\DB::table('vendor_stock')
-                        ->where('barcode', $sku)
-                        ->sum(\Illuminate\Support\Facades\DB::raw('case when avilable_qty > 0 then avilable_qty else 0 end'));
+                $specId = $request->input('selected_spec_id');
+                $sku = $request->input('product_sku');
+                $fallbackStock = $request->input('spec_available_stock');
 
-                    $stockByItemId = (int) \Illuminate\Support\Facades\DB::table('vendor_stock as vs')
-                        ->join('auto_designer_specification_master as spec', 'spec.id', '=', 'vs.item_id')
-                        ->where(function($w) use ($sku) {
-                            $w->where('spec.sku', $sku)
-                              ->orWhere('spec.sku_supplier', $sku)
-                              ->orWhere('spec.barcode', $sku);
-                        })
-                        ->sum(\Illuminate\Support\Facades\DB::raw('case when vs.avilable_qty > 0 then vs.avilable_qty else 0 end'));
+                if (!empty($specId) || !empty($sku)) {
+                    $maxAvailStock = $this->resolveSpecificationAvailableStock($specId, $sku, $fallbackStock);
 
-                    $maxAvailStock = max($stockByBarcode, $stockByItemId);
                     if ($maxAvailStock > 0 && $data['stock'] > $maxAvailStock) {
                         return redirect()->back()
                             ->withInput()
@@ -1305,6 +1283,69 @@ class ProductController extends Controller
 
         return redirect()->route('supplier.products.index')
             ->with('success', "Product '{$product->name}' sent to Photo Section successfully.");
+    }
+
+    /**
+     * Resolve the exact actual available stock for a product specification,
+     * ensuring 100% parity with searchSpecifications / Ready Products List.
+     */
+    protected function resolveSpecificationAvailableStock($specId, $sku, $fallbackStock = null)
+    {
+        $specRow = null;
+        if (!empty($specId)) {
+            $specRow = \Illuminate\Support\Facades\DB::table('auto_designer_specification_master')
+                ->where('id', $specId)
+                ->orWhere('sno', $specId)
+                ->first();
+        }
+        if (!$specRow && !empty($sku)) {
+            $specRow = \Illuminate\Support\Facades\DB::table('auto_designer_specification_master')
+                ->where('sku', $sku)
+                ->orWhere('sku_supplier', $sku)
+                ->orWhere('barcode', $sku)
+                ->first();
+        }
+
+        $stock = 0;
+        if ($specRow) {
+            $barStock = 0;
+            if (!empty($specRow->barcode)) {
+                $barStock = (int) \Illuminate\Support\Facades\DB::table('vendor_stock')
+                    ->where('barcode', $specRow->barcode)
+                    ->sum(\Illuminate\Support\Facades\DB::raw('case when avilable_qty > 0 then avilable_qty else 0 end'));
+            }
+
+            $itemStock = (int) \Illuminate\Support\Facades\DB::table('vendor_stock')
+                ->where(function($w) use ($specRow) {
+                    $w->where('item_id', $specRow->id)
+                      ->orWhere('g_id', $specRow->id);
+                })
+                ->sum(\Illuminate\Support\Facades\DB::raw('case when avilable_qty > 0 then avilable_qty else 0 end'));
+
+            $skuDirectStock = 0;
+            if (!empty($sku) && $sku !== $specRow->barcode) {
+                $skuDirectStock = (int) \Illuminate\Support\Facades\DB::table('vendor_stock')
+                    ->where('barcode', $sku)
+                    ->sum(\Illuminate\Support\Facades\DB::raw('case when avilable_qty > 0 then avilable_qty else 0 end'));
+            }
+
+            // Exactly matches searchSpecifications logic:
+            // COALESCE(NULLIF(vs_bar.available_stock, 0), vs_item.available_stock, 0)
+            $stock = ($barStock > 0) ? $barStock : $itemStock;
+            if ($stock <= 0) {
+                $stock = max($barStock, $itemStock, $skuDirectStock);
+            }
+        } elseif (!empty($sku)) {
+            $stock = (int) \Illuminate\Support\Facades\DB::table('vendor_stock')
+                ->where('barcode', $sku)
+                ->sum(\Illuminate\Support\Facades\DB::raw('case when avilable_qty > 0 then avilable_qty else 0 end'));
+        }
+
+        if ($stock <= 0 && $fallbackStock !== null && (int)$fallbackStock > 0) {
+            $stock = (int) $fallbackStock;
+        }
+
+        return $stock;
     }
 
     protected function dispatchProductToSpecification(SupplierProduct $product, $user, $supplierId)
