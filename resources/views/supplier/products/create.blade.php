@@ -836,7 +836,7 @@
                                     <tr>
                                         <th style="width: 50px;" class="text-center">#</th>
                                         <th class="text-center" style="width: 85px;">Image</th>
-                                        <th class="text-center" style="width: 110px;">Action</th>
+                                        <th class="text-center" style="width: 125px; min-width: 115px;">Action</th>
                                         <th style="min-width: 140px;">Item Type</th>
                                         <th style="min-width: 200px;">Item Name</th>
                                         <th style="min-width: 140px;">Composition</th>
@@ -2335,9 +2335,17 @@
                         `;
                     }
 
-                    let actionHtml = '';
+                    const stockBadgeUpper = `
+                        <div class="mb-1">
+                            <span class="badge ${availStock > 0 ? 'bg-success' : 'bg-secondary'} px-2 py-0.5 shadow-sm" style="font-size: 0.72rem;" title="Total Available Stock: ${availStock}">
+                                <i class="bi bi-box-seam me-1"></i>Stock: ${availStock}
+                            </span>
+                        </div>
+                    `;
+
+                    let btnHtml = '';
                     if (currentProductStructure === 'set') {
-                        actionHtml = inSet
+                        btnHtml = inSet
                             ? `<button type="button" class="btn btn-sm btn-purple fw-bold shadow-sm px-2 js-toggle-set-spec" data-index="${index}">
                                    <i class="bi bi-check-circle-fill me-1"></i> In Set
                                </button>`
@@ -2345,7 +2353,7 @@
                                    <i class="bi bi-plus-circle me-1"></i> Add to Set
                                </button>`;
                     } else {
-                        actionHtml = isSelected
+                        btnHtml = isSelected
                             ? `<button type="button" class="btn btn-sm btn-success fw-bold shadow-sm px-3 disabled" style="background: linear-gradient(135deg, #10b981, #059669); border: none;">
                                    <i class="bi bi-check-circle-fill me-1"></i> Selected
                                </button>`
@@ -2353,6 +2361,8 @@
                                    <i class="bi bi-hand-index-thumb me-1"></i> Choose
                                </button>`;
                     }
+
+                    const actionHtml = stockBadgeUpper + btnHtml;
 
                     const rowClasses = [];
                     if (isSelected) rowClasses.push('spec-row-selected');
