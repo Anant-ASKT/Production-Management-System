@@ -293,12 +293,13 @@ class AdminPublishedProductsController extends Controller
         $originSupplier = DB::table('suppliers')->where('sno', $published->origin_supplier_id ?: $product->supplier_id)->first();
 
         // 5. Publisher user
-        $publisher = $published->published_by ? DB::table('users')->where('id', $published->published_by)->first() : null;
+        $publisher = $published->published_by ? DB::table('pm_users')->where('id', $published->published_by)->first() : null;
+        //$publisher = null;
 
         // 6. All publications across all stores for this product specification
         $allPublications = DB::table('published_products as pp')
             ->join('suppliers as s', 's.sno', '=', 'pp.target_supplier_id')
-            ->leftJoin('users as u', 'u.id', '=', 'pp.published_by')
+            ->leftJoin('pm_users as u', 'u.id', '=', 'pp.published_by')
             ->where('pp.specification_id', $specId)
             ->select([
                 'pp.*',
